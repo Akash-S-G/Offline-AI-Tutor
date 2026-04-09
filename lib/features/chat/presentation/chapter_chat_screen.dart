@@ -1,0 +1,2117 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import '../../course/domain/course_tree.dart';
+import '../application/chat_latency_benchmark_service.dart';
+import '../application/conversation_memory_service.dart';
+import '../application/simple_ai_chat_component.dart';
+import '../application/tutor_prompt_builder.dart';
+import '../data/platform_tutor_inference_gateway.dart';
+import '../data/tutor_inference_gateway.dart';
+import '../data/local/chat_memory_policy_repository.dart';
+import '../data/local/linux_llm_config_service.dart';
+import '../domain/tutor_message.dart';
+import '../../translation/application/separate_translation_layer_service.dart';
+import '../../translation/data/local/translation_engine_config_service.dart';
+import '../../translation/domain/translation_engine_catalog.dart';
+import '../../rag/application/embedding_index_service.dart';
+import '../../rag/data/local/embedding_index_repository.dart';
+import '../../rag/data/local/rag_repository.dart';
+import '../data/local/chat_session_repository.dart';
+import '../data/llm_admin_channel_service.dart';
+import '../../progress/data/local/progress_repository.dart';
+import '../../shared/application/offline_error_taxonomy.dart';
+
+class ChapterChatScreen extends StatefulWidget {
+  const ChapterChatScreen({
+    required this.course,
+    required this.subject,
+    required this.chapter,
+    super.key,
+  });
+
+  final Course course;
+  final Subject subject;
+  final Chapter chapter;
+
+  @override
+  State<ChapterChatScreen> createState() => _ChapterChatScreenState();
+}
+
+class _ChapterChatScreenState extends State<ChapterChatScreen> {
+  static final RegExp _ansiEscape = RegExp(r'\x1B\[[0-9;]*[A-Za-z]');
+
+  final TutorInferenceGateway _gateway = PlatformTutorInferenceGateway();
+  late final ChatLatencyBenchmarkService _benchmarkService =
+      ChatLatencyBenchmarkService(gateway: _gateway);
+  final SimpleAiChatComponent _simpleAiComponent =
+      const SimpleAiChatComponent();
+    final TutorPromptBuilder _promptBuilder = TutorPromptBuilder();
+    final ConversationMemoryService _conversationMemoryService =
+      const ConversationMemoryService();
+  final RagRepository _ragRepository = RagRepository();
+  late final EmbeddingIndexService _embeddingIndexService =
+      EmbeddingIndexService(
+        ragRepository: _ragRepository,
+        embeddingRepository: EmbeddingIndexRepository(),
+      );
+  final ChatSessionRepository _chatSessionRepository = ChatSessionRepository();
+  final ChatMemoryPolicyRepository _chatMemoryPolicyRepository =
+      ChatMemoryPolicyRepository();
+  final ProgressRepository _progressRepository = ProgressRepository();
+  final LlmAdminChannelService _llmAdminChannelService = LlmAdminChannelService();
+  final LinuxLlmConfigService _linuxConfigService = LinuxLlmConfigService();
+    final TranslationEngineConfigService _translationConfigService =
+      TranslationEngineConfigService();
+    late final SeparateTranslationLayerService _translationService =
+      SeparateTranslationLayerService(gateway: _gateway);
+  final TextEditingController _inputController = TextEditingController();
+  final TextEditingController _notesController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
+
+  final List<TutorMessage> _messages = [];
+  bool _isGenerating = false;
+  bool _isEmbedding = false;
+  bool _isBootstrapping = true;
+  String _languageCode = 'en';
+  String? _sessionId;
+  int _questionsAsked = 0;
+  int _totalChunks = 0;
+  int _indexedChunks = 0;
+  int _generationMaxTokens = 256;
+  String _chatMode = 'fast';
+  DateTime? _inferenceStartedAt;
+  int _liveEstimatedTokens = 0;
+  int _liveTokensPerSec = 0;
+  int _lastInferenceMs = 0;
+  int _lastInferenceTokens = 0;
+  int _lastInferenceTokensPerSec = 0;
+  String _inferenceLog = 'Inference idle.';
+  String _benchmarkLog = 'No benchmark run yet.';
+  bool _runningBenchmark = false;
+  ChatMemoryPolicy? _memoryPolicy;
+  TranslationEngineConfig _translationConfig = TranslationEngineConfig.defaults;
+  
+  bool _engineLoaded = false;
+  String _linuxStatusMessage = 'Linux model not validated yet.';
+  LinuxLlmConfig _linuxConfig = LinuxLlmConfig.defaults;
+  Timer? _engineStatusTimer;
+  StreamSubscription<Map<String, dynamic>>? _metricsSubscription;
+  int _lastAutoScrollAtMs = 0;
+
+  bool get _hasChapterRagContent => _totalChunks > 0;
+  String get _chatScopeLabel => _hasChapterRagContent ? 'Chapter mode' : 'General mode';
+
+  static const Map<String, String> _chatModeLabels = <String, String>{
+    'fast': 'Fast',
+    'balanced': 'Balanced',
+    'detailed': 'Detailed',
+  };
+
+  static const List<int> _memoryWindowOptions = <int>[4, 8, 12, 16, 20];
+  static const List<int> _semanticTopKOptions = <int>[0, 1, 2, 3, 4];
+  static const List<int> _inactivityMinutesOptions = <int>[15, 30, 45, 60, 90];
+
+  @override
+  void initState() {
+    super.initState();
+    _bootstrapSession();
+    _loadTranslationConfig();
+    _listenInferenceMetrics();
+    if (_isLinux) {
+      _loadLinuxConfig();
+    } else {
+      _startEngineStatusPolling();
+    }
+  }
+
+  @override
+  void dispose() {
+    _metricsSubscription?.cancel();
+    _inputController.dispose();
+    _notesController.dispose();
+    _scrollController.dispose();
+    _engineStatusTimer?.cancel();
+    super.dispose();
+  }
+
+  bool get _isLinux => Platform.isLinux;
+
+  Future<void> _loadTranslationConfig() async {
+    final config = await _translationConfigService.load();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _translationConfig = config;
+    });
+  }
+
+  Future<void> _loadLinuxConfig() async {
+    final config = await _linuxConfigService.load();
+    final validation = await _linuxConfigService.validate(config);
+
+    LinuxLlmConfig nextConfig = config;
+    final resolvedExec = validation.resolvedExecutablePath;
+    if (resolvedExec != null && resolvedExec != config.executablePath) {
+      nextConfig = await _linuxConfigService.update(executablePath: resolvedExec);
+    }
+
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _linuxConfig = nextConfig;
+      _engineLoaded = validation.ready;
+      _linuxStatusMessage = validation.message;
+    });
+  }
+
+  Future<void> _pickLinuxModel() async {
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowMultiple: false,
+      allowedExtensions: const ['gguf', 'bin'],
+    );
+    final path = picked?.files.single.path?.trim();
+    if (path == null || path.isEmpty) {
+      return;
+    }
+    final updated = await _linuxConfigService.update(modelPath: path);
+    final validation = await _linuxConfigService.validate(updated);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _linuxConfig = updated;
+      _engineLoaded = validation.ready;
+      _linuxStatusMessage = validation.message;
+    });
+  }
+
+  Future<void> _pickLinuxExecutable() async {
+    final picked = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.any,
+    );
+    final path = picked?.files.single.path?.trim();
+    if (path == null || path.isEmpty) {
+      return;
+    }
+    final updated = await _linuxConfigService.update(executablePath: path);
+    final validation = await _linuxConfigService.validate(updated);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _linuxConfig = updated;
+      _engineLoaded = validation.ready;
+      _linuxStatusMessage = validation.message;
+    });
+  }
+
+  Future<void> _autoDetectLinuxExecutable() async {
+    final detected = await _linuxConfigService.autoDetectExecutable();
+    if (detected == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('llama-cli not found. Use Select Llama CLI.')),
+      );
+      return;
+    }
+
+    final updated = await _linuxConfigService.update(executablePath: detected);
+    final validation = await _linuxConfigService.validate(updated);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _linuxConfig = updated;
+      _engineLoaded = validation.ready;
+      _linuxStatusMessage = validation.message;
+    });
+  }
+
+  void _startEngineStatusPolling() {
+    // Trigger immediate preload attempt, then poll status
+    Future.microtask(() {
+      _llmAdminChannelService.preloadModel().ignore();
+    });
+    
+    _engineStatusTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) async {
+        try {
+          final status = await _llmAdminChannelService.getEngineStatus();
+          if (mounted) {
+            setState(() {
+              _engineLoaded = status.loaded;
+            });
+          }
+        } catch (e) {
+          // Silently ignore polling errors
+        }
+      },
+    );
+  }
+
+  void _listenInferenceMetrics() {
+    _metricsSubscription = _gateway.metricsStream().listen((metrics) {
+      if (!mounted || !_isGenerating) {
+        return;
+      }
+
+      setState(() {
+        _lastInferenceMs = metrics['totalMs'] as int? ?? 0;
+        _lastInferenceTokens = metrics['tokens'] as int? ?? _liveEstimatedTokens;
+        _lastInferenceTokensPerSec =
+            metrics['tokensPerSec'] as int? ?? _liveTokensPerSec;
+        _inferenceLog =
+            'Native metrics: ${_lastInferenceMs}ms | $_lastInferenceTokens tokens | $_lastInferenceTokensPerSec tok/s';
+      });
+    });
+  }
+
+  Future<void> _applyChatMode(String mode, {bool showFeedback = true}) async {
+    const modeConfigs = <String, Map<String, int>>{
+      'fast': <String, int>{'maxTokens': 512, 'timeoutMs': 120000, 'topK': 2},
+      'balanced': <String, int>{'maxTokens': 512, 'timeoutMs': 180000, 'topK': 3},
+      'detailed': <String, int>{'maxTokens': 512, 'timeoutMs': 240000, 'topK': 4},
+    };
+
+    final config = modeConfigs[mode] ?? modeConfigs['balanced']!;
+    final maxTokens = config['maxTokens']!;
+    final timeoutMs = config['timeoutMs']!;
+
+    final modePrompt = switch (mode) {
+      'fast' =>
+        'You are a concise offline tutor. Prioritize direct, short, accurate answers in 2-5 sentences.',
+      'detailed' =>
+        'You are a thorough offline tutor. Provide clear step-by-step explanations with examples when helpful.',
+      _ =>
+        'You are a helpful tutor. Answer the user clearly and directly with practical explanation.',
+    };
+
+    try {
+      final updated = await _llmAdminChannelService.updateGenerationConfig(
+        maxTokens: maxTokens,
+        timeoutMs: timeoutMs,
+        systemPrompt: modePrompt,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _chatMode = mode;
+        _generationMaxTokens = updated.maxTokens;
+      });
+      if (showFeedback) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Chat mode: ${_chatModeLabels[mode] ?? mode} | max ${updated.maxTokens} tokens',
+            ),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _chatMode = mode;
+        _generationMaxTokens = maxTokens;
+      });
+    }
+  }
+
+  Future<void> _openAddNotesDialog() async {
+    _notesController.clear();
+
+    await showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Add Chapter Notes'),
+          content: SizedBox(
+            width: 480,
+            child: TextField(
+              controller: _notesController,
+              minLines: 6,
+              maxLines: 10,
+              decoration: const InputDecoration(
+                hintText: 'Paste syllabus notes for this chapter...',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () async {
+                final navigator = Navigator.of(context);
+                final messenger = ScaffoldMessenger.of(context);
+                final text = _notesController.text.trim();
+                if (text.isEmpty) {
+                  return;
+                }
+
+                await RagRepository().ingestChapterNotes(
+                  chapterId: widget.chapter.id,
+                  sourceTitle: '${widget.chapter.title} - Manual Notes',
+                  rawText: text,
+                );
+
+                await _refreshEmbeddingStats();
+
+                if (!mounted) {
+                  return;
+                }
+
+                navigator.pop();
+                messenger.showSnackBar(
+                  const SnackBar(content: Text('Notes indexed for RAG retrieval.')),
+                );
+              },
+              child: const Text('Save & Index'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _bootstrapSession() async {
+    final sessionId = await _chatSessionRepository.createOrGetSession(
+      chapterId: widget.chapter.id,
+      languageCode: _languageCode,
+    );
+    var policy = await _chatMemoryPolicyRepository.getOrCreatePolicy(sessionId);
+    final lastMessageAt = await _chatSessionRepository.getLastMessageAt(sessionId);
+
+    final shouldResetOnOpen = policy.resetPolicy == SessionResetPolicy.chapterOpen;
+    final shouldResetOnInactivity =
+        policy.resetPolicy == SessionResetPolicy.inactivity &&
+        lastMessageAt != null &&
+        DateTime.now().difference(lastMessageAt).inMinutes >= policy.inactivityMinutes;
+
+    if (shouldResetOnOpen || shouldResetOnInactivity) {
+      await _chatSessionRepository.clearMessages(sessionId);
+      if (shouldResetOnOpen) {
+        policy = ChatMemoryPolicy(
+          sessionId: policy.sessionId,
+          shortTermWindow: policy.shortTermWindow,
+          semanticRecallEnabled: policy.semanticRecallEnabled,
+          semanticTopK: policy.semanticTopK,
+          resetPolicy: SessionResetPolicy.manual,
+          inactivityMinutes: policy.inactivityMinutes,
+        );
+        await _chatMemoryPolicyRepository.savePolicy(policy);
+      }
+    }
+
+    final existingMessages = await _chatSessionRepository.getMessages(sessionId);
+    final questionsAsked = await _progressRepository.getQuestionCount(
+      chapterId: widget.chapter.id,
+    );
+    final totalChunks = await _ragRepository.getChunkCountForChapter(
+      widget.chapter.id,
+    );
+    final indexedChunks = await EmbeddingIndexRepository().getIndexedCountForChapter(
+      chapterId: widget.chapter.id,
+    );
+
+    var generationMaxTokens = 256;
+    try {
+      final config = await _llmAdminChannelService.getGenerationConfig();
+      generationMaxTokens = config.maxTokens;
+    } catch (_) {
+      // Keep default when config API is unavailable (non-Android, early init, etc).
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _sessionId = sessionId;
+      _memoryPolicy = policy;
+      _questionsAsked = questionsAsked;
+      _totalChunks = totalChunks;
+      _indexedChunks = indexedChunks;
+      _generationMaxTokens = generationMaxTokens;
+      _messages
+        ..clear()
+        ..addAll(
+          existingMessages.isEmpty
+              ? [
+                TutorMessage(
+                  text:
+                      'You are learning ${widget.chapter.title}. Ask your doubt to start.',
+                  isUser: false,
+                  timestamp: DateTime.now(),
+                ),
+              ]
+              : existingMessages,
+        );
+      _isBootstrapping = false;
+    });
+
+    await _applyChatMode(_chatMode, showFeedback: false);
+
+    if (existingMessages.isEmpty && _messages.isNotEmpty) {
+      await _chatSessionRepository.appendMessage(
+        sessionId: sessionId,
+        isUser: false,
+        text: _messages.first.text,
+        timestamp: _messages.first.timestamp,
+      );
+    }
+  }
+
+  String _resetPolicyLabel(SessionResetPolicy policy) {
+    switch (policy) {
+      case SessionResetPolicy.chapterOpen:
+        return 'On chapter open';
+      case SessionResetPolicy.inactivity:
+        return 'On inactivity';
+      case SessionResetPolicy.manual:
+        return 'Manual only';
+    }
+  }
+
+  Future<void> _updateMemoryPolicy({
+    int? shortTermWindow,
+    bool? semanticRecallEnabled,
+    int? semanticTopK,
+    SessionResetPolicy? resetPolicy,
+    int? inactivityMinutes,
+  }) async {
+    final sessionId = _sessionId;
+    final current = _memoryPolicy;
+    if (sessionId == null || current == null) {
+      return;
+    }
+
+    final next = ChatMemoryPolicy(
+      sessionId: sessionId,
+      shortTermWindow: shortTermWindow ?? current.shortTermWindow,
+      semanticRecallEnabled: semanticRecallEnabled ?? current.semanticRecallEnabled,
+      semanticTopK: semanticTopK ?? current.semanticTopK,
+      resetPolicy: resetPolicy ?? current.resetPolicy,
+      inactivityMinutes: inactivityMinutes ?? current.inactivityMinutes,
+    );
+
+    await _chatMemoryPolicyRepository.savePolicy(next);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _memoryPolicy = next;
+    });
+  }
+
+  Future<void> _resetSessionMemoryNow() async {
+    final sessionId = _sessionId;
+    if (sessionId == null || _isGenerating) {
+      return;
+    }
+
+    await _chatSessionRepository.clearMessages(sessionId);
+    if (!mounted) {
+      return;
+    }
+
+    final welcome = TutorMessage(
+      text: 'Session memory reset. Ask your next doubt from ${widget.chapter.title}.',
+      isUser: false,
+      timestamp: DateTime.now(),
+    );
+
+    setState(() {
+      _messages
+        ..clear()
+        ..add(welcome);
+    });
+
+    await _chatSessionRepository.appendMessage(
+      sessionId: sessionId,
+      isUser: false,
+      text: welcome.text,
+      timestamp: welcome.timestamp,
+    );
+  }
+
+  Future<void> _updateTranslationEngine(TranslationEngineId engineId) async {
+    final next = await _translationConfigService.update(engineId: engineId);
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _translationConfig = next;
+    });
+
+    final selected = TranslationEngineCatalog.byId(engineId);
+    if (!selected.implementedInApp) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            '${selected.label} is catalog-only right now. App will use LLM Prompt Translator fallback.',
+          ),
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  Future<void> _updateShowOriginalTranslation(bool value) async {
+    final next = await _translationConfigService.update(
+      showOriginalAlongside: value,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _translationConfig = next;
+    });
+  }
+
+  Future<void> _pickApertiumBinary() async {
+    final picked = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      type: FileType.any,
+    );
+    final path = picked?.files.single.path?.trim();
+    if (path == null || path.isEmpty) {
+      return;
+    }
+    final next = await _translationConfigService.update(
+      apertiumExecutablePath: path,
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _translationConfig = next;
+    });
+  }
+
+  void _showKannadaEngineCatalog() {
+    final engines = TranslationEngineCatalog.kannadaEngines();
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: ListView.separated(
+            shrinkWrap: true,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+            itemCount: engines.length,
+            separatorBuilder: (_, _) => const Divider(height: 16),
+            itemBuilder: (context, index) {
+              final engine = engines[index];
+              final status = engine.implementedInApp
+                  ? 'available in app'
+                  : 'catalog only (not wired yet)';
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: Text(engine.label),
+                subtitle: Text('${engine.description}\nStatus: $status'),
+                trailing: engine.offlineCapable
+                    ? const Icon(Icons.cloud_off_rounded, size: 18)
+                    : const Icon(Icons.cloud_rounded, size: 18),
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _refreshEmbeddingStats() async {
+    final totalChunks = await _ragRepository.getChunkCountForChapter(
+      widget.chapter.id,
+    );
+    final indexedChunks = await EmbeddingIndexRepository().getIndexedCountForChapter(
+      chapterId: widget.chapter.id,
+    );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _totalChunks = totalChunks;
+      _indexedChunks = indexedChunks;
+    });
+  }
+
+  Future<void> _indexEmbeddingsForChapter() async {
+    if (_isEmbedding) {
+      return;
+    }
+
+    setState(() {
+      _isEmbedding = true;
+    });
+
+    try {
+      await for (final progress in _embeddingIndexService.indexChapter(
+        chapterId: widget.chapter.id,
+      )) {
+        if (!mounted) {
+          return;
+        }
+
+        setState(() {
+          _totalChunks = progress.total;
+          _indexedChunks = progress.indexed;
+        });
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Embedding index updated for this chapter.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isEmbedding = false;
+        });
+      }
+    }
+  }
+  
+  Future<void> _ask() async {
+    final question = _inputController.text.trim();
+    if (question.isEmpty || _isGenerating || _sessionId == null) {
+      return;
+    }
+
+    final localFastReply = _simpleAiComponent.localFastReply(question: question);
+    if (localFastReply != null) {
+      final now = DateTime.now();
+      setState(() {
+        _messages.add(TutorMessage(text: question, isUser: true, timestamp: now));
+        _messages.add(TutorMessage(text: localFastReply, isUser: false, timestamp: now));
+        _inputController.clear();
+        _inferenceLog = 'Quick local response.';
+      });
+
+      await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+      await _progressRepository.recordChatMessage(
+        chapterId: widget.chapter.id,
+        sessionId: _sessionId!,
+      );
+      await _progressRepository.recordChatMessage(
+        chapterId: widget.chapter.id,
+        sessionId: _sessionId!,
+      );
+
+      await _chatSessionRepository.appendMessage(
+        sessionId: _sessionId!,
+        isUser: true,
+        text: question,
+        timestamp: now,
+      );
+      await _chatSessionRepository.appendMessage(
+        sessionId: _sessionId!,
+        isUser: false,
+        text: localFastReply,
+        timestamp: now,
+      );
+
+      _scrollToBottom(animated: true, force: true);
+      return;
+    }
+
+    final localMathReply = _simpleAiComponent.localMathReply(question: question);
+    if (localMathReply != null) {
+      final now = DateTime.now();
+      setState(() {
+        _messages.add(TutorMessage(text: question, isUser: true, timestamp: now));
+        _messages.add(TutorMessage(text: localMathReply, isUser: false, timestamp: now));
+        _inputController.clear();
+        _inferenceLog = 'Quick math response.';
+      });
+
+      await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+      await _progressRepository.recordChatMessage(
+        chapterId: widget.chapter.id,
+        sessionId: _sessionId!,
+      );
+      await _progressRepository.recordChatMessage(
+        chapterId: widget.chapter.id,
+        sessionId: _sessionId!,
+      );
+
+      await _chatSessionRepository.appendMessage(
+        sessionId: _sessionId!,
+        isUser: true,
+        text: question,
+        timestamp: now,
+      );
+      await _chatSessionRepository.appendMessage(
+        sessionId: _sessionId!,
+        isUser: false,
+        text: localMathReply,
+        timestamp: now,
+      );
+
+      _scrollToBottom(animated: true, force: true);
+      return;
+    }
+
+    final modelPrompt = await _buildModelPrompt(question: question);
+
+    if (_isLinux && !_engineLoaded) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(_linuxStatusMessage)),
+      );
+      return;
+    }
+
+    final needsTranslation = _languageCode != 'en';
+
+    final recoveryPrompt = _simpleAiComponent.buildRecoveryPrompt(question: question);
+
+    setState(() {
+      _messages.add(TutorMessage(text: question, isUser: true, timestamp: DateTime.now()));
+      _messages.add(TutorMessage(text: '', isUser: false, timestamp: DateTime.now()));
+      _isGenerating = true;
+      _inferenceStartedAt = DateTime.now();
+      _liveEstimatedTokens = 0;
+      _liveTokensPerSec = 0;
+      _lastInferenceMs = 0;
+      _lastInferenceTokens = 0;
+      _lastInferenceTokensPerSec = 0;
+      _inferenceLog = 'Inference started...';
+      _inputController.clear();
+    });
+
+    // Record question asked and chat message
+    await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+    await _progressRepository.recordChatMessage(
+      chapterId: widget.chapter.id,
+      sessionId: _sessionId!,
+    );
+
+    await _chatSessionRepository.appendMessage(
+      sessionId: _sessionId!,
+      isUser: true,
+      text: question,
+      timestamp: _messages[_messages.length - 2].timestamp,
+    );
+
+    _scrollToBottom(animated: false);
+
+    final assistantIndex = _messages.length - 1;
+    final responseBuffer = StringBuffer();
+    var assistantPersisted = false;
+    var lastNonEmptyAssistant = '';
+    var usedAutoFallback = false;
+    GenerationConfig? previousConfigForFallback;
+    GenerationConfig? previousConfigForShortQuery;
+
+    final shortQuery = question.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length <= 8;
+    if (Platform.isAndroid && shortQuery) {
+      previousConfigForShortQuery = await _enableShortQueryConfig();
+    }
+
+    try {
+      final primaryTimeout = Duration(
+        milliseconds: Platform.isAndroid
+            ? 720000
+            : (_chatMode == 'fast')
+                ? 90000
+                : (_chatMode == 'balanced')
+                    ? 120000
+                    : 180000,
+      );
+
+      Future<void> consumeStream({required Duration timeout, required bool isFallback, required String activePrompt}) async {
+        await for (final chunk in _gateway
+        .streamResponse(prompt: activePrompt)
+            .timeout(timeout)) {
+          responseBuffer.write(chunk);
+          final liveText = responseBuffer.toString();
+          if (liveText.isNotEmpty) {
+            lastNonEmptyAssistant = liveText;
+          }
+
+          if (!mounted) {
+            return;
+          }
+
+          final elapsedMs = DateTime.now()
+              .difference(_inferenceStartedAt ?? DateTime.now())
+              .inMilliseconds;
+          final estimatedTokens = (liveText.length / 4).round();
+          final liveTokensPerSec = elapsedMs <= 0
+              ? 0
+              : ((estimatedTokens * 1000) / elapsedMs).round();
+
+          setState(() {
+            _messages[assistantIndex] = TutorMessage(
+              text: liveText,
+              isUser: false,
+              timestamp: _messages[assistantIndex].timestamp,
+            );
+            _liveEstimatedTokens = estimatedTokens;
+            _liveTokensPerSec = liveTokensPerSec;
+            _inferenceLog = isFallback
+                ? 'Fallback streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s'
+                : 'Streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s';
+          });
+
+          _scrollToBottom(animated: false, force: true);
+        }
+      }
+
+      try {
+        await consumeStream(timeout: primaryTimeout, isFallback: false, activePrompt: modelPrompt);
+      } catch (error) {
+        final details = OfflineErrorTaxonomy.fromError(
+          error,
+          context: OfflineErrorContext.chatInference,
+        );
+        final shouldFallback =
+            _chatMode != 'fast' &&
+            (details.category == OfflineErrorCategory.timeout ||
+                details.category == OfflineErrorCategory.network ||
+                details.category == OfflineErrorCategory.unavailable);
+
+        if (!shouldFallback) {
+          rethrow;
+        }
+
+        usedAutoFallback = true;
+        previousConfigForFallback = await _enableFastFallbackConfig();
+        responseBuffer.clear();
+        lastNonEmptyAssistant = '';
+
+        if (mounted) {
+          setState(() {
+            _messages[assistantIndex] = TutorMessage(
+              text: '',
+              isUser: false,
+              timestamp: _messages[assistantIndex].timestamp,
+            );
+            _inferenceLog =
+                'Auto fallback triggered (${details.code}). Retrying in Fast mode...';
+          });
+        }
+
+        await consumeStream(
+          timeout: const Duration(milliseconds: 90000),
+          isFallback: true,
+          activePrompt: modelPrompt,
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      final details = OfflineErrorTaxonomy.fromError(
+        error,
+        context: OfflineErrorContext.chatInference,
+        fallbackMessage: 'Model unavailable. Check native engine setup.',
+      );
+      final message = details.userMessage;
+
+      try {
+        await _gateway.stopGeneration();
+      } catch (_) {
+        // Ignore stop errors after timeout/failure.
+      }
+
+      setState(() {
+        _messages[assistantIndex] = TutorMessage(
+          text: message,
+          isUser: false,
+          timestamp: _messages[assistantIndex].timestamp,
+        );
+        _inferenceLog = '${details.title} (${details.code}): $message';
+      });
+
+      await _chatSessionRepository.appendMessage(
+        sessionId: _sessionId!,
+        isUser: false,
+        text: message,
+        timestamp: _messages[assistantIndex].timestamp,
+      );
+      // Record assistant message
+      await _progressRepository.recordChatMessage(
+        chapterId: widget.chapter.id,
+        sessionId: _sessionId!,
+      );
+      assistantPersisted = true;
+    } finally {
+      var finalAssistant = _sanitizeAssistantText(
+        _messages[assistantIndex].text,
+      ).trim();
+      if (finalAssistant.isEmpty && lastNonEmptyAssistant.isNotEmpty) {
+        finalAssistant = lastNonEmptyAssistant;
+        if (mounted) {
+          setState(() {
+            _messages[assistantIndex] = TutorMessage(
+              text: finalAssistant,
+              isUser: false,
+              timestamp: _messages[assistantIndex].timestamp,
+            );
+          });
+        }
+      }
+
+      if (finalAssistant.isEmpty) {
+        finalAssistant = responseBuffer.toString().trim();
+      }
+
+      if (finalAssistant.isNotEmpty && mounted) {
+        setState(() {
+          _messages[assistantIndex] = TutorMessage(
+            text: finalAssistant,
+            isUser: false,
+            timestamp: _messages[assistantIndex].timestamp,
+          );
+        });
+      }
+
+      if (_looksLooped(finalAssistant)) {
+        try {
+          final retryText = await _runRecoveryPrompt(recoveryPrompt);
+          if (retryText.isNotEmpty) {
+            finalAssistant = retryText;
+            if (mounted) {
+              setState(() {
+                _messages[assistantIndex] = TutorMessage(
+                  text: retryText,
+                  isUser: false,
+                  timestamp: _messages[assistantIndex].timestamp,
+                );
+                _inferenceLog = 'Recovered from looped answer.';
+              });
+            }
+          }
+        } catch (_) {
+          // Keep the first usable answer if recovery fails.
+        }
+      }
+
+      if (usedAutoFallback) {
+        await _restoreGenerationConfig(previousConfigForFallback);
+      } else {
+        await _restoreGenerationConfig(previousConfigForShortQuery);
+      }
+
+      if (!assistantPersisted && finalAssistant.isNotEmpty && needsTranslation) {
+        try {
+          if (mounted) {
+            setState(() {
+              _inferenceLog = 'Translating to ${_languageCode.toUpperCase()}...';
+            });
+          }
+
+          final translation = await _translationService.translate(
+            text: finalAssistant,
+            sourceLang: 'en',
+            targetLang: _languageCode,
+            config: _translationConfig,
+          );
+
+          final translated = translation.translated.trim();
+          if (translated.isNotEmpty) {
+            final displayText = _translationConfig.showOriginalAlongside
+                ? 'Original (EN):\n$finalAssistant\n\nTranslated (${_languageCode.toUpperCase()}):\n$translated'
+                : translated;
+
+            finalAssistant = displayText;
+
+            if (mounted) {
+              setState(() {
+                _messages[assistantIndex] = TutorMessage(
+                  text: displayText,
+                  isUser: false,
+                  timestamp: _messages[assistantIndex].timestamp,
+                );
+                _inferenceLog = translation.fallbackUsed
+                    ? 'Translated via ${translation.engineUsed.name} (fallback used).'
+                    : 'Translated via ${translation.engineUsed.name}.';
+              });
+            }
+          }
+        } catch (_) {
+          if (mounted) {
+            setState(() {
+              _inferenceLog =
+                  'Translation failed. Showing original English response.';
+            });
+          }
+        }
+      }
+
+      if (!assistantPersisted && finalAssistant.isNotEmpty) {
+        await _chatSessionRepository.appendMessage(
+          sessionId: _sessionId!,
+          isUser: false,
+          text: finalAssistant,
+          timestamp: _messages[assistantIndex].timestamp,
+        );
+        // Record assistant message
+        await _progressRepository.recordChatMessage(
+          chapterId: widget.chapter.id,
+          sessionId: _sessionId!,
+        );
+      }
+
+      final updatedCount = await _progressRepository.getQuestionCount(
+        chapterId: widget.chapter.id,
+      );
+
+      if (mounted) {
+        final elapsedMs = DateTime.now().difference(_inferenceStartedAt ?? DateTime.now()).inMilliseconds;
+        setState(() {
+          _isGenerating = false;
+          _questionsAsked = updatedCount;
+          if (_lastInferenceMs == 0) {
+            _lastInferenceMs = elapsedMs > 0 ? elapsedMs : 0;
+          }
+          if (_lastInferenceTokens == 0) {
+            _lastInferenceTokens = _liveEstimatedTokens;
+          }
+          if (_lastInferenceTokensPerSec == 0) {
+            _lastInferenceTokensPerSec = _liveTokensPerSec;
+          }
+          if (_lastInferenceMs > 0) {
+            final completionPrefix = usedAutoFallback
+                ? 'Completed with auto fallback'
+                : 'Completed';
+            _inferenceLog =
+                '$completionPrefix in ${_lastInferenceMs}ms | $_lastInferenceTokens tokens | $_lastInferenceTokensPerSec tok/s';
+          }
+        });
+      }
+      _scrollToBottom(animated: true, force: true);
+    }
+  }
+
+  Future<String> _buildModelPrompt({required String question}) async {
+    if (_hasChapterRagContent && _sessionId != null && _memoryPolicy != null) {
+      final chapterChunks = await _ragRepository.searchChunksForChapter(
+        chapterId: widget.chapter.id,
+        query: question,
+        limit: 4,
+      );
+
+      if (chapterChunks.isNotEmpty) {
+        final memory = _conversationMemoryService.buildMemory(
+          _messages,
+          question: question,
+          policy: _memoryPolicy ?? ChatMemoryPolicy.defaults(_sessionId!),
+        );
+
+        return _promptBuilder.buildChapterPrompt(
+          course: widget.course,
+          subject: widget.subject,
+          chapter: widget.chapter,
+          question: question,
+          languageCode: _languageCode,
+          retrievedContext: chapterChunks.map((chunk) => chunk.content).toList(),
+          conversationMemory: memory.combinedLines,
+        );
+      }
+    }
+
+    return _simpleAiComponent.buildPrompt(question: question);
+  }
+
+  Future<String> _runRecoveryPrompt(String recoveryPrompt) async {
+    final buffer = StringBuffer();
+    await for (final chunk in _gateway.streamResponse(prompt: recoveryPrompt)) {
+      buffer.write(chunk);
+    }
+    return _sanitizeAssistantText(buffer.toString()).trim();
+  }
+
+  Future<GenerationConfig?> _enableFastFallbackConfig() async {
+    try {
+      final previous = await _llmAdminChannelService.getGenerationConfig();
+      await _llmAdminChannelService.updateGenerationConfig(
+        maxTokens: 256,
+        timeoutMs: 90000,
+        systemPrompt:
+            'You are a concise offline tutor. Provide direct, accurate answers in simple steps.',
+      );
+      return previous;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<GenerationConfig?> _enableShortQueryConfig() async {
+    try {
+      final previous = await _llmAdminChannelService.getGenerationConfig();
+      await _llmAdminChannelService.updateGenerationConfig(
+        maxTokens: 128,
+        timeoutMs: 60000,
+        systemPrompt:
+            'You are a concise offline tutor. Give direct answers in 1-4 short sentences unless user asks for detail.',
+      );
+      return previous;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _restoreGenerationConfig(GenerationConfig? previous) async {
+    if (previous == null) {
+      return;
+    }
+    try {
+      await _llmAdminChannelService.updateGenerationConfig(
+        maxTokens: previous.maxTokens,
+        timeoutMs: previous.timeoutMs,
+        systemPrompt: previous.systemPrompt,
+      );
+    } catch (_) {
+      // Ignore restoration failure; current session can still proceed.
+    }
+  }
+
+  Future<void> _runLatencyBenchmark() async {
+    if (_runningBenchmark || _isGenerating) {
+      return;
+    }
+
+    setState(() {
+      _runningBenchmark = true;
+      _benchmarkLog = 'Running benchmark...';
+    });
+
+    final prompts = <String>[
+      'Explain the core concept of this chapter in short.',
+      'Give one solved example from this chapter.',
+      'List 3 common mistakes students make in this topic.',
+    ];
+
+    try {
+      await for (final progress in _benchmarkService.runBenchmark(
+        chapterId: widget.chapter.id,
+        mode: _chatMode,
+        prompts: prompts,
+      )) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _benchmarkLog =
+              'Benchmark ${progress.completed}/${progress.total} | last TTFT ${progress.lastItem?.ttftMs ?? 0}ms';
+        });
+      }
+
+      final summary = await _benchmarkService.getLatestSummary(
+        chapterId: widget.chapter.id,
+        mode: _chatMode,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _benchmarkLog =
+            'Benchmark done: TTFT ${summary.avgTtftMs}ms | Total ${summary.avgTotalMs}ms | ${summary.avgTokensPerSec.toStringAsFixed(1)} tok/s';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Latency benchmark saved.')),
+      );
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _benchmarkLog = 'Benchmark failed: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Benchmark failed: $e')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _runningBenchmark = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _stop() async {
+    if (!_isGenerating) {
+      return;
+    }
+
+    await _gateway.stopGeneration();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _isGenerating = false;
+      _inferenceLog = 'Inference stopped by user.';
+    });
+  }
+
+  String _sanitizeAssistantText(String raw) {
+    var text = raw.replaceAll(_ansiEscape, '').replaceAll('\r', '');
+
+    // Remove template/control markers emitted by some prompt formats.
+    text = text.replaceAll(RegExp(r'<\|[^>]*\|>'), '');
+    text = text.replaceAll(RegExp(r'<\|[^\n]*'), '');
+    text = text.replaceAll(RegExp(r'<[^\s>]*\|>'), '');
+
+    final tutorAnswerMatch = RegExp(
+      r'Tutor Answer:\s*',
+      caseSensitive: false,
+    ).allMatches(text);
+    if (tutorAnswerMatch.isNotEmpty) {
+      final last = tutorAnswerMatch.last;
+      text = text.substring(last.end);
+    }
+
+    text = text
+        .replaceAll('<|im_end|>', '')
+        .replaceAll('<|im_start|>assistant', '')
+        .replaceAll('<|question|>', '')
+        .replaceAll('<|answer|>', '')
+        .replaceAll('<|roleplay|>', '')
+        .replaceAll('<im_start>assistant', '')
+        .replaceAll('<im_end>', '')
+        .replaceAll('</s>', '')
+        .replaceAll('<s>', '');
+
+    final lowerText = text.toLowerCase();
+    final answerTagIndex = lowerText.indexOf('<|answer|>');
+    if (answerTagIndex >= 0) {
+      text = text.substring(answerTagIndex + '<|answer|>'.length);
+    }
+
+    final roleplayTagIndex = text.toLowerCase().indexOf('<|roleplay|>');
+    if (roleplayTagIndex >= 0) {
+      text = text.substring(0, roleplayTagIndex);
+    }
+
+    final roleplayTextIndex = text.toLowerCase().indexOf('as the tutor:');
+    if (roleplayTextIndex >= 0) {
+      text = text.substring(0, roleplayTextIndex);
+    }
+
+    final lines = text.split('\n');
+    final kept = <String>[];
+    var skipCommandBlock = false;
+    var seenAnswerBody = false;
+    var lastKeptKey = '';
+    var repeatedKeptCount = 0;
+
+    bool appendIfUnique(String value) {
+      final key = _normalizeLine(value);
+      if (key.isEmpty) {
+        return false;
+      }
+
+      if (key == lastKeptKey) {
+        repeatedKeptCount += 1;
+        if (repeatedKeptCount >= 2 && seenAnswerBody) {
+          return false;
+        }
+      } else {
+        lastKeptKey = key;
+        repeatedKeptCount = 0;
+      }
+
+      kept.add(value);
+      seenAnswerBody = true;
+      return true;
+    }
+
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) {
+        if (!skipCommandBlock) {
+          kept.add('');
+        }
+        continue;
+      }
+
+      final lower = trimmed.toLowerCase();
+
+      if (trimmed == '?') {
+        continue;
+      }
+
+      if (lower.startsWith('student question:')) {
+        if (kept.isNotEmpty) {
+          break;
+        }
+        continue;
+      }
+
+      if (lower.startsWith('user query:') || lower.startsWith('direct reply:')) {
+        if (seenAnswerBody) {
+          break;
+        }
+        continue;
+      }
+
+      if (lower.startsWith('answer:')) {
+        final stripped = trimmed.replaceFirst(RegExp(r'^[Aa]nswer:\s*'), '');
+        if (stripped.isNotEmpty) {
+          if (!appendIfUnique(stripped)) {
+            break;
+          }
+        }
+        continue;
+      }
+
+      if (lower.startsWith('student:')) {
+        continue;
+      }
+
+      if (lower.startsWith('tutor:')) {
+        final stripped = trimmed.replaceFirst(RegExp(r'^[Tt]utor:\s*'), '');
+        if (!appendIfUnique(stripped)) {
+          break;
+        }
+        continue;
+      }
+
+      if (lower.startsWith('available commands:')) {
+        skipCommandBlock = true;
+        continue;
+      }
+
+      if (skipCommandBlock) {
+        if (trimmed.startsWith('> ')) {
+          skipCommandBlock = false;
+        } else {
+          continue;
+        }
+      }
+
+      if (lower.startsWith('--no-conversation is not supported')) continue;
+      if (lower.startsWith('please use llama-completion')) continue;
+      if (lower.startsWith('loading model')) continue;
+      if (lower.startsWith('[ prompt:')) continue;
+      if (lower.startsWith('<|question|>')) continue;
+      if (lower.startsWith('<|answer|>')) continue;
+      if (lower.startsWith('<|roleplay|>')) continue;
+      if (lower.startsWith('as the tutor:')) continue;
+      if (lower.startsWith('as the student:')) continue;
+      if (RegExp(r'^/(exit|regen|clear|read|glob)\b').hasMatch(lower)) continue;
+      if (RegExp(r'^(build|model|modalities)\s*:').hasMatch(lower)) continue;
+      if (trimmed.startsWith('> You are an offline tutor')) continue;
+
+      if (lower.startsWith('what is ')
+          || lower.startsWith('algebra is ')
+          || lower.startsWith('student question')) {
+        if (seenAnswerBody && kept.isNotEmpty) {
+          break;
+        }
+      }
+
+      if (!appendIfUnique(line)) {
+        break;
+      }
+    }
+
+    final collapsed = kept.join('\n').trim();
+    return _dedupeParagraphs(collapsed.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim());
+  }
+
+  bool _looksLooped(String text) {
+    final normalized = text.toLowerCase().trim();
+    if (normalized.isEmpty) {
+      return false;
+    }
+
+    if (normalized.contains('student question:') || normalized.contains('direct reply:') || normalized.contains('answer:')) {
+      return true;
+    }
+
+    final paragraphs = text
+        .split(RegExp(r'\n{2,}'))
+        .map((paragraph) => paragraph.trim())
+        .where((paragraph) => paragraph.isNotEmpty)
+        .toList();
+
+    for (var index = 1; index < paragraphs.length; index += 1) {
+      if (_normalizeLine(paragraphs[index]) == _normalizeLine(paragraphs[index - 1])) {
+        return true;
+      }
+    }
+
+    final lines = text
+        .split('\n')
+        .map((line) => line.trim())
+        .where((line) => line.isNotEmpty)
+        .toList();
+    final counts = <String, int>{};
+    for (final line in lines) {
+      final key = _normalizeLine(line);
+      counts[key] = (counts[key] ?? 0) + 1;
+      if ((counts[key] ?? 0) >= 3 && key.length > 18) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  String _dedupeParagraphs(String text) {
+    final paragraphs = text
+        .split(RegExp(r'\n{2,}'))
+        .map((paragraph) => paragraph.trim())
+        .where((paragraph) => paragraph.isNotEmpty)
+        .toList();
+
+    final kept = <String>[];
+    String? lastKey;
+    for (final paragraph in paragraphs) {
+      final key = _normalizeLine(paragraph);
+      if (key == lastKey) {
+        continue;
+      }
+      kept.add(paragraph);
+      lastKey = key;
+    }
+
+    return kept.join('\n\n').trim();
+  }
+
+  String _normalizeLine(String line) {
+    return line.toLowerCase().replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  double? _inferenceProgressValue() {
+    if (_generationMaxTokens <= 0) {
+      return null;
+    }
+    final raw = _liveEstimatedTokens / _generationMaxTokens;
+    final clamped = raw.clamp(0.0, 1.0);
+    return clamped.toDouble();
+  }
+
+  void _scrollToBottom({bool animated = true, bool force = false}) {
+    final nowMs = DateTime.now().millisecondsSinceEpoch;
+    if (!force && (nowMs - _lastAutoScrollAtMs) < 30) {
+      return;
+    }
+    _lastAutoScrollAtMs = nowMs;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_scrollController.hasClients) {
+        return;
+      }
+
+      final maxExtent = _scrollController.position.maxScrollExtent;
+      if (animated) {
+        _scrollController.animateTo(
+          maxExtent,
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+        );
+      } else {
+        _scrollController.jumpTo(maxExtent);
+      }
+    });
+  }
+
+  Future<void> _copyMessage(TutorMessage message) async {
+    final text = message.text.trim();
+    if (text.isEmpty) {
+      return;
+    }
+
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message.isUser ? 'Copied your message.' : 'Copied tutor response.'),
+        duration: const Duration(milliseconds: 900),
+      ),
+    );
+  }
+
+  void _openChatSettingsSheet(ChatMemoryPolicy memoryPolicy) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Chat Settings',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Conversation Memory',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: memoryPolicy.shortTermWindow,
+                        borderRadius: BorderRadius.circular(12),
+                        items: _memoryWindowOptions
+                            .map(
+                              (value) => DropdownMenuItem<int>(
+                                value: value,
+                                child: Text('Window $value msgs'),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          _updateMemoryPolicy(shortTermWindow: value);
+                        },
+                      ),
+                    ),
+                    FilterChip(
+                      selected: memoryPolicy.semanticRecallEnabled,
+                      label: const Text('Semantic Recall'),
+                      onSelected: (selected) {
+                        _updateMemoryPolicy(
+                          semanticRecallEnabled: selected,
+                          semanticTopK: selected
+                              ? (memoryPolicy.semanticTopK == 0
+                                  ? 2
+                                  : memoryPolicy.semanticTopK)
+                              : 0,
+                        );
+                      },
+                    ),
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: memoryPolicy.semanticTopK,
+                        borderRadius: BorderRadius.circular(12),
+                        items: _semanticTopKOptions
+                            .map(
+                              (value) => DropdownMenuItem<int>(
+                                value: value,
+                                child: Text('Semantic top-$value'),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: memoryPolicy.semanticRecallEnabled
+                            ? (value) {
+                                if (value == null) {
+                                  return;
+                                }
+                                _updateMemoryPolicy(semanticTopK: value);
+                              }
+                            : null,
+                      ),
+                    ),
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<SessionResetPolicy>(
+                        value: memoryPolicy.resetPolicy,
+                        borderRadius: BorderRadius.circular(12),
+                        items: SessionResetPolicy.values
+                            .map(
+                              (value) => DropdownMenuItem<SessionResetPolicy>(
+                                value: value,
+                                child: Text(_resetPolicyLabel(value)),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          _updateMemoryPolicy(resetPolicy: value);
+                        },
+                      ),
+                    ),
+                    if (memoryPolicy.resetPolicy == SessionResetPolicy.inactivity)
+                      DropdownButtonHideUnderline(
+                        child: DropdownButton<int>(
+                          value: memoryPolicy.inactivityMinutes,
+                          borderRadius: BorderRadius.circular(12),
+                          items: _inactivityMinutesOptions
+                              .map(
+                                (value) => DropdownMenuItem<int>(
+                                  value: value,
+                                  child: Text('Idle $value min'),
+                                ),
+                              )
+                              .toList(growable: false),
+                          onChanged: (value) {
+                            if (value == null) {
+                              return;
+                            }
+                            _updateMemoryPolicy(inactivityMinutes: value);
+                          },
+                        ),
+                      ),
+                    OutlinedButton.icon(
+                      onPressed: _isGenerating ? null : _resetSessionMemoryNow,
+                      icon: const Icon(Icons.refresh_rounded),
+                      label: const Text('Reset Memory'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_isBootstrapping) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    final memoryPolicy = _memoryPolicy ??
+        ChatMemoryPolicy.defaults(_sessionId ?? 'session');
+    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+
+    return Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 52,
+        title: Text(
+          widget.chapter.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+        actions: [
+          IconButton(
+            onPressed: () => _openChatSettingsSheet(memoryPolicy),
+            tooltip: 'Chat settings',
+            icon: const Icon(Icons.tune_rounded),
+          ),
+          IconButton(
+            onPressed: _openAddNotesDialog,
+            tooltip: 'Add chapter notes',
+            icon: const Icon(Icons.note_add_outlined),
+          ),
+          IconButton(
+            onPressed: _isEmbedding ? null : _indexEmbeddingsForChapter,
+            tooltip: 'Index embeddings',
+            icon: _isEmbedding
+                ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+                : const Icon(Icons.auto_awesome_rounded),
+          ),
+          const SizedBox(width: 4),
+        ],
+      ),
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        child: Column(
+          children: [
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            color: const Color(0xFFF8FAFC),
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: _engineLoaded
+                        ? const Color(0xFFD0F0C0).withAlpha(204)
+                        : const Color(0xFFFFC0CB).withAlpha(204),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: _engineLoaded ? Colors.green : Colors.red,
+                      width: 0.5,
+                    ),
+                  ),
+                  child: Text(
+                    _engineLoaded ? 'Model Ready' : 'Model Not Ready',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: _engineLoaded ? Colors.green[800] : Colors.red[800],
+                    ),
+                  ),
+                ),
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _chatMode,
+                    borderRadius: BorderRadius.circular(12),
+                    items: const [
+                      DropdownMenuItem(value: 'fast', child: Text('Fast')),
+                      DropdownMenuItem(value: 'balanced', child: Text('Balanced')),
+                      DropdownMenuItem(value: 'detailed', child: Text('Detailed')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null || value == _chatMode) {
+                        return;
+                      }
+                      _applyChatMode(value);
+                    },
+                  ),
+                ),
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _languageCode,
+                    borderRadius: BorderRadius.circular(12),
+                    items: const [
+                      DropdownMenuItem(value: 'en', child: Text('English')),
+                      DropdownMenuItem(value: 'kn', child: Text('Kannada')),
+                    ],
+                    onChanged: (value) {
+                      if (value == null) {
+                        return;
+                      }
+                      setState(() {
+                        _languageCode = value;
+                      });
+                    },
+                  ),
+                ),
+                if (_languageCode != 'en')
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<TranslationEngineId>(
+                      value: _translationConfig.engineId,
+                      borderRadius: BorderRadius.circular(12),
+                      items: TranslationEngineCatalog.kannadaEngines()
+                          .map(
+                            (engine) => DropdownMenuItem<TranslationEngineId>(
+                              value: engine.id,
+                              child: Text(engine.label),
+                            ),
+                          )
+                          .toList(growable: false),
+                      onChanged: (value) {
+                        if (value == null) {
+                          return;
+                        }
+                        _updateTranslationEngine(value);
+                      },
+                    ),
+                  ),
+                if (_languageCode != 'en')
+                  IconButton(
+                    tooltip: 'Kannada translation engines',
+                    onPressed: _showKannadaEngineCatalog,
+                    icon: const Icon(Icons.translate_rounded),
+                  ),
+                if (_isLinux)
+                  OutlinedButton.icon(
+                    onPressed: _pickLinuxExecutable,
+                    icon: const Icon(Icons.terminal_rounded),
+                    label: const Text('Select Llama Runner'),
+                  ),
+                if (_isLinux)
+                  OutlinedButton.icon(
+                    onPressed: _autoDetectLinuxExecutable,
+                    icon: const Icon(Icons.search_rounded),
+                    label: const Text('Auto Detect CLI'),
+                  ),
+                if (_isLinux)
+                  OutlinedButton.icon(
+                    onPressed: _pickLinuxModel,
+                    icon: const Icon(Icons.memory_rounded),
+                    label: const Text('Select GGUF Model'),
+                  ),
+                if (_languageCode != 'en' &&
+                    _translationConfig.engineId == TranslationEngineId.apertiumCli)
+                  OutlinedButton.icon(
+                    onPressed: _pickApertiumBinary,
+                    icon: const Icon(Icons.extension_rounded),
+                    label: const Text('Set Apertium'),
+                  ),
+              ],
+            ),
+          ),
+          if (_languageCode != 'en')
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              color: const Color(0xFFF8FAFC),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text(
+                    'Translator: ${TranslationEngineCatalog.byId(_translationConfig.engineId).label}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  FilterChip(
+                    selected: _translationConfig.showOriginalAlongside,
+                    label: const Text('Show EN + Translated'),
+                    onSelected: _updateShowOriginalTranslation,
+                  ),
+                ],
+              ),
+            ),
+          if (_isLinux)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              color: const Color(0xFFF8FAFC),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Linux model: ${_linuxConfig.modelPath.isEmpty ? 'not selected' : _linuxConfig.modelPath.split('/').last}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Llama CLI: ${_linuxConfig.executablePath.isEmpty ? 'not selected' : _linuxConfig.executablePath}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Linux status: $_linuxStatusMessage',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          Container(
+            width: double.infinity,
+            color: const Color(0xFFE9F7EF),
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${widget.course.name} > ${widget.subject.name} > ${widget.chapter.title} | Questions: $_questionsAsked | Embeddings: $_indexedChunks/$_totalChunks',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Chip(
+                  label: Text(_chatScopeLabel),
+                  visualDensity: VisualDensity.compact,
+                  backgroundColor: _hasChapterRagContent
+                      ? const Color(0xFFD7F5E8)
+                      : const Color(0xFFF3F4F6),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+            color: const Color(0xFFF8FAFC),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Inference Telemetry',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _runningBenchmark ? null : _runLatencyBenchmark,
+                      icon: _runningBenchmark
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.speed_rounded),
+                      label: const Text('Benchmark'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                LinearProgressIndicator(
+                  value: _isGenerating ? _inferenceProgressValue() : null,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _isGenerating
+                      ? 'Generating... ~$_liveEstimatedTokens/$_generationMaxTokens tokens | $_liveTokensPerSec tok/s'
+                      : 'Last run: ${_lastInferenceMs}ms | $_lastInferenceTokens tokens | $_lastInferenceTokensPerSec tok/s',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _inferenceLog,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _hasChapterRagContent
+                      ? 'Chapter RAG content available. Using chapter-aware chat when needed.'
+                      : 'No chapter RAG content yet. Using general chat mode.',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _benchmarkLog,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                for (final message in _messages)
+                  Align(
+                    alignment:
+                        message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+                    child: GestureDetector(
+                      onLongPress: () => _copyMessage(message),
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.all(12),
+                        constraints: const BoxConstraints(maxWidth: 340),
+                        decoration: BoxDecoration(
+                          color: message.isUser
+                              ? const Color(0xFF0B6E4F)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              message.text.isEmpty && _isGenerating
+                                  ? '...'
+                                  : message.text,
+                              style: TextStyle(
+                                color: message.isUser
+                                    ? Colors.white
+                                    : Colors.black87,
+                              ),
+                            ),
+                            if (message.text.trim().isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: InkWell(
+                                  onTap: () => _copyMessage(message),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 6,
+                                      vertical: 2,
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          Icons.copy_rounded,
+                                          size: 14,
+                                          color: message.isUser
+                                              ? Colors.white.withValues(alpha: 0.9)
+                                              : Colors.black54,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          'Copy',
+                                          style: TextStyle(
+                                            color: message.isUser
+                                                ? Colors.white.withValues(alpha: 0.9)
+                                                : Colors.black54,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(12, 8, 12, 8 + bottomInset),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _inputController,
+                    minLines: 1,
+                    maxLines: 4,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _ask(),
+                    decoration: const InputDecoration(
+                      hintText: 'Ask from selected chapter...',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                IconButton.filled(
+                  onPressed: _isGenerating ? _stop : _ask,
+                  icon: Icon(_isGenerating ? Icons.stop_rounded : Icons.send_rounded),
+                ),
+              ],
+            ),
+          ),
+          ],
+        ),
+      ),
+    );
+  }
+}

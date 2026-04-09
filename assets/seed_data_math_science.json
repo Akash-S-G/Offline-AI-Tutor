@@ -1,0 +1,235 @@
+{
+  "courses": [
+    {
+      "id": "course-math-101",
+      "name": "Foundation Mathematics"
+    },
+    {
+      "id": "course-physics-101",
+      "name": "Physics Fundamentals"
+    }
+  ],
+  "subjects": [
+    {
+      "id": "subject-math-algebra",
+      "courseId": "course-math-101",
+      "name": "Algebra"
+    },
+    {
+      "id": "subject-physics-mechanics",
+      "courseId": "course-physics-101",
+      "name": "Mechanics"
+    }
+  ],
+  "chapters": [
+    {
+      "id": "chapter-quadratic-eq",
+      "subjectId": "subject-math-algebra",
+      "title": "Quadratic Equations",
+      "summary": "Understanding quadratic equations and their solutions"
+    },
+    {
+      "id": "chapter-motion",
+      "subjectId": "subject-physics-mechanics",
+      "title": "Motion and Kinematics",
+      "summary": "Laws of motion and kinematic equations"
+    }
+  ],
+  "chunks": [
+    {
+      "id": "chunk-quadratic-def",
+      "chapterId": "chapter-quadratic-eq",
+      "sourceTitle": "Mathematics Textbook - Chapter 5",
+      "sourceLanguage": "en",
+      "content": "A quadratic equation is a polynomial equation of the second degree. The general form is ax² + bx + c = 0, where a, b, and c are constants and a ≠ 0. The term 'quadratic' comes from the Latin word 'quadratus' meaning square.",
+      "contentType": "definition",
+      "chunkOrder": 1,
+      "tokenCount": 45,
+      "metadata": {
+        "section": "Introduction",
+        "difficulty": "beginner",
+        "prerequisites": ["algebra-basics"]
+      },
+      "formulas": [
+        {
+          "original": "ax² + bx + c = 0",
+          "type": "equation",
+          "latex": "ax^2 + bx + c = 0",
+          "variables": ["a", "b", "c", "x"],
+          "position": 0
+        }
+      ]
+    },
+    {
+      "id": "chunk-quadratic-solution",
+      "chapterId": "chapter-quadratic-eq",
+      "sourceTitle": "Mathematics Textbook - Chapter 5",
+      "sourceLanguage": "en",
+      "content": "The solutions to a quadratic equation ax² + bx + c = 0 can be found using the quadratic formula. Let D = b² - 4ac be the discriminant. If D > 0, there are two distinct real solutions. If D = 0, there is one repeated real solution. If D < 0, there are two complex conjugate solutions.",
+      "contentType": "concept",
+      "chunkOrder": 2,
+      "tokenCount": 68,
+      "metadata": {
+        "section": "Solutions",
+        "subsection": "Discriminant",
+        "difficulty": "intermediate",
+        "prerequisites": ["quadratic-definition"]
+      },
+      "formulas": [
+        {
+          "original": "x = (-b ± √(b² - 4ac)) / 2a",
+          "type": "formula",
+          "latex": "x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}",
+          "variables": ["x", "a", "b", "c"],
+          "position": 92
+        },
+        {
+          "original": "D = b² - 4ac",
+          "type": "expression",
+          "latex": "D = b^2 - 4ac",
+          "variables": ["D", "b", "a", "c"],
+          "position": 200
+        }
+      ]
+    },
+    {
+      "id": "chunk-quadratic-example",
+      "chapterId": "chapter-quadratic-eq",
+      "sourceTitle": "Mathematics Textbook - Chapter 5",
+      "sourceLanguage": "en",
+      "content": "Example: Solve 2x² - 7x + 3 = 0. Here a = 2, b = -7, c = 3. The discriminant D = (-7)² - 4(2)(3) = 49 - 24 = 25. Since D > 0, we have two distinct real solutions: x = (7 ± 5)/4, giving x = 3 and x = 0.5.",
+      "contentType": "example",
+      "chunkOrder": 3,
+      "tokenCount": 55,
+      "metadata": {
+        "section": "Worked Examples",
+        "difficulty": "intermediate"
+      },
+      "formulas": [
+        {
+          "original": "2x² - 7x + 3 = 0",
+          "type": "equation",
+          "latex": "2x^2 - 7x + 3 = 0",
+          "variables": ["x"],
+          "position": 28
+        }
+      ]
+    },
+    {
+      "id": "chunk-motion-def-en",
+      "chapterId": "chapter-motion",
+      "sourceTitle": "Physics Textbook - Chapter 2",
+      "sourceLanguage": "en",
+      "content": "Motion is the change of position of an object with respect to time. In classical mechanics, we describe motion using kinematic quantities: displacement (s), velocity (v), and acceleration (a). Displacement is a vector quantity representing the change in position. Velocity is the rate of change of displacement with time. Acceleration is the rate of change of velocity with time.",
+      "contentType": "definition",
+      "chunkOrder": 1,
+      "tokenCount": 62,
+      "metadata": {
+        "section": "Kinematics",
+        "difficulty": "beginner"
+      },
+      "formulas": []
+    },
+    {
+      "id": "chunk-motion-equations",
+      "chapterId": "chapter-motion",
+      "sourceTitle": "Physics Textbook - Chapter 2",
+      "sourceLanguage": "en",
+      "content": "For motion with constant acceleration, we have three kinematic equations. The first relates velocity and acceleration: v = u + at, where u is initial velocity, v is final velocity, a is acceleration, and t is time. The second relates displacement and time: s = ut + (1/2)at². The third relates velocity and displacement: v² = u² + 2as. These equations are fundamental to solving motion problems.",
+      "contentType": "concept",
+      "chunkOrder": 2,
+      "tokenCount": 76,
+      "metadata": {
+        "section": "Kinematic Equations",
+        "subsection": "Constant Acceleration",
+        "difficulty": "intermediate"
+      },
+      "formulas": [
+        {
+          "original": "v = u + at",
+          "type": "equation",
+          "latex": "v = u + at",
+          "variables": ["v", "u", "a", "t"],
+          "position": 0
+        },
+        {
+          "original": "s = ut + (1/2)at²",
+          "type": "equation",
+          "latex": "s = ut + \\frac{1}{2}at^2",
+          "variables": ["s", "u", "t", "a"],
+          "position": 80
+        },
+        {
+          "original": "v² = u² + 2as",
+          "type": "equation",
+          "latex": "v^2 = u^2 + 2as",
+          "variables": ["v", "u", "a", "s"],
+          "position": 160
+        }
+      ]
+    },
+    {
+      "id": "chunk-motion-example",
+      "chapterId": "chapter-motion",
+      "sourceTitle": "Physics Textbook - Chapter 2",
+      "sourceLanguage": "en",
+      "content": "Example: A car accelerates uniformly from rest. It reaches a velocity of 20 m/s in 5 seconds. Calculate (a) the acceleration, (b) the distance traveled. Given: u = 0 m/s, v = 20 m/s, t = 5 s. From v = u + at: 20 = 0 + a(5), so a = 4 m/s². From s = ut + (1/2)at²: s = 0 + (1/2)(4)(5²) = 50 m.",
+      "contentType": "example",
+      "chunkOrder": 3,
+      "tokenCount": 71,
+      "metadata": {
+        "section": "Worked Examples",
+        "difficulty": "intermediate"
+      },
+      "formulas": [
+        {
+          "original": "v = 20 m/s, t = 5 s",
+          "type": "expression",
+          "latex": "v = 20 \\text{ m/s}, t = 5 \\text{ s}",
+          "variables": [],
+          "position": 0
+        }
+      ]
+    },
+    {
+      "id": "chunk-quadratic-kannada",
+      "chapterId": "chapter-quadratic-eq",
+      "sourceTitle": "ಆನ್ಲೈನ್ ಪಾಠ - ಪ್ರಕರಣ 5",
+      "sourceLanguage": "kn",
+      "content": "ವರ್ಗ ಸಮೀಕರಣ ax² + bx + c = 0 ರೂಪದಲ್ಲಿ ಇರುತ್ತದೆ, ಇಲ್ಲಿ a, b ಮತ್ತು c ಸ್ಥಿರಾಂಕಗಳು ಮತ್ತು a ≠ 0. ವರ್ಗ ಸಮೀಕರಣದ ಪರಿಹಾರವು ವೃತ್ತಾಕಾರದ ಬೀಜ ಸೂತ್ರ ಬಳಸಿ ಲೆಕ್ಕ ಹಾಕಬಹುದು.",
+      "contentType": "concept",
+      "chunkOrder": 4,
+      "tokenCount": 42,
+      "metadata": {
+        "section": "ಪರಿಚಯ",
+        "language": "kannada",
+        "difficulty": "beginner"
+      },
+      "formulas": [
+        {
+          "original": "ax² + bx + c = 0",
+          "type": "equation",
+          "latex": "ax^2 + bx + c = 0",
+          "variables": ["a", "b", "c"],
+          "position": 15
+        }
+      ]
+    },
+    {
+      "id": "chunk-motion-kannada",
+      "chapterId": "chapter-motion",
+      "sourceTitle": "ಭೌತಶಾಸ್ತ್ರ ಪಾಠಪುಸ್ತಕ - ಪ್ರಕರಣ 2",
+      "sourceLanguage": "kn",
+      "content": "ಚಲನೆ ಎಂಬುದು ಸಮಯದ ಸಂದರ್ಭದಲ್ಲಿ ವಸ್ತುವಿನ ಸ್ಥಿತಿಯ ಪರಿವರ್ತನೆಯಾಗಿರುತ್ತದೆ. ಚಲನಶಾಸ್ತ್ರೀಯ ಪ್ರಮಾಣಗಳನ್ನು ಬಳಸಿ ಚಲನೆಯನ್ನು ವರ್ಣಿಸಬಹುದು: ಸ್ಥಳಾಂತರ (s), ವೇಗ (v), ಮತ್ತು ತ್ವರಣ (a). ಸ್ಥಳಾಂತರವು ಸ್ಥಿತಿಯ ಪರಿವರ್ತನೆಯನ್ನು ಪ್ರತಿನಿಧಿಸುವ ವೆಕ್ಟರ್ ಪ್ರಮಾಣವಾಗಿರುತ್ತದೆ.",
+      "contentType": "definition",
+      "chunkOrder": 4,
+      "tokenCount": 58,
+      "metadata": {
+        "section": "ಚಲನಶಾಸ್ತ್ರ",
+        "language": "kannada",
+        "difficulty": "beginner"
+      },
+      "formulas": []
+    }
+  ]
+}
