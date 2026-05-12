@@ -197,7 +197,11 @@ class OfflineErrorTaxonomy {
     if (lower.contains('unsupported') || lower.contains('missingplugin')) {
       return OfflineErrorCategory.unsupported;
     }
-    if (lower.contains('conflict') || lower.contains('already installed') || lower.contains('version')) {
+    if (lower.contains('conflict') ||
+        lower.contains('already installed') ||
+        lower.contains('same version') ||
+        lower.contains('newer than installed') ||
+        lower.contains('pack version')) {
       return OfflineErrorCategory.conflict;
     }
     if (lower.contains('parse') || lower.contains('format') || lower.contains('malformed')) {

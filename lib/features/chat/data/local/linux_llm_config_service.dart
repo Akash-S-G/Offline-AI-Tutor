@@ -115,6 +115,22 @@ class LinuxLlmConfigService {
     return null;
   }
 
+  /// Copies the selected model file into the app support directory to
+  /// improve local access performance. Returns the new model path.
+  Future<String> copyModelToAppStorage(String modelPath) async {
+    final src = File(modelPath);
+    if (!await src.exists()) {
+      throw Exception('Model file not found: $modelPath');
+    }
+
+    final dir = await getApplicationSupportDirectory();
+    final modelsDir = Directory('${dir.path}/models');
+    await modelsDir.create(recursive: true);
+    final dest = File('${modelsDir.path}/${src.uri.pathSegments.last}');
+    await src.copy(dest.path);
+    return dest.path;
+  }
+
   Future<LinuxLlmValidationResult> validate(LinuxLlmConfig config) async {
     final executable = config.executablePath.trim();
     final modelPath = config.modelPath.trim();

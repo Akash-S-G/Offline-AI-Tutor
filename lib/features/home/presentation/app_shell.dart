@@ -65,6 +65,8 @@ class _AppShellState extends State<AppShell> {
       return HeroPage(onGetStarted: _onGetStarted);
     }
 
-    return MainDashboardScreen(courseRepository: widget.courseRepository);
+    return MainDashboardScreen(
+      courseRepository: widget.courseRepository,
+    );
   }
 }

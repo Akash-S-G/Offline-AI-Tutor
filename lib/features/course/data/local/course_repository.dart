@@ -8,13 +8,6 @@ class CourseRepository {
 
   final AppDatabase _database;
 
-  static const List<String> _primarySubjects = <String>[
-    'Environment',
-    'Mathematics',
-    'English',
-    'Kannada',
-  ];
-
   static const List<String> _upperSubjects = <String>[
     'Mathematics',
     'English',
@@ -30,11 +23,6 @@ class CourseRepository {
     final batch = db.batch();
 
     const courses = <Map<String, String>>[
-      {'id': 'course_1', 'name': 'Class 1'},
-      {'id': 'course_2', 'name': 'Class 2'},
-      {'id': 'course_3', 'name': 'Class 3'},
-      {'id': 'course_4', 'name': 'Class 4'},
-      {'id': 'course_5', 'name': 'Class 5'},
       {'id': 'course_6', 'name': 'Class 6'},
       {'id': 'course_7', 'name': 'Class 7'},
       {'id': 'course_8', 'name': 'Class 8'},
@@ -51,8 +39,8 @@ class CourseRepository {
       {'id': 'sub_comp_10', 'course_id': 'course_10', 'name': 'Computer (Optional)'},
     ];
 
-    for (var grade = 1; grade <= 9; grade += 1) {
-      final gradeSubjects = grade <= 5 ? _primarySubjects : _upperSubjects;
+    for (var grade = 6; grade <= 9; grade += 1) {
+      final gradeSubjects = _upperSubjects;
       for (final name in gradeSubjects) {
         final idName = name
             .toLowerCase()
@@ -132,8 +120,8 @@ class CourseRepository {
       },
     ];
 
-    for (var grade = 1; grade <= 9; grade += 1) {
-      final gradeSubjects = grade <= 5 ? _primarySubjects : _upperSubjects;
+    for (var grade = 6; grade <= 9; grade += 1) {
+      final gradeSubjects = _upperSubjects;
       for (final name in gradeSubjects) {
         final idName = name
             .toLowerCase()
@@ -217,7 +205,7 @@ class CourseRepository {
         return false;
       }
       final grade = int.tryParse(match.group(1) ?? '');
-      return grade != null && grade >= 1 && grade <= 10;
+      return grade != null && grade >= 6 && grade <= 10;
     }).toList();
 
     filtered.sort((a, b) {
@@ -254,7 +242,7 @@ class CourseRepository {
       return all;
     }
 
-    final allowedNames = grade <= 5 ? _primarySubjects : _upperSubjects;
+    final allowedNames = _upperSubjects;
     final allowedSet = allowedNames.toSet();
     final filtered = all.where((subject) => allowedSet.contains(subject.name)).toList();
 

@@ -26,10 +26,14 @@ import '../../shared/application/offline_error_taxonomy.dart';
 class P2PScreen extends StatefulWidget {
   const P2PScreen({
     required this.courseRepository,
+    this.initialChapterId,
+    this.quickSendPreset = false,
     super.key,
   });
 
   final CourseRepository courseRepository;
+  final String? initialChapterId;
+  final bool quickSendPreset;
 
   @override
   State<P2PScreen> createState() => _P2PScreenState();
@@ -83,6 +87,7 @@ class _P2PScreenState extends State<P2PScreen> {
   
   BundleTransferProgress? _exportProgress;
   BundleTransferProgress? _importProgress;
+  bool _quickSendTriggered = false;
 
   @override
   void initState() {
@@ -178,9 +183,11 @@ class _P2PScreenState extends State<P2PScreen> {
         }
       }
       final selectedChapterId =
-          _selectedChapterId != null && chapterById.containsKey(_selectedChapterId)
-              ? _selectedChapterId
-              : (chapters.isEmpty ? null : chapters.first.id);
+          widget.initialChapterId != null && chapterById.containsKey(widget.initialChapterId)
+              ? widget.initialChapterId
+              : (_selectedChapterId != null && chapterById.containsKey(_selectedChapterId)
+                  ? _selectedChapterId
+                  : (chapters.isEmpty ? null : chapters.first.id));
       if (!mounted) {
         return;
       }
@@ -209,6 +216,13 @@ class _P2PScreenState extends State<P2PScreen> {
         _selectedPeer = peers.isEmpty ? null : (selectedPeer ?? peers.first);
         _loading = false;
       });
+
+      if (widget.quickSendPreset && !_quickSendTriggered) {
+        _quickSendTriggered = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _runQuickSendPreset();
+        });
+      }
 
       final activePendingIds = pendingIncoming.map((item) => item.id).toSet();
       _promptedIncomingIds.removeWhere((id) => !activePendingIds.contains(id));
@@ -576,6 +590,60 @@ class _P2PScreenState extends State<P2PScreen> {
         });
       }
     }
+  }
+
+  Future<void> _runQuickSendPreset() async {
+    if (!mounted) {
+      return;
+    }
+
+    final chapter = _selectedChapter;
+    if (chapter == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quick send skipped: no chapter selected.')),
+      );
+      return;
+    }
+
+    if (_sharedSecretController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Quick send skipped: save a shared secret first.'),
+        ),
+      );
+      return;
+    }
+
+    final trustedPeers = _peers
+        .where((peer) => _trustedPeerAddresses.contains(peer.address))
+        .toList();
+    if (trustedPeers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Quick send skipped: trust at least one peer first.'),
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _selectedPeer = trustedPeers.first;
+      _lastExportPath = null;
+    });
+
+    await _exportBundle();
+    if (!mounted) {
+      return;
+    }
+
+    if (_lastExportPath == null || _lastExportPath!.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Quick send export did not produce a bundle.')),
+      );
+      return;
+    }
+
+    await _sendLastBundleToPeer();
   }
 
   Future<void> _requestPermissions() async {
@@ -1291,6 +1359,36 @@ class _P2PScreenState extends State<P2PScreen> {
                       ),
                       child: Text(_error!),
                     ),
+                  if (widget.quickSendPreset) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFFF7ED),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFF59E0B)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.bolt_rounded, color: Color(0xFFB45309)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              _selectedChapter == null
+                                  ? 'Quick send mode: waiting for chapter selection.'
+                                  : 'Quick send mode: ${_selectedChapter!.title}',
+                            ),
+                          ),
+                          OutlinedButton(
+                            onPressed: _processingBundle || _processingTransfer
+                                ? null
+                                : _runQuickSendPreset,
+                            child: const Text('Run Now'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(

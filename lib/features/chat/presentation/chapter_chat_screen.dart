@@ -14,6 +14,8 @@ import '../data/platform_tutor_inference_gateway.dart';
 import '../data/tutor_inference_gateway.dart';
 import '../data/local/chat_memory_policy_repository.dart';
 import '../data/local/linux_llm_config_service.dart';
+import '../../network/application/distributed_service_composer.dart';
+import '../../network/domain/backend_config.dart';
 import '../domain/tutor_message.dart';
 import '../../translation/application/separate_translation_layer_service.dart';
 import '../../translation/data/local/translation_engine_config_service.dart';
@@ -44,10 +46,14 @@ class ChapterChatScreen extends StatefulWidget {
 
 class _ChapterChatScreenState extends State<ChapterChatScreen> {
   static final RegExp _ansiEscape = RegExp(r'\x1B\[[0-9;]*[A-Za-z]');
+  bool _androidNativeFastPath = true;
+  int _lastUiUpdateAtMs = 0;
 
   final TutorInferenceGateway _gateway = PlatformTutorInferenceGateway();
   late final ChatLatencyBenchmarkService _benchmarkService =
       ChatLatencyBenchmarkService(gateway: _gateway);
+    final DistributedServiceComposer _distributedServiceComposer =
+      DistributedServiceComposer();
   final SimpleAiChatComponent _simpleAiComponent =
       const SimpleAiChatComponent();
     final TutorPromptBuilder _promptBuilder = TutorPromptBuilder();
@@ -101,6 +107,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   LinuxLlmConfig _linuxConfig = LinuxLlmConfig.defaults;
   Timer? _engineStatusTimer;
   StreamSubscription<Map<String, dynamic>>? _metricsSubscription;
+  StreamSubscription<String>? _activeResponseSubscription;
   int _lastAutoScrollAtMs = 0;
 
   bool get _hasChapterRagContent => _totalChunks > 0;
@@ -120,6 +127,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   void initState() {
     super.initState();
     _bootstrapSession();
+    _bootstrapDistributedStreaming();
     _loadTranslationConfig();
     _listenInferenceMetrics();
     if (_isLinux) {
@@ -132,6 +140,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   @override
   void dispose() {
     _metricsSubscription?.cancel();
+    _activeResponseSubscription?.cancel();
     _inputController.dispose();
     _notesController.dispose();
     _scrollController.dispose();
@@ -171,6 +180,56 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     });
   }
 
+  Future<void> _bootstrapDistributedStreaming() async {
+    final config = BackendConfig.fromEnvironment();
+    if (config == null) {
+      return;
+    }
+
+    try {
+      await _distributedServiceComposer.initialize(
+        backendConfig: config,
+        platformGateway: _gateway,
+      );
+      await _syncDistributedClassroomState();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _inferenceLog = 'Distributed streaming enabled.';
+      });
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _inferenceLog = 'Distributed streaming unavailable: $error';
+      });
+    }
+  }
+
+  Future<void> _syncDistributedClassroomState() async {
+    final sessionId = _sessionId;
+    if (sessionId == null || !_distributedServiceComposer.isInitialized) {
+      return;
+    }
+
+    final recovery = _distributedServiceComposer.classroomRecoveryCoordinator;
+    final persistence = _distributedServiceComposer.sessionPersistenceManager;
+
+    await persistence.saveSession(sessionId, <String, dynamic>{
+      'courseId': widget.course.id,
+      'subjectId': widget.subject.id,
+      'chapterId': widget.chapter.id,
+      'languageCode': _languageCode,
+      'questionsAsked': _questionsAsked,
+      'totalChunks': _totalChunks,
+      'indexedChunks': _indexedChunks,
+    });
+
+    await recovery.restoreIfNeeded(sessionId);
+  }
+
   Future<void> _pickLinuxModel() async {
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.custom,
@@ -191,6 +250,42 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       _engineLoaded = validation.ready;
       _linuxStatusMessage = validation.message;
     });
+  }
+
+  Future<void> _copyModelToAppStorage() async {
+    if (!_isLinux) return;
+    if (_linuxConfig.modelPath.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select a model file first.')),
+      );
+      return;
+    }
+
+    try {
+      setState(() {
+        _linuxStatusMessage = 'Copying model to app storage...';
+      });
+      final newPath = await _linuxConfigService.copyModelToAppStorage(_linuxConfig.modelPath);
+      final updated = await _linuxConfigService.update(modelPath: newPath);
+      final validation = await _linuxConfigService.validate(updated);
+      if (!mounted) return;
+      setState(() {
+        _linuxConfig = updated;
+        _engineLoaded = validation.ready;
+        _linuxStatusMessage = 'Copied model: ${newPath.split('/').last}';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Model copied to app storage.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _linuxStatusMessage = 'Copy failed: $e';
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Copy failed: $e')),
+      );
+    }
   }
 
   Future<void> _pickLinuxExecutable() async {
@@ -467,6 +562,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       _isBootstrapping = false;
     });
 
+    await _syncDistributedClassroomState();
     await _applyChatMode(_chatMode, showFeedback: false);
 
     if (existingMessages.isEmpty && _messages.isNotEmpty) {
@@ -701,6 +797,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       return;
     }
 
+    final useAndroidFastPath = Platform.isAndroid && _androidNativeFastPath;
+
     final localFastReply = _simpleAiComponent.localFastReply(question: question);
     if (localFastReply != null) {
       final now = DateTime.now();
@@ -775,7 +873,10 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       return;
     }
 
-    final modelPrompt = await _buildModelPrompt(question: question);
+    final distributedStreamingReady = _distributedServiceComposer.isInitialized;
+    final modelPrompt = (useAndroidFastPath && !distributedStreamingReady)
+      ? question
+      : await _buildModelPrompt(question: question);
 
     if (_isLinux && !_engineLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -784,9 +885,11 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       return;
     }
 
-    final needsTranslation = _languageCode != 'en';
+    final needsTranslation = !useAndroidFastPath && _languageCode != 'en';
 
-    final recoveryPrompt = _simpleAiComponent.buildRecoveryPrompt(question: question);
+    final recoveryPrompt = useAndroidFastPath && !distributedStreamingReady
+      ? ''
+      : _simpleAiComponent.buildRecoveryPrompt(question: question);
 
     setState(() {
       _messages.add(TutorMessage(text: question, isUser: true, timestamp: DateTime.now()));
@@ -802,19 +905,24 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       _inputController.clear();
     });
 
-    // Record question asked and chat message
-    await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
-    await _progressRepository.recordChatMessage(
-      chapterId: widget.chapter.id,
-      sessionId: _sessionId!,
-    );
+    final userTimestamp = _messages[_messages.length - 2].timestamp;
+    if (useAndroidFastPath) {
+      _persistUserTurnAsync(question: question, timestamp: userTimestamp);
+    } else {
+      // Record question asked and chat message
+      await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+      await _progressRepository.recordChatMessage(
+        chapterId: widget.chapter.id,
+        sessionId: _sessionId!,
+      );
 
-    await _chatSessionRepository.appendMessage(
-      sessionId: _sessionId!,
-      isUser: true,
-      text: question,
-      timestamp: _messages[_messages.length - 2].timestamp,
-    );
+      await _chatSessionRepository.appendMessage(
+        sessionId: _sessionId!,
+        isUser: true,
+        text: question,
+        timestamp: userTimestamp,
+      );
+    }
 
     _scrollToBottom(animated: false);
 
@@ -827,11 +935,18 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     GenerationConfig? previousConfigForShortQuery;
 
     final shortQuery = question.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length <= 8;
-    if (Platform.isAndroid && shortQuery) {
+    if (!useAndroidFastPath && Platform.isAndroid && shortQuery) {
       previousConfigForShortQuery = await _enableShortQueryConfig();
     }
 
     try {
+      final responseStream = distributedStreamingReady
+          ? _distributedServiceComposer.hybridInferenceService.streamAnswer(
+              question,
+              systemPrompt: modelPrompt,
+            )
+          : _gateway.streamResponse(prompt: modelPrompt);
+
       final primaryTimeout = Duration(
         milliseconds: Platform.isAndroid
             ? 720000
@@ -842,53 +957,83 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                     : 180000,
       );
 
-      Future<void> consumeStream({required Duration timeout, required bool isFallback, required String activePrompt}) async {
-        await for (final chunk in _gateway
-        .streamResponse(prompt: activePrompt)
-            .timeout(timeout)) {
-          responseBuffer.write(chunk);
-          final liveText = responseBuffer.toString();
-          if (liveText.isNotEmpty) {
-            lastNonEmptyAssistant = liveText;
+      Future<void> consumeStream({required Duration timeout, required bool isFallback, required Stream<String> stream}) async {
+        final completer = Completer<void>();
+        late final StreamSubscription<String> subscription;
+
+        subscription = stream.listen(
+          (chunk) {
+            responseBuffer.write(chunk);
+
+            final nowMs = DateTime.now().millisecondsSinceEpoch;
+            final shouldForceUpdate = chunk.contains('\n');
+            if (nowMs - _lastUiUpdateAtMs > 40 || shouldForceUpdate) {
+              final liveText = responseBuffer.toString();
+              if (liveText.isNotEmpty) lastNonEmptyAssistant = liveText;
+
+              if (!mounted) {
+                return;
+              }
+
+              final elapsedMs = DateTime.now()
+                  .difference(_inferenceStartedAt ?? DateTime.now())
+                  .inMilliseconds;
+              final estimatedTokens = (liveText.length / 4).round();
+              final liveTokensPerSec = elapsedMs <= 0
+                  ? 0
+                  : ((estimatedTokens * 1000) / elapsedMs).round();
+
+              setState(() {
+                _messages[assistantIndex] = TutorMessage(
+                  text: liveText,
+                  isUser: false,
+                  timestamp: _messages[assistantIndex].timestamp,
+                );
+                _liveEstimatedTokens = estimatedTokens;
+                _liveTokensPerSec = liveTokensPerSec;
+                _inferenceLog = isFallback
+                    ? 'Fallback streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s'
+                    : 'Streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s';
+              });
+
+              _scrollToBottom(animated: false, force: true);
+              _lastUiUpdateAtMs = nowMs;
+            }
+          },
+          onError: (error, stackTrace) {
+            if (!completer.isCompleted) {
+              completer.completeError(error, stackTrace);
+            }
+          },
+          onDone: () {
+            if (!completer.isCompleted) {
+              completer.complete();
+            }
+          },
+          cancelOnError: true,
+        );
+
+        _activeResponseSubscription = subscription;
+
+        try {
+          await completer.future.timeout(timeout);
+        } finally {
+          await subscription.cancel();
+          if (identical(_activeResponseSubscription, subscription)) {
+            _activeResponseSubscription = null;
           }
-
-          if (!mounted) {
-            return;
-          }
-
-          final elapsedMs = DateTime.now()
-              .difference(_inferenceStartedAt ?? DateTime.now())
-              .inMilliseconds;
-          final estimatedTokens = (liveText.length / 4).round();
-          final liveTokensPerSec = elapsedMs <= 0
-              ? 0
-              : ((estimatedTokens * 1000) / elapsedMs).round();
-
-          setState(() {
-            _messages[assistantIndex] = TutorMessage(
-              text: liveText,
-              isUser: false,
-              timestamp: _messages[assistantIndex].timestamp,
-            );
-            _liveEstimatedTokens = estimatedTokens;
-            _liveTokensPerSec = liveTokensPerSec;
-            _inferenceLog = isFallback
-                ? 'Fallback streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s'
-                : 'Streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s';
-          });
-
-          _scrollToBottom(animated: false, force: true);
         }
       }
 
       try {
-        await consumeStream(timeout: primaryTimeout, isFallback: false, activePrompt: modelPrompt);
+        await consumeStream(timeout: primaryTimeout, isFallback: false, stream: responseStream);
       } catch (error) {
         final details = OfflineErrorTaxonomy.fromError(
           error,
           context: OfflineErrorContext.chatInference,
         );
         final shouldFallback =
+          !useAndroidFastPath &&
             _chatMode != 'fast' &&
             (details.category == OfflineErrorCategory.timeout ||
                 details.category == OfflineErrorCategory.network ||
@@ -918,7 +1063,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         await consumeStream(
           timeout: const Duration(milliseconds: 90000),
           isFallback: true,
-          activePrompt: modelPrompt,
+          stream: _gateway.streamResponse(prompt: modelPrompt),
         );
       }
     } catch (error) {
@@ -991,7 +1136,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         });
       }
 
-      if (_looksLooped(finalAssistant)) {
+      if (!useAndroidFastPath && _looksLooped(finalAssistant)) {
         try {
           final retryText = await _runRecoveryPrompt(recoveryPrompt);
           if (retryText.isNotEmpty) {
@@ -1014,7 +1159,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
       if (usedAutoFallback) {
         await _restoreGenerationConfig(previousConfigForFallback);
-      } else {
+      } else if (!useAndroidFastPath) {
         await _restoreGenerationConfig(previousConfigForShortQuery);
       }
 
@@ -1065,22 +1210,31 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
 
       if (!assistantPersisted && finalAssistant.isNotEmpty) {
-        await _chatSessionRepository.appendMessage(
-          sessionId: _sessionId!,
-          isUser: false,
-          text: finalAssistant,
-          timestamp: _messages[assistantIndex].timestamp,
-        );
-        // Record assistant message
-        await _progressRepository.recordChatMessage(
-          chapterId: widget.chapter.id,
-          sessionId: _sessionId!,
-        );
+        if (useAndroidFastPath) {
+          _persistAssistantTurnAsync(
+            answer: finalAssistant,
+            timestamp: _messages[assistantIndex].timestamp,
+          );
+        } else {
+          await _chatSessionRepository.appendMessage(
+            sessionId: _sessionId!,
+            isUser: false,
+            text: finalAssistant,
+            timestamp: _messages[assistantIndex].timestamp,
+          );
+          // Record assistant message
+          await _progressRepository.recordChatMessage(
+            chapterId: widget.chapter.id,
+            sessionId: _sessionId!,
+          );
+        }
       }
 
-      final updatedCount = await _progressRepository.getQuestionCount(
-        chapterId: widget.chapter.id,
-      );
+      final updatedCount = useAndroidFastPath
+          ? (_questionsAsked + 1)
+          : await _progressRepository.getQuestionCount(
+              chapterId: widget.chapter.id,
+            );
 
       if (mounted) {
         final elapsedMs = DateTime.now().difference(_inferenceStartedAt ?? DateTime.now()).inMilliseconds;
@@ -1107,6 +1261,45 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
       _scrollToBottom(animated: true, force: true);
     }
+  }
+
+  void _persistUserTurnAsync({required String question, required DateTime timestamp}) {
+    unawaited(() async {
+      try {
+        await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+        await _progressRepository.recordChatMessage(
+          chapterId: widget.chapter.id,
+          sessionId: _sessionId!,
+        );
+        await _chatSessionRepository.appendMessage(
+          sessionId: _sessionId!,
+          isUser: true,
+          text: question,
+          timestamp: timestamp,
+        );
+      } catch (_) {
+        // Best-effort persistence in fast path.
+      }
+    }());
+  }
+
+  void _persistAssistantTurnAsync({required String answer, required DateTime timestamp}) {
+    unawaited(() async {
+      try {
+        await _chatSessionRepository.appendMessage(
+          sessionId: _sessionId!,
+          isUser: false,
+          text: answer,
+          timestamp: timestamp,
+        );
+        await _progressRepository.recordChatMessage(
+          chapterId: widget.chapter.id,
+          sessionId: _sessionId!,
+        );
+      } catch (_) {
+        // Best-effort persistence in fast path.
+      }
+    }());
   }
 
   Future<String> _buildModelPrompt({required String question}) async {
@@ -1141,7 +1334,12 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
   Future<String> _runRecoveryPrompt(String recoveryPrompt) async {
     final buffer = StringBuffer();
-    await for (final chunk in _gateway.streamResponse(prompt: recoveryPrompt)) {
+    await for (final chunk in (_distributedServiceComposer.isInitialized
+        ? _distributedServiceComposer.hybridInferenceService.streamAnswer(
+            recoveryPrompt,
+            forceLocal: true,
+          )
+        : _gateway.streamResponse(prompt: recoveryPrompt))) {
       buffer.write(chunk);
     }
     return _sanitizeAssistantText(buffer.toString()).trim();
@@ -1263,6 +1461,12 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       return;
     }
 
+    await _activeResponseSubscription?.cancel();
+    _activeResponseSubscription = null;
+
+    if (_distributedServiceComposer.isInitialized) {
+      await _distributedServiceComposer.hybridInferenceService.stopGeneration();
+    }
     await _gateway.stopGeneration();
     if (!mounted) {
       return;
@@ -1858,6 +2062,28 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                     onPressed: _pickLinuxModel,
                     icon: const Icon(Icons.memory_rounded),
                     label: const Text('Select GGUF Model'),
+                  ),
+                if (_isLinux)
+                  OutlinedButton.icon(
+                    onPressed: _copyModelToAppStorage,
+                    icon: const Icon(Icons.download_rounded),
+                    label: const Text('Copy Model to App'),
+                  ),
+                if (Platform.isAndroid)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Fast Native'),
+                      const SizedBox(width: 6),
+                      Switch.adaptive(
+                        value: _androidNativeFastPath,
+                        onChanged: (v) {
+                          setState(() {
+                            _androidNativeFastPath = v;
+                          });
+                        },
+                      ),
+                    ],
                   ),
                 if (_languageCode != 'en' &&
                     _translationConfig.engineId == TranslationEngineId.apertiumCli)

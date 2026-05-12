@@ -31,19 +31,19 @@ class ContentPackPolicyService {
 
     for (final medium in const <String>['English Medium', 'Kannada Medium']) {
       addRule(
-        id: 'math_${medium.startsWith('English') ? 'en' : 'kn'}_1_10',
-        title: 'Mathematics Grades 1-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
+        id: 'math_${medium.startsWith('English') ? 'en' : 'kn'}_6_10',
+        title: 'Mathematics Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
         medium: medium,
         subject: 'Mathematics',
-        gradeMin: 1,
+        gradeMin: 6,
         gradeMax: 10,
       );
       addRule(
-        id: 'science_${medium.startsWith('English') ? 'en' : 'kn'}_5_10',
-        title: 'Science Grades 5-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
+        id: 'science_${medium.startsWith('English') ? 'en' : 'kn'}_6_10',
+        title: 'Science Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
         medium: medium,
         subject: 'Science',
-        gradeMin: 5,
+        gradeMin: 6,
         gradeMax: 10,
       );
       addRule(

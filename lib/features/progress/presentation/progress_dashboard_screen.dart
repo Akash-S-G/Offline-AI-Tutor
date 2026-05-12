@@ -28,13 +28,15 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
 
   List<ChapterWithProgress> _chaptersWithProgress = [];
   List<QuizResult> _allQuizResults = [];
+  Map<String, String> _chapterTitleById = <String, String>{};
+  Map<String, String> _chapterSubjectById = <String, String>{};
 
   @override
   void initState() {
     super.initState();
     _progressRepository = ProgressRepository();
     _quizRepository = QuizResultRepository();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadFuture = _loadData();
   }
 
@@ -47,6 +49,8 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   Future<void> _loadData() async {
     final courses = await widget.courseRepository.getCourses();
     final chapters = <Chapter>[];
+    final chapterTitleById = <String, String>{};
+    final chapterSubjectById = <String, String>{};
 
     for (final course in courses) {
       final subjects = await widget.courseRepository.getSubjects(course.id);
@@ -54,6 +58,10 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
         final subjectChapters =
             await widget.courseRepository.getChapters(subject.id);
         chapters.addAll(subjectChapters);
+        for (final chapter in subjectChapters) {
+          chapterTitleById[chapter.id] = chapter.title;
+          chapterSubjectById[chapter.id] = subject.name;
+        }
       }
     }
 
@@ -79,6 +87,8 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
     setState(() {
       _chaptersWithProgress = combined;
       _allQuizResults = quizResults;
+      _chapterTitleById = chapterTitleById;
+      _chapterSubjectById = chapterSubjectById;
     });
   }
 
@@ -140,6 +150,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
           tabs: const [
             Tab(text: 'Chapter Progress'),
             Tab(text: 'Quiz History'),
+            Tab(text: 'Leaderboard & Trends'),
           ],
         ),
       ),
@@ -148,6 +159,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
         children: [
           _buildChapterProgressTab(),
           _buildQuizHistoryTab(),
+          _buildLeaderboardTrendTab(),
         ],
       ),
     );
@@ -574,4 +586,211 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       },
     );
   }
+
+  Widget _buildLeaderboardTrendTab() {
+    return FutureBuilder<void>(
+      future: _loadFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (_allQuizResults.isEmpty) {
+          return const Center(
+            child: Text('Take quizzes to unlock leaderboard and trend analytics.'),
+          );
+        }
+
+        final chapterGrouped = <String, List<QuizResult>>{};
+        for (final result in _allQuizResults) {
+          chapterGrouped.putIfAbsent(result.chapterId, () => <QuizResult>[]).add(result);
+        }
+
+        final chapterLeaders = chapterGrouped.entries
+            .map((entry) {
+              final attempts = entry.value;
+              final average = attempts
+                      .map((e) => e.percentage)
+                      .fold<int>(0, (a, b) => a + b) /
+                  attempts.length;
+              final best = attempts
+                  .map((e) => e.percentage)
+                  .fold<int>(0, (a, b) => a > b ? a : b);
+              return _ChapterLeader(
+                chapterId: entry.key,
+                chapterTitle: _chapterTitleById[entry.key] ?? entry.key,
+                attemptCount: attempts.length,
+                averageScore: average,
+                bestScore: best,
+              );
+            })
+            .toList()
+          ..sort((a, b) => b.averageScore.compareTo(a.averageScore));
+
+        final subjectGrouped = <String, List<QuizResult>>{};
+        for (final result in _allQuizResults) {
+          final subject = _chapterSubjectById[result.chapterId] ?? 'Unknown Subject';
+          subjectGrouped.putIfAbsent(subject, () => <QuizResult>[]).add(result);
+        }
+
+        final subjectTrends = subjectGrouped.entries
+            .map((entry) {
+              final attempts = [...entry.value]
+                ..sort((a, b) => a.attemptedAt.compareTo(b.attemptedAt));
+              final percentages = attempts.map((e) => e.percentage.toDouble()).toList();
+              final average = percentages.isEmpty
+                  ? 0.0
+                  : percentages.reduce((a, b) => a + b) / percentages.length;
+
+              final recent = percentages.isEmpty
+                  ? 0.0
+                  : percentages
+                          .skip(percentages.length > 3 ? percentages.length - 3 : 0)
+                          .reduce((a, b) => a + b) /
+                      (percentages.length >= 3 ? 3 : percentages.length);
+
+              final baselineSlice = percentages.length > 3
+                  ? percentages.take(percentages.length - 3).toList()
+                  : percentages;
+              final baseline = baselineSlice.isEmpty
+                  ? recent
+                  : baselineSlice.reduce((a, b) => a + b) / baselineSlice.length;
+
+              return _SubjectTrend(
+                subjectName: entry.key,
+                attemptCount: attempts.length,
+                averageScore: average,
+                trendDelta: recent - baseline,
+              );
+            })
+            .toList()
+          ..sort((a, b) => b.averageScore.compareTo(a.averageScore));
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            const Text(
+              'Chapter Leaderboard',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            ...chapterLeaders.take(10).toList().asMap().entries.map((entry) {
+              final rank = entry.key + 1;
+              final row = entry.value;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: ListTile(
+                  leading: CircleAvatar(
+                    child: Text('$rank'),
+                  ),
+                  title: Text(row.chapterTitle),
+                  subtitle: Text(
+                    'Avg ${row.averageScore.toStringAsFixed(1)}% • Best ${row.bestScore}% • ${row.attemptCount} attempts',
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 16),
+            const Text(
+              'Subject Progress Trends',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 10),
+            ...subjectTrends.map((trend) {
+              final improving = trend.trendDelta >= 0;
+              final trendColor = improving ? Colors.green : Colors.red;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 10),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              trend.subjectName,
+                              style: const TextStyle(fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              Icon(
+                                improving
+                                    ? Icons.trending_up_rounded
+                                    : Icons.trending_down_rounded,
+                                color: trendColor,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${trend.trendDelta >= 0 ? '+' : ''}${trend.trendDelta.toStringAsFixed(1)}%',
+                                style: TextStyle(
+                                  color: trendColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Average ${trend.averageScore.toStringAsFixed(1)}% across ${trend.attemptCount} attempts',
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: (trend.averageScore / 100).clamp(0, 1),
+                        minHeight: 8,
+                        backgroundColor: Colors.grey[300],
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          trend.averageScore >= 80
+                              ? Colors.green
+                              : trend.averageScore >= 60
+                                  ? Colors.orange
+                                  : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _ChapterLeader {
+  const _ChapterLeader({
+    required this.chapterId,
+    required this.chapterTitle,
+    required this.attemptCount,
+    required this.averageScore,
+    required this.bestScore,
+  });
+
+  final String chapterId;
+  final String chapterTitle;
+  final int attemptCount;
+  final double averageScore;
+  final int bestScore;
+}
+
+class _SubjectTrend {
+  const _SubjectTrend({
+    required this.subjectName,
+    required this.attemptCount,
+    required this.averageScore,
+    required this.trendDelta,
+  });
+
+  final String subjectName;
+  final int attemptCount;
+  final double averageScore;
+  final double trendDelta;
 }

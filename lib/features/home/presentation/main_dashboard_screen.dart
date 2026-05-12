@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../assessment/data/local/quiz_result_repository.dart';
+import '../../assessment/domain/quiz_result.dart';
 import '../../chat/presentation/chapter_chat_screen.dart';
 import '../../course/data/local/course_repository.dart';
 import '../../course/domain/course_tree.dart';
+import '../../p2p/data/p2p_channel_service.dart';
 import '../../p2p/presentation/p2p_screen.dart';
 import '../../progress/presentation/progress_dashboard_screen.dart';
 import '../../rag/presentation/screens/document_rag_ingestion_screen.dart';
@@ -24,6 +28,9 @@ class MainDashboardScreen extends StatefulWidget {
 }
 
 class _MainDashboardScreenState extends State<MainDashboardScreen> {
+  final QuizResultRepository _quizResultRepository = QuizResultRepository();
+  final P2PChannelService _p2pChannelService = P2PChannelService();
+
   List<Course> _courses = const [];
   List<Subject> _subjects = const [];
   List<Chapter> _chapters = const [];
@@ -33,11 +40,65 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Chapter? _selectedChapter;
 
   bool _loading = true;
+  int _quizAttempts = 0;
+  QuizResult? _latestQuizResult;
+  String _p2pSummary = 'Scanning peers...';
+  bool _p2pAvailable = true;
 
   @override
   void initState() {
     super.initState();
     _loadInitial();
+    _loadFeatureInsights();
+  }
+
+  Future<void> _loadFeatureInsights() async {
+    QuizResult? latest;
+    var attemptCount = 0;
+    var p2pSummary = 'Scanning peers...';
+    var p2pAvailable = true;
+
+    try {
+      final allResults = await _quizResultRepository.getAllResults();
+      attemptCount = allResults.length;
+      if (allResults.isNotEmpty) {
+        latest = allResults.first;
+      }
+    } catch (_) {
+      // Keep dashboard resilient even if quiz history fails to load.
+    }
+
+    try {
+      final status = await _p2pChannelService.getStatus();
+      final peers = await _p2pChannelService.listPeers();
+      if (!status.supported) {
+        p2pSummary = 'P2P unsupported on this device';
+      } else if (!status.enabled) {
+        p2pSummary = 'P2P is off, enable sharing to discover peers';
+      } else if (peers.isEmpty) {
+        p2pSummary = 'No peers found nearby';
+      } else {
+        p2pSummary = '${peers.length} peer(s) available for transfer';
+      }
+    } on MissingPluginException {
+      p2pAvailable = false;
+      p2pSummary = 'P2P available on Android builds';
+    } on PlatformException {
+      p2pSummary = 'P2P status unavailable right now';
+    } catch (_) {
+      p2pSummary = 'P2P status unavailable right now';
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _quizAttempts = attemptCount;
+      _latestQuizResult = latest;
+      _p2pSummary = p2pSummary;
+      _p2pAvailable = p2pAvailable;
+    });
   }
 
   Future<void> _loadInitial() async {
@@ -137,7 +198,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     );
   }
 
-  void _navigateQuiz() {
+  Future<void> _navigateQuiz() async {
     final course = _selectedCourse;
     final subject = _selectedSubject;
     final chapter = _selectedChapter;
@@ -149,7 +210,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       return;
     }
 
-    Navigator.of(context).push(
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => QuizAssessmentScreen(
           course: course,
@@ -158,16 +219,55 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         ),
       ),
     );
+
+    await _loadFeatureInsights();
   }
 
-  void _navigateP2PForTest() {
-    Navigator.of(context).push(
+  Future<void> _navigateP2PForTest() async {
+    await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => P2PScreen(
           courseRepository: widget.courseRepository,
         ),
       ),
     );
+
+    await _loadFeatureInsights();
+  }
+
+  Future<void> _quickSendSelectedChapter() async {
+    final chapter = _selectedChapter;
+    if (chapter == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select a chapter first')),
+      );
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => P2PScreen(
+          courseRepository: widget.courseRepository,
+          initialChapterId: chapter.id,
+          quickSendPreset: true,
+        ),
+      ),
+    );
+
+    await _loadFeatureInsights();
+  }
+
+  String _quizDescription() {
+    if (_quizAttempts == 0) {
+      return 'Take your first chapter quiz';
+    }
+
+    final latest = _latestQuizResult;
+    if (latest == null) {
+      return '$_quizAttempts attempt(s) recorded';
+    }
+
+    return '$_quizAttempts attempt(s), latest ${latest.percentage}% (${latest.performanceLabel})';
   }
 
   Course? _selectedCourseInList() {
@@ -443,9 +543,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             _LearningCard(
               icon: Icons.quiz_rounded,
               title: 'Quiz & Assessment',
-              description: 'Test your knowledge',
+              description: _quizDescription(),
               color: accent,
-              onTap: _navigateQuiz,
+              onTap: () {
+                _navigateQuiz();
+              },
             ),
 
             const SizedBox(height: 12),
@@ -469,9 +571,27 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             _LearningCard(
               icon: Icons.group_rounded,
               title: 'Community Learning',
-              description: 'Connect with peers (P2P)',
+              description: _p2pSummary,
               color: const Color(0xFF10B981),
-              onTap: _navigateP2PForTest,
+              onTap: _p2pAvailable
+                  ? () {
+                      _navigateP2PForTest();
+                    }
+                  : null,
+            ),
+
+            const SizedBox(height: 12),
+
+            _LearningCard(
+              icon: Icons.send_to_mobile_rounded,
+              title: 'Quick Send Chapter',
+              description: 'One-tap export + transfer selected chapter',
+              color: const Color(0xFF0EA5E9),
+              onTap: _p2pAvailable
+                  ? () {
+                      _quickSendSelectedChapter();
+                    }
+                  : null,
             ),
 
             const SizedBox(height: 24),

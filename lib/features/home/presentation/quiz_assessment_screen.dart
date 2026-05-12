@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import '../../course/domain/course_tree.dart';
 import '../../assessment/domain/quiz_result.dart';
 import '../../assessment/data/local/quiz_result_repository.dart';
+import '../../rag/data/local/rag_repository.dart';
+import '../../rag/domain/rag_chunk.dart';
 
 class QuizAssessmentScreen extends StatefulWidget {
   const QuizAssessmentScreen({
@@ -23,17 +25,83 @@ class QuizAssessmentScreen extends StatefulWidget {
 }
 
 class _QuizAssessmentScreenState extends State<QuizAssessmentScreen> {
-  late final List<_QuizQuestion> _questions;
+  List<_QuizQuestion> _questions = const [];
   late final QuizResultRepository _resultRepository;
+  late final RagRepository _ragRepository;
   final Map<int, int> _answers = <int, int>{};
+  _QuizMode _quizMode = _QuizMode.quick;
   bool _submitted = false;
   bool _saving = false;
+  bool _generatingQuestions = false;
+  int _quizGenerationNonce = 0;
 
   @override
   void initState() {
     super.initState();
     _resultRepository = QuizResultRepository();
-    _questions = _buildQuestions(widget.course, widget.subject, widget.chapter);
+    _ragRepository = RagRepository();
+    _regenerateQuiz();
+  }
+
+  Future<void> _regenerateQuiz() async {
+    setState(() {
+      _generatingQuestions = true;
+      _answers.clear();
+      _submitted = false;
+      _questions = const [];
+    });
+
+    final random = Random(
+      widget.chapter.id.hashCode ^
+          DateTime.now().microsecondsSinceEpoch ^
+          _quizGenerationNonce,
+    );
+    _quizGenerationNonce += 1;
+
+    List<_QuizQuestion> questions;
+    try {
+      final chunks = await _ragRepository.getChunksForChapter(widget.chapter.id);
+      final ragQuestions = _buildRagBackedQuestions(
+        chunks: chunks,
+        chapter: widget.chapter,
+        subject: widget.subject,
+        course: widget.course,
+        count: _quizMode.questionCount,
+        random: random,
+      );
+
+      if (ragQuestions.length >= _quizMode.questionCount) {
+        questions = ragQuestions.take(_quizMode.questionCount).toList();
+      } else {
+        final fallback = _buildTemplateQuestions(
+          widget.course,
+          widget.subject,
+          widget.chapter,
+          count: _quizMode.questionCount,
+          random: random,
+        );
+        questions = <_QuizQuestion>[...ragQuestions, ...fallback]
+            .take(_quizMode.questionCount)
+            .toList();
+      }
+    } catch (_) {
+      questions = _buildTemplateQuestions(
+        widget.course,
+        widget.subject,
+        widget.chapter,
+        count: _quizMode.questionCount,
+        random: random,
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _questions = questions;
+      _generatingQuestions = false;
+    });
   }
 
   int get _score {
@@ -105,6 +173,7 @@ class _QuizAssessmentScreenState extends State<QuizAssessmentScreen> {
   Widget build(BuildContext context) {
     final score = _score;
     final pct = _questions.isEmpty ? 0 : ((score * 100) / _questions.length).round();
+    final answeredCount = _answers.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -133,6 +202,49 @@ class _QuizAssessmentScreenState extends State<QuizAssessmentScreen> {
                       fontSize: 13,
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  SegmentedButton<_QuizMode>(
+                    segments: const [
+                      ButtonSegment(
+                        value: _QuizMode.quick,
+                        label: Text('Quick'),
+                        icon: Icon(Icons.flash_on_rounded),
+                      ),
+                      ButtonSegment(
+                        value: _QuizMode.standard,
+                        label: Text('Standard'),
+                        icon: Icon(Icons.menu_book_rounded),
+                      ),
+                      ButtonSegment(
+                        value: _QuizMode.challenge,
+                        label: Text('Challenge'),
+                        icon: Icon(Icons.emoji_events_rounded),
+                      ),
+                    ],
+                    selected: {_quizMode},
+                    onSelectionChanged: _saving
+                        ? null
+                        : (selection) {
+                            setState(() {
+                              _quizMode = selection.first;
+                            });
+                            _regenerateQuiz();
+                          },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    _generatingQuestions
+                        ? 'Generating questions from chapter chunks...'
+                        : 'Questions source: Chapter RAG chunks (fallbacks only if needed)',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: _generatingQuestions
+                          ? const Color(0xFF1D4ED8)
+                          : Colors.grey.shade700,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text('Progress: $answeredCount/${_questions.length} answered'),
                   if (_submitted) ...[
                     const SizedBox(height: 14),
                     Text(
@@ -145,6 +257,11 @@ class _QuizAssessmentScreenState extends State<QuizAssessmentScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          if (_generatingQuestions)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: CircularProgressIndicator()),
+            ),
           ..._questions.asMap().entries.map((entry) {
             final index = entry.key;
             final question = entry.value;
@@ -196,6 +313,22 @@ class _QuizAssessmentScreenState extends State<QuizAssessmentScreen> {
                         ),
                       );
                     }),
+                    if (_submitted) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        selected == question.correctIndex
+                            ? 'Correct'
+                            : 'Incorrect',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: selected == question.correctIndex
+                              ? const Color(0xFF15803D)
+                              : const Color(0xFFB91C1C),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('Why: ${question.explanation}'),
+                    ],
                   ],
                 ),
               ),
@@ -204,7 +337,9 @@ class _QuizAssessmentScreenState extends State<QuizAssessmentScreen> {
           const SizedBox(height: 8),
           if (!_submitted)
             FilledButton.icon(
-              onPressed: _saving ? null : _submitQuiz,
+              onPressed: (_saving || _generatingQuestions || _questions.isEmpty)
+                  ? null
+                  : _submitQuiz,
               icon: _saving
                   ? const SizedBox(
                       width: 16,
@@ -217,15 +352,41 @@ class _QuizAssessmentScreenState extends State<QuizAssessmentScreen> {
                   : const Icon(Icons.check_circle_outline_rounded),
               label: Text(_saving ? 'Saving...' : 'Submit Quiz'),
             )
-          else
+          else ...[
             OutlinedButton.icon(
               onPressed: _resetQuiz,
               icon: const Icon(Icons.replay_rounded),
-              label: const Text('Retake Quiz'),
+              label: const Text('Retake Same Quiz'),
             ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _regenerateQuiz,
+              icon: const Icon(Icons.auto_fix_high_rounded),
+              label: const Text('Generate New Quiz Set'),
+            ),
+          ],
         ],
       ),
     );
+  }
+}
+
+enum _QuizMode {
+  quick,
+  standard,
+  challenge,
+}
+
+extension on _QuizMode {
+  int get questionCount {
+    switch (this) {
+      case _QuizMode.quick:
+        return 5;
+      case _QuizMode.standard:
+        return 10;
+      case _QuizMode.challenge:
+        return 15;
+    }
   }
 }
 
@@ -234,17 +395,26 @@ class _QuizQuestion {
     required this.prompt,
     required this.options,
     required this.correctIndex,
+    required this.explanation,
   });
 
   final String prompt;
   final List<String> options;
   final int correctIndex;
+  final String explanation;
 }
 
-List<_QuizQuestion> _buildQuestions(Course course, Subject subject, Chapter chapter) {
+List<_QuizQuestion> _buildTemplateQuestions(
+  Course course,
+  Subject subject,
+  Chapter chapter, {
+  required int count,
+  required Random random,
+}) {
   final keywordPool = _extractKeywords(chapter.summary);
   final mainKeyword = keywordPool.isNotEmpty ? keywordPool.first : chapter.title;
   final secondKeyword = keywordPool.length > 1 ? keywordPool[1] : subject.name;
+  final thirdKeyword = keywordPool.length > 2 ? keywordPool[2] : course.name;
 
   final distractors = <String>[
     'Photosynthesis',
@@ -255,32 +425,39 @@ List<_QuizQuestion> _buildQuestions(Course course, Subject subject, Chapter chap
     'Ecosystem',
   ];
 
-  final random = Random(chapter.id.hashCode);
   distractors.shuffle(random);
 
-  return <_QuizQuestion>[
+  final base = <_QuizQuestion>[
     _quizWithShuffledAnswer(
       prompt: 'Which chapter is this quiz based on?',
       correct: chapter.title,
       wrong: <String>[subject.name, course.name, distractors[0]],
+      explanation:
+          'The quiz context is tied to the selected chapter: ${chapter.title}.',
       random: random,
     ),
     _quizWithShuffledAnswer(
       prompt: 'This chapter mainly belongs to which subject?',
       correct: subject.name,
       wrong: <String>[course.name, distractors[1], distractors[2]],
+      explanation:
+          'The chapter is loaded under ${subject.name}, so that is the correct subject mapping.',
       random: random,
     ),
     _quizWithShuffledAnswer(
       prompt: 'Which term is most likely central to this chapter summary?',
       correct: mainKeyword,
       wrong: <String>[distractors[3], distractors[4], distractors[5]],
+      explanation:
+          'This keyword appears as a high-signal concept in the chapter summary text.',
       random: random,
     ),
     _quizWithShuffledAnswer(
       prompt: 'Choose the likely secondary concept discussed in this chapter.',
       correct: secondKeyword,
       wrong: <String>[distractors[0], distractors[2], distractors[4]],
+      explanation:
+          'The secondary concept is derived from summary keywords and chapter context.',
       random: random,
     ),
     _quizWithShuffledAnswer(
@@ -291,15 +468,234 @@ List<_QuizQuestion> _buildQuestions(Course course, Subject subject, Chapter chap
         'Memorize answers without understanding',
         'Ignore chapter summary',
       ],
+      explanation:
+          'Best learning practice is review + targeted doubt-solving, not rote memorization.',
+      random: random,
+    ),
+    _quizWithShuffledAnswer(
+      prompt: 'Which concept is most directly tied to this chapter context?',
+      correct: thirdKeyword,
+      wrong: <String>[distractors[0], distractors[1], distractors[2]],
+      explanation:
+          'This concept is selected from chapter-linked keywords and is more relevant than generic distractors.',
+      random: random,
+    ),
+    _quizWithShuffledAnswer(
+      prompt: 'Which option is the least relevant to the selected chapter?',
+      correct: distractors[1],
+      wrong: <String>[mainKeyword, secondKeyword, thirdKeyword],
+      explanation:
+          'This distractor is intentionally outside the chapter context while the others are extracted from chapter metadata.',
+      random: random,
+    ),
+    _quizWithShuffledAnswer(
+      prompt: 'This chapter appears under which course?',
+      correct: course.name,
+      wrong: <String>[subject.name, distractors[3], distractors[4]],
+      explanation:
+          'The selected chapter is loaded from the currently selected course in dashboard context.',
       random: random,
     ),
   ];
+
+  if (count <= base.length) {
+    return base.take(count).toList();
+  }
+
+  final expanded = <_QuizQuestion>[...base];
+  while (expanded.length < count) {
+    final keyword = keywordPool.isEmpty
+        ? chapter.title
+        : keywordPool[expanded.length % keywordPool.length];
+    final d1 = distractors[(expanded.length + 1) % distractors.length];
+    final d2 = distractors[(expanded.length + 3) % distractors.length];
+    final d3 = distractors[(expanded.length + 5) % distractors.length];
+    expanded.add(
+      _quizWithShuffledAnswer(
+        prompt: 'Pick the chapter-aligned term from this set.',
+        correct: keyword,
+        wrong: <String>[d1, d2, d3],
+        explanation:
+            'The correct option is selected from chapter-derived keywords while other options are generic distractors.',
+        random: random,
+      ),
+    );
+  }
+
+  return expanded;
+}
+
+List<_QuizQuestion> _buildRagBackedQuestions({
+  required List<RagChunk> chunks,
+  required Course course,
+  required Subject subject,
+  required Chapter chapter,
+  required int count,
+  required Random random,
+}) {
+  if (chunks.isEmpty) {
+    return const [];
+  }
+
+  final stopWords = <String>{
+    'the',
+    'and',
+    'that',
+    'with',
+    'from',
+    'have',
+    'this',
+    'into',
+    'where',
+    'using',
+    'both',
+    'sides',
+    'chapter',
+    'notes',
+    'their',
+    'there',
+    'which',
+  };
+
+  final allSentences = <String>[];
+  final vocabulary = <String>{};
+  for (final chunk in chunks) {
+    final sentences = chunk.content
+        .replaceAll('\n', ' ')
+        .split(RegExp(r'[.!?]'))
+        .map((s) => s.trim())
+        .where((s) => s.length >= 30)
+        .toList();
+    allSentences.addAll(sentences);
+
+    final words = chunk.content
+        .toLowerCase()
+        .split(RegExp(r'[^a-z0-9]+'))
+        .where((w) => w.length >= 5)
+        .where((w) => !stopWords.contains(w));
+    vocabulary.addAll(words);
+  }
+
+  if (allSentences.isEmpty || vocabulary.length < 4) {
+    return const [];
+  }
+
+  allSentences.shuffle(random);
+  final vocabList = vocabulary.toList()..shuffle(random);
+
+  final questions = <_QuizQuestion>[];
+  for (final sentence in allSentences) {
+    if (questions.length >= count) {
+      break;
+    }
+
+    final answer = _pickAnswerToken(sentence, stopWords, random);
+    if (answer == null || answer.length < 4) {
+      continue;
+    }
+
+    final masked = _maskFirstToken(sentence, answer);
+    if (masked == sentence) {
+      continue;
+    }
+
+    final distractors = <String>[];
+    for (final token in vocabList) {
+      if (token == answer) {
+        continue;
+      }
+      if (distractors.contains(token)) {
+        continue;
+      }
+      distractors.add(token);
+      if (distractors.length == 3) {
+        break;
+      }
+    }
+    if (distractors.length < 3) {
+      continue;
+    }
+
+    final normalizedAnswer = _titleCase(answer);
+    final normalizedDistractors = distractors.map(_titleCase).toList();
+
+    questions.add(
+      _quizWithShuffledAnswer(
+        prompt:
+            'Complete from chapter notes: "$masked"',
+        correct: normalizedAnswer,
+        wrong: normalizedDistractors,
+        explanation:
+            'This is taken directly from chapter content: "$sentence"',
+        random: random,
+      ),
+    );
+  }
+
+  if (questions.length < count) {
+    final chunkCountQuestion = _quizWithShuffledAnswer(
+      prompt: 'How many note chunks are currently indexed for this chapter?',
+      correct: chunks.length.toString(),
+      wrong: <String>[
+        max(1, chunks.length - 1).toString(),
+        (chunks.length + 1).toString(),
+        (chunks.length + 3).toString(),
+      ],
+      explanation:
+          'Quiz generation reads the indexed chapter chunks from local RAG storage.',
+      random: random,
+    );
+    questions.add(chunkCountQuestion);
+  }
+
+  if (questions.length < count) {
+    questions.add(
+      _quizWithShuffledAnswer(
+        prompt: 'These RAG-backed questions belong to which chapter?',
+        correct: chapter.title,
+        wrong: <String>[subject.name, course.name, 'General Practice'],
+        explanation:
+            'Question generation is scoped by selected chapter id and not global content.',
+        random: random,
+      ),
+    );
+  }
+
+  return questions;
+}
+
+String? _pickAnswerToken(String sentence, Set<String> stopWords, Random random) {
+  final candidates = sentence
+      .toLowerCase()
+      .split(RegExp(r'[^a-z0-9]+'))
+      .where((w) => w.length >= 5)
+      .where((w) => !stopWords.contains(w))
+      .toSet()
+      .toList();
+  if (candidates.isEmpty) {
+    return null;
+  }
+  candidates.shuffle(random);
+  return candidates.first;
+}
+
+String _maskFirstToken(String sentence, String token) {
+  final regExp = RegExp('\\b${RegExp.escape(token)}\\b', caseSensitive: false);
+  return sentence.replaceFirst(regExp, '_____');
+}
+
+String _titleCase(String value) {
+  if (value.isEmpty) {
+    return value;
+  }
+  return value[0].toUpperCase() + value.substring(1).toLowerCase();
 }
 
 _QuizQuestion _quizWithShuffledAnswer({
   required String prompt,
   required String correct,
   required List<String> wrong,
+  required String explanation,
   required Random random,
 }) {
   final options = <String>[correct, ...wrong]..shuffle(random);
@@ -307,6 +703,7 @@ _QuizQuestion _quizWithShuffledAnswer({
     prompt: prompt,
     options: options,
     correctIndex: options.indexOf(correct),
+    explanation: explanation,
   );
 }
 
