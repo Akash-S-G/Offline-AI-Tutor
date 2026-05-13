@@ -10,6 +10,9 @@ import 'package:offline_tutor_app/features/network/application/pack_version_mana
 import 'package:offline_tutor_app/features/network/application/persistent_classroom_recovery_manager.dart';
 import 'package:offline_tutor_app/features/network/application/persistent_sync_recovery_manager_v2.dart';
 import 'package:offline_tutor_app/features/network/application/session_persistence_manager.dart';
+import 'package:offline_tutor_app/features/network/application/distributed_state_recovery_coordinator.dart';
+import 'package:offline_tutor_app/features/network/application/connectivity_persistence_manager.dart';
+import 'package:offline_tutor_app/features/network/application/classroom_state_persistence.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -304,6 +307,201 @@ void main() {
 
       expect(events.isNotEmpty, true);
       expect(events.last.status, DeploymentReadinessStatus.ready);
+    });
+  });
+
+  group('Phase 6 - Distributed State Hardening', () {
+    test('distributed state recovery coordinator saves and loads state', () async {
+      final coordinator = DistributedStateRecoveryCoordinator();
+      await coordinator.initialize();
+
+      await coordinator.save('test-key', {'value': 42, 'timestamp': DateTime.now().toIso8601String()});
+      final loaded = coordinator.load<Map<String, dynamic>>('test-key');
+
+      expect(loaded != null, true);
+      expect(loaded!['value'], 42);
+    });
+
+    test('distributed state recovery validates state structure', () {
+      final coordinator = DistributedStateRecoveryCoordinator();
+
+      expect(coordinator.isStateValid(null), false);
+      expect(coordinator.isStateValid({}), false);
+      expect(coordinator.isStateValid({'version': 1}), false);
+      expect(coordinator.isStateValid({'version': 1, 'timestamp': DateTime.now().toIso8601String()}), true);
+    });
+
+    test('distributed state recovery tracks state versions', () async {
+      final coordinator = DistributedStateRecoveryCoordinator();
+      await coordinator.initialize();
+
+      await coordinator.save('key-1', {'v': 1});
+      await coordinator.save('key-1', {'v': 2});
+      await coordinator.save('key-1', {'v': 3});
+
+      final metrics = coordinator.getMetrics();
+      expect(metrics['stateVersions']['key-1'], 3);
+    });
+
+    test('distributed state recovery respects max recovery attempts', () async {
+      final coordinator = DistributedStateRecoveryCoordinator();
+      await coordinator.initialize();
+
+      final nonExistent = 'nonexistent-key';
+      
+      // Attempt recovery 5 times, but only 3 are allowed
+      for (int i = 0; i < 5; i++) {
+        await coordinator.attemptRecovery(nonExistent);
+      }
+
+      final metrics = coordinator.getMetrics();
+      // After 3 max attempts, further attempts are blocked, so count stays at 3
+      expect(metrics['recoveryAttempts'][nonExistent], 3);
+    });
+
+    test('distributed state recovery broadcasts events', () async {
+      final coordinator = DistributedStateRecoveryCoordinator();
+      await coordinator.initialize();
+
+      final events = <StateRecoverySnapshot>[];
+      coordinator.recoveryEvents.listen((event) => events.add(event));
+
+      await coordinator.save('key-1', {'valid': true, 'version': 1, 'timestamp': DateTime.now().toIso8601String()});
+      await coordinator.attemptRecovery('key-1');
+      await Future.delayed(const Duration(milliseconds: 10));
+
+      expect(events.isNotEmpty, true);
+      expect(events.last.status, StateRecoveryStatus.success);
+    });
+
+    test('connectivity persistence records state changes', () async {
+      final manager = ConnectivityPersistenceManager();
+      await manager.initialize();
+
+      await manager.recordStateChange(
+        ConnectivityState.online,
+        reason: 'Network connected',
+      );
+      await manager.recordStateChange(
+        ConnectivityState.offline,
+        reason: 'Network lost',
+      );
+
+      final current = manager.getCurrentState();
+      expect(current, ConnectivityState.offline);
+    });
+
+    test('connectivity persistence analyzes patterns', () async {
+      final manager = ConnectivityPersistenceManager();
+      await manager.initialize();
+
+      await manager.recordStateChange(ConnectivityState.online);
+      await manager.recordStateChange(ConnectivityState.offline);
+      await manager.recordStateChange(ConnectivityState.online);
+
+      final patterns = manager.analyzePatterns();
+      expect(patterns['totalEvents'], 3);
+      expect(patterns['totalOfflineEvents'], 1);
+    });
+
+    test('connectivity persistence provides recovery recommendations', () async {
+      final manager = ConnectivityPersistenceManager();
+      await manager.initialize();
+
+      // Simulate high offline rate
+      for (int i = 0; i < 4; i++) {
+        await manager.recordStateChange(ConnectivityState.offline);
+        await manager.recordStateChange(ConnectivityState.online);
+      }
+
+      final recommendations = manager.getRecoveryRecommendations();
+      expect(recommendations.isNotEmpty, true);
+    });
+
+    test('connectivity persistence broadcasts state changes', () async {
+      final manager = ConnectivityPersistenceManager();
+      await manager.initialize();
+
+      final events = <ConnectivityEvent>[];
+      manager.stateChanges.listen((event) => events.add(event));
+
+      await manager.recordStateChange(ConnectivityState.online);
+      await Future.delayed(const Duration(milliseconds: 10));
+
+      expect(events.isNotEmpty, true);
+      expect(events.last.state, ConnectivityState.online);
+    });
+
+    test('classroom state persistence captures and restores state', () async {
+      final manager = ClassroomStatePersistence();
+      await manager.initialize();
+
+      final snapshot = ClassroomStateSnapshot(
+        sessionId: 'session-123',
+        currentTopic: 'Mathematics',
+        currentChapter: 'Algebra',
+        messageHistory: [{'text': 'Hello'}, {'text': 'Hi'}],
+        capturedAt: DateTime.now(),
+      );
+
+      await manager.captureState(snapshot);
+      final status = await manager.restoreState();
+
+      expect(status, ClassroomStateRecoveryStatus.success);
+    });
+
+    test('classroom state persistence validates state', () {
+      final manager = ClassroomStatePersistence();
+
+      final invalidSnapshot = ClassroomStateSnapshot(
+        capturedAt: DateTime.now(),
+      );
+      expect(manager.isStateValid(invalidSnapshot), false);
+
+      final validSnapshot = ClassroomStateSnapshot(
+        sessionId: 'session-123',
+        currentTopic: 'Math',
+        capturedAt: DateTime.now(),
+      );
+      expect(manager.isStateValid(validSnapshot), true);
+    });
+
+    test('classroom state persistence handles component restoration', () async {
+      final manager = ClassroomStatePersistence();
+      await manager.initialize();
+
+      final snapshot = ClassroomStateSnapshot(
+        sessionId: 'session-123',
+        currentTopic: 'Mathematics',
+        currentChapter: 'Algebra',
+        messageHistory: [{'text': 'Hello'}],
+        capturedAt: DateTime.now(),
+      );
+
+      await manager.captureState(snapshot);
+      final restored = await manager.restoreComponent('currentTopic');
+
+      expect(restored, true);
+    });
+
+    test('classroom state persistence broadcasts recovery events', () async {
+      final manager = ClassroomStatePersistence();
+      await manager.initialize();
+
+      final events = <ClassroomStateRecoveryEvent>[];
+      manager.recoveryEvents.listen((event) => events.add(event));
+
+      final snapshot = ClassroomStateSnapshot(
+        sessionId: 'session-123',
+        capturedAt: DateTime.now(),
+      );
+
+      await manager.captureState(snapshot);
+      await manager.restoreState();
+      await Future.delayed(const Duration(milliseconds: 10));
+
+      expect(events.isNotEmpty, true);
+      expect(events.any((e) => e.status == ClassroomStateRecoveryStatus.success), true);
     });
   });
 }

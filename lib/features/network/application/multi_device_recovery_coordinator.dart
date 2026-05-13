@@ -57,7 +57,6 @@ class MultiDeviceRecoveryCoordinator {
   }
 
   void markOnline(String deviceId) {
-    final existing = _devices[deviceId];
     _devices[deviceId] = DevicePresence(
       deviceId: deviceId,
       lastSeen: DateTime.now(),

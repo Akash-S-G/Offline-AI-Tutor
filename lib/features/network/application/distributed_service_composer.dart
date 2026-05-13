@@ -1,5 +1,6 @@
 import 'package:offline_tutor_app/features/chat/data/tutor_inference_gateway.dart';
 
+import '../../../config/app_environment.dart';
 import '../data/backend_api_service.dart';
 import '../data/backend_health_monitor.dart';
 import '../data/connectivity_service.dart';
@@ -26,7 +27,6 @@ import 'pack_recovery_manager.dart';
 import 'pack_integrity_validator.dart';
 import 'incremental_pack_recovery_manager.dart';
 import 'local_pack_persistence_coordinator.dart';
-import 'persistent_sync_recovery_manager.dart';
 import 'transfer_integrity_validator.dart';
 import 'distributed_metrics_service.dart';
 import 'connectivity_diagnostics.dart';
@@ -49,9 +49,6 @@ import 'distributed_health_tracker.dart';
 import 'distributed_state_recovery_coordinator.dart';
 import 'connectivity_persistence_manager.dart';
 import 'classroom_state_persistence.dart';
-import 'classroom_startup_validator.dart';
-import 'deployment_diagnostics_coordinator.dart';
-import 'runtime_health_monitor.dart';
 import 'persistent_classroom_recovery_manager.dart';
 import 'persistent_sync_recovery_manager_v2.dart';
 import 'manifest_recovery_coordinator.dart';
@@ -94,7 +91,6 @@ class DistributedServiceComposer {
   late PackIntegrityValidator _packIntegrityValidator;
   late IncrementalPackRecoveryManager _incrementalPackRecoveryManager;
   late LocalPackPersistenceCoordinator _localPackPersistenceCoordinator;
-  late PersistentSyncRecoveryManager _persistentSyncRecoveryManager;
   late TransferIntegrityValidator _transferIntegrityValidator;
   late DistributedMetricsService _distributedMetricsService;
   late ConnectivityDiagnostics _connectivityDiagnostics;
@@ -117,13 +113,10 @@ class DistributedServiceComposer {
   late DistributedStateRecoveryCoordinator _distributedStateRecoveryCoordinator;
   late ConnectivityPersistenceManager _connectivityPersistenceManager;
   late ClassroomStatePersistence _classroomStatePersistence;
-  late ClassroomStartupValidator _classroomStartupValidator;
-  late DeploymentDiagnosticsCoordinator _deploymentDiagnosticsCoordinator;
-  late RuntimeHealthMonitor _runtimeHealthMonitor;
   late PersistentClassroomRecoveryManager _persistentClassroomRecoveryManager;
   late PersistentSyncRecoveryManager _persistentSyncRecoveryManager;
   late ManifestRecoveryCoordinator _manifestRecoveryCoordinator;
-  late DeploymentDiagnosticsCoordinator _deploymentDiagnostics;
+  late DeploymentDiagnosticsCoordinator _deploymentDiagnosticsCoordinator;
 
   bool _initialized = false;
 
@@ -145,7 +138,12 @@ class DistributedServiceComposer {
     _connectivityService = ConnectivityService();
     _networkStateService = NetworkStateService(
       connectivityService: _connectivityService,
-      backendUrl: _backendConfig.baseUrl,
+      backendUrl: AppEnvironment.backendBaseUrl,
+    );
+    
+    AppEnvironment.log(
+      'BACKEND',
+      'Network state service initialized: ${AppEnvironment.backendBaseUrl}',
     );
 
     // Health monitoring
@@ -211,9 +209,6 @@ class DistributedServiceComposer {
     _distributedStateRecoveryCoordinator = DistributedStateRecoveryCoordinator();
     _connectivityPersistenceManager = ConnectivityPersistenceManager();
     _classroomStatePersistence = ClassroomStatePersistence();
-    _classroomStartupValidator = ClassroomStartupValidator();
-    _deploymentDiagnosticsCoordinator = DeploymentDiagnosticsCoordinator();
-    _runtimeHealthMonitor = RuntimeHealthMonitor();
 
     // Enhanced recovery managers
     _persistentClassroomRecoveryManager = PersistentClassroomRecoveryManager(
@@ -224,7 +219,7 @@ class DistributedServiceComposer {
     _manifestRecoveryCoordinator = ManifestRecoveryCoordinator(
       versionManager: _packVersionManager,
     );
-    _deploymentDiagnostics = DeploymentDiagnosticsCoordinator();
+    _deploymentDiagnosticsCoordinator = DeploymentDiagnosticsCoordinator();
 
     // Hybrid inference orchestration
     _hybridInferenceService = HybridInferenceService(
@@ -268,7 +263,6 @@ class DistributedServiceComposer {
   PackIntegrityValidator get packIntegrityValidator => _packIntegrityValidator;
   IncrementalPackRecoveryManager get incrementalPackRecoveryManager => _incrementalPackRecoveryManager;
   LocalPackPersistenceCoordinator get localPackPersistenceCoordinator => _localPackPersistenceCoordinator;
-  PersistentSyncRecoveryManager get persistentSyncRecoveryManager => _persistentSyncRecoveryManager;
   TransferIntegrityValidator get transferIntegrityValidator => _transferIntegrityValidator;
   DistributedMetricsService get distributedMetricsService => _distributedMetricsService;
   ConnectivityDiagnostics get connectivityDiagnostics => _connectivityDiagnostics;
@@ -289,13 +283,10 @@ class DistributedServiceComposer {
   DistributedStateRecoveryCoordinator get distributedStateRecoveryCoordinator => _distributedStateRecoveryCoordinator;
   ConnectivityPersistenceManager get connectivityPersistenceManager => _connectivityPersistenceManager;
   ClassroomStatePersistence get classroomStatePersistence => _classroomStatePersistence;
-  ClassroomStartupValidator get classroomStartupValidator => _classroomStartupValidator;
-  DeploymentDiagnosticsCoordinator get deploymentDiagnosticsCoordinator => _deploymentDiagnosticsCoordinator;
-  RuntimeHealthMonitor get runtimeHealthMonitor => _runtimeHealthMonitor;
   PersistentClassroomRecoveryManager get persistentClassroomRecoveryManager => _persistentClassroomRecoveryManager;
   PersistentSyncRecoveryManager get persistentSyncRecoveryManager => _persistentSyncRecoveryManager;
   ManifestRecoveryCoordinator get manifestRecoveryCoordinator => _manifestRecoveryCoordinator;
-  DeploymentDiagnosticsCoordinator get deploymentDiagnostics => _deploymentDiagnostics;
+  DeploymentDiagnosticsCoordinator get deploymentDiagnosticsCoordinator => _deploymentDiagnosticsCoordinator;
 
   /// Check if services are initialized
   bool get isInitialized => _initialized;

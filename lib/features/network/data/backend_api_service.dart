@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../../config/app_environment.dart';
 import '../domain/backend_config.dart';
 import '../domain/backend_response.dart';
 import 'backend_http_client.dart';
@@ -24,9 +25,18 @@ class BackendApiService {
 
   /// Health check - verify backend is reachable
   Future<BackendResponse<Map<String, dynamic>>> healthCheck() async {
+    AppEnvironment.log(
+      'BACKEND',
+      'Performing health check on backend',
+    );
+    
     final response = await _httpClient.get('/health');
 
     if (response.isFailure) {
+      AppEnvironment.log(
+        'BACKEND',
+        'Health check failed: ${response.message}',
+      );
       return BackendResponse.failure(
         message: response.message ?? 'Health check failed',
         statusCode: response.statusCode,
@@ -36,8 +46,16 @@ class BackendApiService {
 
     try {
       final data = jsonDecode(response.data ?? '{}') as Map<String, dynamic>;
+      AppEnvironment.log(
+        'BACKEND',
+        'Health check succeeded',
+      );
       return BackendResponse.success(data);
     } catch (error) {
+      AppEnvironment.log(
+        'BACKEND',
+        'Failed to parse health check response: $error',
+      );
       return BackendResponse.failure(
         message: 'Failed to parse health check response',
         error: error,
@@ -97,6 +115,11 @@ class BackendApiService {
     String? systemPrompt,
     int maxTokens = 512,
   }) async* {
+    AppEnvironment.log(
+      'BACKEND',
+      'Starting streaming answer request',
+    );
+    
     final body = <String, dynamic>{
       'question': question,
       'max_tokens': maxTokens,
@@ -120,6 +143,10 @@ class BackendApiService {
         if (trimmed.startsWith('data:')) {
           final jsonStr = trimmed.substring(5).trim();
           if (jsonStr == '[DONE]') {
+            AppEnvironment.log(
+              'BACKEND',
+              'Stream completed',
+            );
             break;
           }
           try {
@@ -137,6 +164,10 @@ class BackendApiService {
         }
       }
     } catch (error) {
+      AppEnvironment.log(
+        'BACKEND',
+        'Stream error: $error',
+      );
       rethrow;
     }
   }

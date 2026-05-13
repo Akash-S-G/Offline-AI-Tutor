@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../config/app_environment.dart';
+
 /// Coordinates local and backend streams, supports handoff and cancellation.
 class StreamCoordinator {
   StreamCoordinator();
@@ -13,6 +15,11 @@ class StreamCoordinator {
     void Function()? onDone,
     void Function(Object error)? onError,
   ) async {
+    AppEnvironment.log(
+      'WEBSOCKET',
+      'Starting stream coordination',
+    );
+    
     await stopActive();
     _active = stream.listen(
       onChunk,
@@ -24,8 +31,19 @@ class StreamCoordinator {
 
   Future<void> stopActive() async {
     try {
+      if (_active != null) {
+        AppEnvironment.log(
+          'WEBSOCKET',
+          'Stopping active stream',
+        );
+      }
       await _active?.cancel();
-    } catch (_) {}
+    } catch (e) {
+      AppEnvironment.log(
+        'WEBSOCKET',
+        'Error stopping stream: $e',
+      );
+    }
     _active = null;
   }
 

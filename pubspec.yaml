@@ -27,6 +27,7 @@ dependencies:
   multicast_dns: ^0.3.3
   network_info_plus: ^6.1.4
   shared_preferences: ^2.5.3
+  flutter_dotenv: ^6.0.1
 
 dev_dependencies:
   flutter_test:
@@ -35,3 +36,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+  - .env

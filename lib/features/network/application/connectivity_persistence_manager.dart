@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../config/app_environment.dart';
+
 enum ConnectivityState {
   online,
   offline,
@@ -54,7 +56,6 @@ class ConnectivityPersistenceManager {
   static const int _maxHistorySize = 100; // Keep last 100 events
   static const int _historyRetentionMs = 7 * 24 * 60 * 60 * 1000; // 7 days
 
-  final Map<String, dynamic> _inMemoryState = <String, dynamic>{};
   final List<ConnectivityEvent> _eventHistory = <ConnectivityEvent>[];
   final StreamController<ConnectivityEvent> _stateChanges =
       StreamController<ConnectivityEvent>.broadcast();
@@ -101,6 +102,11 @@ class ConnectivityPersistenceManager {
     String? reason,
   }) async {
     if (!_initialized) await initialize();
+    
+    AppEnvironment.log(
+      'BACKEND',
+      'Connectivity state changed: ${newState.toString().split('.').last}${reason != null ? ' ($reason)' : ''}',
+    );
     
     final duration = _lastStateChangeTime != null
         ? DateTime.now().difference(_lastStateChangeTime!)

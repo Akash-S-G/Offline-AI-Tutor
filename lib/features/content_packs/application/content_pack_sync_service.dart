@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:multicast_dns/multicast_dns.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 
+import '../../../config/app_environment.dart';
 import '../domain/content_pack_models.dart';
 import 'content_pack_policy_service.dart';
 
@@ -149,6 +150,11 @@ class ContentPackSyncService {
     List<int>? preferredPorts,
     List<String>? serviceTypes,
   }) async {
+    AppEnvironment.log(
+      'SYNC',
+      'Discovering content catalog URLs',
+    );
+    
     final hosts = <String>[
       ...(preferredHosts ??
           const <String>[
@@ -168,6 +174,24 @@ class ContentPackSyncService {
         ];
 
     final discovered = <String>{};
+    
+    // Add configured content pipeline URL as primary source
+    try {
+      final configuredUrl = AppEnvironment.contentPipelineUrl;
+      if (configuredUrl.isNotEmpty) {
+        final catalogUrl = '$configuredUrl/catalog.json';
+        discovered.add(catalogUrl);
+        AppEnvironment.log(
+          'SYNC',
+          'Added configured catalog: $catalogUrl',
+        );
+      }
+    } catch (e) {
+      AppEnvironment.log(
+        'SYNC',
+        'Failed to add configured catalog URL: $e',
+      );
+    }
 
     // Probe hotspot/LAN gateway candidates first.
     final inferredHosts = await _inferGatewayHosts();
@@ -248,11 +272,20 @@ class ContentPackSyncService {
       throw const FormatException('Catalog URL must use http or https.');
     }
 
+    AppEnvironment.log(
+      'SYNC',
+      'Fetching catalog from: $catalogUrl',
+    );
+
     final client = HttpClient();
     try {
       final request = await client.getUrl(uri);
       final response = await request.close();
       if (response.statusCode < 200 || response.statusCode >= 300) {
+        AppEnvironment.log(
+          'SYNC',
+          'Catalog fetch failed with HTTP ${response.statusCode}',
+        );
         throw HttpException(
           'Catalog fetch failed with HTTP ${response.statusCode}',
           uri: uri,
@@ -282,6 +315,11 @@ class ContentPackSyncService {
       final packs = byId.values.toList()
         ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
 
+      AppEnvironment.log(
+        'SYNC',
+        'Catalog fetched successfully: ${packs.length} packs',
+      );
+
       return ContentPackCatalogSnapshot(
         catalogUri: uri,
         fetchedAt: DateTime.now().millisecondsSinceEpoch,
@@ -297,16 +335,41 @@ class ContentPackSyncService {
     try {
       uri = Uri.parse(catalogUrl.trim());
     } catch (_) {
+      AppEnvironment.log(
+        'SYNC',
+        'Failed to parse catalog URL: $catalogUrl',
+      );
       return false;
     }
     if (!uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
+      AppEnvironment.log(
+        'SYNC',
+        'Invalid catalog URL scheme: $catalogUrl',
+      );
       return false;
     }
+
+    AppEnvironment.log(
+      'SYNC',
+      'Checking if catalog is reachable: $catalogUrl',
+    );
 
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 2);
     try {
-      return await _isCatalogReachable(client, uri);
+      final isReachable = await _isCatalogReachable(client, uri);
+      if (isReachable) {
+        AppEnvironment.log(
+          'SYNC',
+          'Catalog is reachable',
+        );
+      } else {
+        AppEnvironment.log(
+          'SYNC',
+          'Catalog is not reachable',
+        );
+      }
+      return isReachable;
     } finally {
       client.close(force: true);
     }

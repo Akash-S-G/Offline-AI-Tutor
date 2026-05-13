@@ -1,3 +1,4 @@
+import '../../../config/app_environment.dart';
 import 'confidence_evaluator.dart';
 
 class EscalationDecision {
@@ -27,6 +28,12 @@ class EscalationCoordinator {
     final reason = shouldEscalate
         ? 'low_confidence_or_complex_query'
         : 'local_response_is_sufficient';
+    
+    AppEnvironment.log(
+      'ROUTING',
+      'Escalation decision: shouldEscalate=$shouldEscalate, reason=$reason, confidence=${result.score.toStringAsFixed(2)}',
+    );
+    
     return EscalationDecision(
       shouldEscalate: shouldEscalate,
       reason: reason,

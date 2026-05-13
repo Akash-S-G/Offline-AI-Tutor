@@ -1,3 +1,5 @@
+import '../../../config/app_environment.dart';
+
 /// Configuration for backend connectivity.
 class BackendConfig {
   const BackendConfig({
@@ -34,18 +36,33 @@ class BackendConfig {
   /// Whether configuration is valid
   bool get isValid => baseUrl.isNotEmpty && apiKey.isNotEmpty;
 
-  /// Create from environment variables
+  /// Create from centralized environment configuration
   static BackendConfig? fromEnvironment() {
-    const baseUrl = String.fromEnvironment('BACKEND_BASE_URL');
-    const apiKey = String.fromEnvironment('BACKEND_API_KEY');
+    // Use AppEnvironment for all configuration
+    final baseUrl = AppEnvironment.backendBaseUrl;
+    final apiKey = AppEnvironment.backendApiKey;
+    final timeoutSeconds = AppEnvironment.backendTimeoutSeconds;
+    final maxRetries = AppEnvironment.maxRetryAttempts;
+    final retryDelay = (AppEnvironment.retryDelaySeconds * 1000).toInt();
+    final backoff = AppEnvironment.backoffMultiplier;
 
     if (baseUrl.isEmpty || apiKey.isEmpty) {
       return null;
     }
 
+    AppEnvironment.log(
+      'BACKEND',
+      'Initialized backend config: $baseUrl',
+    );
+
     return BackendConfig(
       baseUrl: baseUrl,
       apiKey: apiKey,
+      connectTimeoutSeconds: timeoutSeconds,
+      requestTimeoutSeconds: timeoutSeconds,
+      maxRetries: maxRetries,
+      retryDelayMillis: retryDelay,
+      backoffMultiplier: backoff,
     );
   }
 

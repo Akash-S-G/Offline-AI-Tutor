@@ -21,8 +21,7 @@ class LlamaEngine(private val context: Context) {
     private val modelPathKey = "selected_model_path"
     private val lastSelectedAtKey = "selected_model_last_selected_at"
     private val modelFileName = "phi-2.Q4_K_M.gguf"
-    private var modelPath = prefs.getString(modelPathKey, null)
-        ?: File(context.filesDir, "models/phi-2.Q4_K_M.gguf").absolutePath
+    private var modelPath = resolveInitialModelPath()
     private var loaded = false
     private var initAttempts = 0
     private var successfulInits = 0
@@ -40,6 +39,40 @@ class LlamaEngine(private val context: Context) {
     private var systemPromptApplied = false
 
     fun getModelPath(): String = modelPath
+
+    private fun resolveInitialModelPath(): String {
+        prefs.getString(modelPathKey, null)
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { return it }
+
+        discoverDefaultModelPath()?.let { return it }
+
+        return File(context.filesDir, "models/$modelFileName").absolutePath
+    }
+
+    private fun discoverDefaultModelPath(): String? {
+        val candidateDirectories = listOfNotNull(
+            File(context.filesDir, "models"),
+            context.getExternalFilesDir(null)?.let { File(it, "models") },
+            File("/sdcard/Download"),
+            File("/storage/emulated/0/Download"),
+            context.getExternalFilesDir(null)?.let { File(it, "Download") },
+        )
+
+        val discovered = candidateDirectories
+            .flatMap { directory ->
+                directory.listFiles()
+                    ?.filter { file -> file.isFile && file.name.lowercase().endsWith(".gguf") }
+                    ?: emptyList()
+            }
+            .sortedWith(
+                compareByDescending<File> { it.lastModified() }
+                    .thenByDescending { it.length() },
+            )
+
+        return discovered.firstOrNull()?.absolutePath
+    }
 
     fun getGenerationConfig(): Map<String, Any> {
         return mapOf(

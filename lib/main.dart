@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'dart:io';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'config/app_environment.dart';
 import 'features/course/data/local/course_repository.dart';
 import 'features/home/presentation/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
+  
+  // Initialize centralized environment configuration from .env file
+  await AppEnvironment.initialize();
+  
   // Initialize sqflite for desktop (Linux, Windows, macOS)
   if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
     sqfliteFfiInit();
