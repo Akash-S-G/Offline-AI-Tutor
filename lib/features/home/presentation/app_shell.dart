@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../bootstrap/background_bootstrap.dart';
+import '../../../bootstrap/optional_bootstrap.dart';
+import '../../../bootstrap/startup_coordinator.dart';
 import '../../course/data/local/course_repository.dart';
-import '../../content_packs/application/content_pack_bootstrap_service.dart';
-import '../../rag/data/local/rag_repository.dart';
 import 'hero_page.dart';
 import 'main_dashboard_screen.dart';
 
@@ -10,10 +11,12 @@ import 'main_dashboard_screen.dart';
 class AppShell extends StatefulWidget {
   const AppShell({
     required this.courseRepository,
+    required this.startupCoordinator,
     super.key,
   });
 
   final CourseRepository courseRepository;
+  final StartupCoordinator startupCoordinator;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -21,27 +24,24 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   bool _showHero = true;
-  bool _contentPacksInitialized = false;
+  late final BackgroundBootstrap _backgroundBootstrap;
+  late final OptionalBootstrap _optionalBootstrap;
 
   @override
   void initState() {
     super.initState();
-    _initializeRagData();
-  }
+    _backgroundBootstrap = BackgroundBootstrap(
+      coordinator: widget.startupCoordinator,
+      courseRepository: widget.courseRepository,
+    );
+    _optionalBootstrap = OptionalBootstrap(
+      coordinator: widget.startupCoordinator,
+    );
 
-  Future<void> _initializeRagData() async {
-    final ragRepository = RagRepository();
-    await ragRepository.ensureSeedChunks();
-  }
-
-  Future<void> _initializeContentPacks() async {
-    final bootstrapService = ContentPackBootstrapService();
-    await bootstrapService.bootstrapLegacyMediaIntoPacks();
-    if (mounted) {
-      setState(() {
-        _contentPacksInitialized = true;
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _backgroundBootstrap.start();
+      _optionalBootstrap.start();
+    });
   }
 
   void _onGetStarted() {
@@ -51,22 +51,18 @@ class _AppShellState extends State<AppShell> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_contentPacksInitialized) {
-      _contentPacksInitialized = true;
-      _initializeContentPacks();
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    if (_showHero) {
-      return HeroPage(onGetStarted: _onGetStarted);
-    }
+    return AnimatedBuilder(
+      animation: widget.startupCoordinator,
+      builder: (context, _) {
+        if (_showHero) {
+          return HeroPage(onGetStarted: _onGetStarted);
+        }
 
-    return MainDashboardScreen(
-      courseRepository: widget.courseRepository,
+        return MainDashboardScreen(
+          courseRepository: widget.courseRepository,
+        );
+      },
     );
   }
 }

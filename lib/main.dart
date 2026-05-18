@@ -1,35 +1,38 @@
 import 'package:flutter/material.dart';
-import 'dart:io';
-import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'bootstrap/critical_bootstrap.dart';
+import 'bootstrap/startup_coordinator.dart';
 import 'config/app_environment.dart';
 import 'features/course/data/local/course_repository.dart';
 import 'features/home/presentation/app_shell.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Initialize centralized environment configuration from .env file
+
   await AppEnvironment.initialize();
-  
-  // Initialize sqflite for desktop (Linux, Windows, macOS)
-  if (Platform.isLinux || Platform.isWindows || Platform.isMacOS) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
-  }
 
-  final courseRepository = CourseRepository();
-  await courseRepository.ensureSeedData();
+  CriticalBootstrap.configureDesktopSqlite();
 
-  runApp(OfflineTutorApp(courseRepository: courseRepository));
+  final startupCoordinator = StartupCoordinator(
+    runtimeMode: CriticalBootstrap.resolveRuntimeMode(),
+  );
+
+  runApp(
+    OfflineTutorApp(
+      courseRepository: CourseRepository(),
+      startupCoordinator: startupCoordinator,
+    ),
+  );
 }
 
 class OfflineTutorApp extends StatelessWidget {
-  const OfflineTutorApp({super.key, 
+  const OfflineTutorApp({super.key,
     required this.courseRepository,
+    required this.startupCoordinator,
   });
 
   final CourseRepository courseRepository;
+  final StartupCoordinator startupCoordinator;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +49,10 @@ class OfflineTutorApp extends StatelessWidget {
           surface: surface,
         ),
       ),
-      home: AppShell(courseRepository: courseRepository),
+      home: AppShell(
+        courseRepository: courseRepository,
+        startupCoordinator: startupCoordinator,
+      ),
     );
   }
 }

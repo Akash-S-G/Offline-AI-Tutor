@@ -25,35 +25,40 @@ class PiHubDiscoveryCoordinator {
   /// Initialize with default PiHub node from environment configuration
   void _initializeDefaultNode() {
     try {
-      // Extract host and port from AppEnvironment
-      final piHubUrl = AppEnvironment.piHubUrl;
-      final piHubPort = AppEnvironment.pihubPort;
+      // Extract host from BACKEND_BASE_URL
+      final backendUrl = AppEnvironment.backendBaseUrl;
+      final uri = Uri.parse(backendUrl);
+      final host = uri.host.isNotEmpty ? uri.host : '10.28.73.193';
       
-      // Parse host from URL (e.g., "http://172.17.13.112:8080" -> "172.17.13.112")
-      final uri = Uri.parse(piHubUrl);
-      final host = uri.host.isNotEmpty ? uri.host : '172.17.13.112';
-      final port = piHubPort;
+      // All PiHub communication now goes through nginx gateway on standard ports
+      // The gateway routes /classroom/* endpoints to the appropriate service
+      final port = 80; // nginx gateway standard port
 
       _current = [
         PiHubNode(
           host: host,
           port: port,
-          name: 'PiHub (${AppEnvironment.deploymentMode})',
+          name: 'PiHub Gateway (${AppEnvironment.deploymentMode})',
         ),
       ];
 
       AppEnvironment.log(
         'DISCOVERY',
-        'PiHub initialized: $host:$port',
+        'PiHub discovery initialized: $host:$port (via nginx gateway)',
       );
     } catch (e) {
       AppEnvironment.log(
         'DISCOVERY',
-        'Failed to initialize PiHub: $e',
+        'Failed to initialize PiHub discovery: $e',
       );
-      // Fallback to localhost
+      // Fallback to configured gateway
+      final uri = Uri.parse(AppEnvironment.backendBaseUrl);
       _current = [
-        const PiHubNode(host: '127.0.0.1', port: 8080, name: 'Local PiHub (fallback)'),
+        PiHubNode(
+          host: uri.host,
+          port: 80,
+          name: 'PiHub Gateway (fallback)',
+        ),
       ];
     }
   }

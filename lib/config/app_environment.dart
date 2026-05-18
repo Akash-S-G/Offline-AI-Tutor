@@ -44,10 +44,10 @@ class AppEnvironment {
   static void _logStartup() {
     final log = _getLogger('BOOTSTRAP');
     log('Environment initialized');
-    log('Backend: ${AppEnvironment.backendBaseUrl}');
-    log('Gateway: ${AppEnvironment.gatewayUrl}');
-    log('PiHub: ${AppEnvironment.piHubUrl}');
+    log('Backend Gateway: ${AppEnvironment.backendBaseUrl}');
     log('Deployment Mode: ${AppEnvironment.deploymentMode}');
+    log('Offline Packs: ${AppEnvironment.enableOfflinePacks}');
+    log('Local Inference: ${AppEnvironment.enableLocalInference}');
   }
 
   // ========================================================================
@@ -58,7 +58,6 @@ class AppEnvironment {
   static String get backendBaseUrl =>
       _normalizeBackendBaseUrl(
         dotenv.env['BACKEND_BASE_URL'],
-        fallback: gatewayUrl,
       );
 
   /// Backend gateway port
@@ -74,52 +73,81 @@ class AppEnvironment {
       dotenv.env['BACKEND_API_KEY'] ?? 'default-development-key';
 
   // ========================================================================
-  // DISTRIBUTED SERVICE ENDPOINTS
+  // NGINX GATEWAY ROUTING
   // ========================================================================
+  // 
+  // All endpoints are routed through the nginx gateway (BACKEND_BASE_URL).
+  // The gateway handles service discovery and routing:
+  // - GET  /health → health check
+  // - POST /ai/chat → AI chat service
+  // - POST /ai/tutor → Educational tutor service
+  // - POST /rag/search → Vector search (Qdrant)
+  // - POST /upload → File upload service
+  // - POST /ingest/directory → Content ingestion
+  // - GET  /packs/* → Educational pack management
+  // - POST /classroom/* → Classroom coordination
+  // - etc.
+  //
+  // Use EndpointBuilder to construct specific endpoints dynamically.
+  // NO HARDCODED PORTS (:8000, :8001, :8010, :8020, :6333, etc.).
 
-  /// Gateway service URL (API requests)
-  static String get gatewayUrl =>
-      dotenv.env['GATEWAY_URL'] ?? 'http://172.17.13.112:8000';
+  // ===== LEGACY COMPATIBILITY ACCESSORS =====
+  // These are convenience methods for existing code that references specific services.
+  // They all route through the nginx gateway (BACKEND_BASE_URL) now.
 
-  /// PiHub discovery and coordination service
-  static String get piHubUrl =>
-      dotenv.env['PIHUB_URL'] ?? 'http://172.17.13.112:8080';
-
-    /// PiHub service port
-    static int get pihubPort =>
-      int.tryParse(dotenv.env['PIHUB_PORT'] ?? '8080') ?? 8080;
-
-  /// Inference service (LLM) endpoint
-  static String get inferenceUrl =>
-      dotenv.env['INFERENCE_URL'] ?? 'http://172.17.13.112:8001';
-
-  /// Content pipeline service (educational materials)
+  /// Content pipeline service URL (routes through nginx gateway)
+  /// Previously: http://172.17.13.112:8002
+  /// Now: Routed via BACKEND_BASE_URL/packs/* endpoints
   static String get contentPipelineUrl =>
-      dotenv.env['CONTENT_PIPELINE_URL'] ?? 'http://172.17.13.112:8002';
+      backendBaseUrl;
 
-  /// Qdrant vector database endpoint
+  /// Inference service URL (routes through nginx gateway)
+  /// Previously: http://172.17.13.112:8001
+  /// Now: Routed via BACKEND_BASE_URL/ai/tutor and local inference
+  static String get inferenceUrl =>
+      backendBaseUrl;
+
+  /// Qdrant vector database URL (routes through nginx gateway)
+  /// Previously: http://172.17.13.112:6333
+  /// Now: Routed via BACKEND_BASE_URL/rag/* endpoints
   static String get qdrantUrl =>
-      dotenv.env['QDRANT_URL'] ?? 'http://172.17.13.112:6333';
+      backendBaseUrl;
 
-  /// Sync service endpoint
+  /// Sync service URL (routes through nginx gateway)
+  /// Previously: http://172.17.13.112:8003
+  /// Now: Routed via BACKEND_BASE_URL/sync/* endpoints
   static String get syncUrl =>
-      dotenv.env['SYNC_URL'] ?? 'http://172.17.13.112:8003';
+      backendBaseUrl;
 
-  /// Classroom coordination endpoint
+  /// Classroom coordination URL (routes through nginx gateway)
+  /// Previously: http://172.17.13.112:8000/classroom
+  /// Now: Routed via BACKEND_BASE_URL/classroom/* endpoints
   static String get classroomUrl =>
-      dotenv.env['CLASSROOM_URL'] ?? 'http://172.17.13.112:8000/classroom';
+      backendBaseUrl;
 
-  // ========================================================================
-  // WEBSOCKET & STREAMING
-  // ========================================================================
+  /// WebSocket URL (routes through nginx gateway)
+  /// Previously: ws://172.17.13.112:8000
+  /// Now: Should use BACKEND_BASE_URL with ws/wss protocol
+  static String get websocketBaseUrl {
+    final url = backendBaseUrl;
+    // Convert http/https to ws/wss
+    if (url.startsWith('https://')) {
+      return url.replaceFirst('https://', 'wss://');
+    }
+    if (url.startsWith('http://')) {
+      return url.replaceFirst('http://', 'ws://');
+    }
+    return 'ws://$url';
+  }
 
-  /// WebSocket base URL for real-time communication
-  static String get websocketBaseUrl =>
-      dotenv.env['WEBSOCKET_BASE_URL'] ?? 'ws://172.17.13.112:8000';
+  /// PiHub discovery URL (routes through nginx gateway)
+  /// Previously: http://172.17.13.112:8080
+  /// Now: Routed via BACKEND_BASE_URL/classroom/devices
+  static String get piHubUrl =>
+      backendBaseUrl;
 
-  /// WebSocket port
-  static String get websocketPort =>
-      dotenv.env['WEBSOCKET_PORT'] ?? '8000';
+  /// PiHub service port (deprecated - all routing through nginx gateway)
+  static int get pihubPort => 80;
 
   // ========================================================================
   // CONNECTIVITY CONFIGURATION
@@ -296,36 +324,35 @@ class AppEnvironment {
   /// Get all configuration as a map (for debugging)
   static Map<String, dynamic> toMap() => {
     'backendBaseUrl': backendBaseUrl,
-    'gatewayUrl': gatewayUrl,
-    'piHubUrl': piHubUrl,
-    'inferenceUrl': inferenceUrl,
-    'contentPipelineUrl': contentPipelineUrl,
-    'qdrantUrl': qdrantUrl,
-    'syncUrl': syncUrl,
-    'classroomUrl': classroomUrl,
-    'websocketBaseUrl': websocketBaseUrl,
+    'backendTimeoutSeconds': backendTimeoutSeconds,
+    'maxRetryAttempts': maxRetryAttempts,
+    'retryDelaySeconds': retryDelaySeconds,
+    'backoffMultiplier': backoffMultiplier,
     'enableBackend': enableBackend,
+    'enableOfflinePacks': enableOfflinePacks,
+    'enableLocalInference': enableLocalInference,
+    'autoSyncOnReconnect': autoSyncOnReconnect,
     'deploymentMode': deploymentMode,
     'deviceName': deviceName,
     'deviceId': deviceId,
+    'healthCheckIntervalSeconds': healthCheckIntervalSeconds,
   };
 
-  static String _normalizeBackendBaseUrl(String? rawValue, {required String fallback}) {
+  static String _normalizeBackendBaseUrl(String? rawValue) {
     final value = (rawValue ?? '').trim();
     if (value.isEmpty) {
-      return fallback;
+      // Default to production configuration
+      return 'http://10.28.73.193';
     }
 
     final uri = Uri.tryParse(value);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-      return fallback;
+      // Invalid URI, use default
+      return 'http://10.28.73.193';
     }
 
-    if (uri.hasPort) {
-      return uri.toString();
-    }
-
-    return uri.replace(port: backendPort.isNotEmpty ? int.tryParse(backendPort) ?? 8000 : 8000).toString();
+    // Return the URI as-is (nginx gateway manages all ports)
+    return uri.toString();
   }
 
   /// Print current configuration (debug)

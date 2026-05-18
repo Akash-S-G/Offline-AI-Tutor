@@ -15,7 +15,6 @@ import '../data/tutor_inference_gateway.dart';
 import '../data/local/chat_memory_policy_repository.dart';
 import '../data/local/linux_llm_config_service.dart';
 import '../../network/application/distributed_service_composer.dart';
-import '../../network/domain/backend_config.dart';
 import '../domain/tutor_message.dart';
 import '../../translation/application/separate_translation_layer_service.dart';
 import '../../translation/data/local/translation_engine_config_service.dart';
@@ -127,7 +126,6 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   void initState() {
     super.initState();
     _bootstrapSession();
-    _bootstrapDistributedStreaming();
     _loadTranslationConfig();
     _listenInferenceMetrics();
     if (_isLinux) {
@@ -178,34 +176,6 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       _engineLoaded = validation.ready;
       _linuxStatusMessage = validation.message;
     });
-  }
-
-  Future<void> _bootstrapDistributedStreaming() async {
-    final config = BackendConfig.fromEnvironment();
-    if (config == null) {
-      return;
-    }
-
-    try {
-      await _distributedServiceComposer.initialize(
-        backendConfig: config,
-        platformGateway: _gateway,
-      );
-      await _syncDistributedClassroomState();
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _inferenceLog = 'Distributed streaming enabled.';
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _inferenceLog = 'Distributed streaming unavailable: $error';
-      });
-    }
   }
 
   Future<void> _syncDistributedClassroomState() async {
@@ -940,12 +910,14 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }
 
     try {
-      final responseStream = distributedStreamingReady
-          ? _distributedServiceComposer.hybridInferenceService.streamAnswer(
-              question,
-              systemPrompt: modelPrompt,
-            )
-          : _gateway.streamResponse(prompt: modelPrompt);
+        final responseStream = (Platform.isAndroid && _androidNativeFastPath)
+          ? _gateway.streamResponse(prompt: question)
+          : distributedStreamingReady
+              ? _distributedServiceComposer.hybridInferenceService.streamAnswer(
+                  question,
+                  systemPrompt: modelPrompt,
+                )
+              : _gateway.streamResponse(prompt: modelPrompt);
 
       final primaryTimeout = Duration(
         milliseconds: Platform.isAndroid
