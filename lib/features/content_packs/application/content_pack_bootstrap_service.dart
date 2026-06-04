@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import '../../home/data/local/media_resource_repository.dart';
+import '../../rag/application/pdf_extraction_service.dart';
+import '../../rag/data/local/rag_repository.dart';
 import '../data/local/content_pack_repository.dart';
 import '../domain/content_pack_models.dart';
 
@@ -147,9 +149,24 @@ class ContentPackBootstrapService {
           }),
         ),
       );
+
+      // Populate rag_chunks for text-based materials
+      if (item.mediaType == 'textbook' && classification.chapterId != null) {
+        try {
+          final text = await PdfExtractionService.extractTextFromPdf(item.localPath);
+          await RagRepository().ingestChapterNotes(
+            chapterId: classification.chapterId!,
+            sourceTitle: item.title,
+            rawText: text,
+          );
+        } catch (e) {
+          print('[DIAGNOSTICS] Failed to extract text for RAG: $e');
+        }
+      }
     }
 
     await _packRepository.upsertPack(manifest: pack, items: packItems);
+    print('[DIAGNOSTICS] RAG_CHUNKS_INSERTED for pack $packId');
   }
 
   String _hashLegacyItems(List<MediaResource> items) {

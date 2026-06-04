@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import '../../../config/app_environment.dart';
+
 import '../data/backend_api_service.dart';
 import '../data/backend_health_monitor.dart';
 import '../data/network_state_service.dart';
@@ -147,6 +149,173 @@ class HybridInferenceService {
           yield 'Failed to process your question. Please try again.';
         }
       }
+    }
+  }
+
+  /// Stream a tutor-specific answer to a question using the /ai/tutor endpoint.
+  Stream<String> streamTutorAnswer(
+    String question, {
+    required bool backendAvailable,
+    required bool hasRelevantLocalContent,
+    List<String>? localCurriculumContext,
+    int? grade,
+    String? subject,
+    String? chapter,
+    String? language,
+    List<String>? conversationHistory,
+  }) async* {
+    print('[DIAGNOSTICS] ENTERING HybridInferenceService.streamTutorAnswer()');
+    print('[DIAGNOSTICS] QUESTION_ID=${DateTime.now().millisecondsSinceEpoch}');
+    print('[DIAGNOSTICS] QUESTION=$question');
+    print('[DIAGNOSTICS] GRADE=$grade');
+    print('[DIAGNOSTICS] SUBJECT=$subject');
+    print('[DIAGNOSTICS] CHAPTER=$chapter');
+    TutorExecutionMode executionMode;
+    if (hasRelevantLocalContent) {
+      executionMode = TutorExecutionMode.curriculumRag;
+    } else {
+      if (backendAvailable) {
+        executionMode = TutorExecutionMode.backendRag;
+      } else {
+        executionMode = TutorExecutionMode.knowledgeFallback;
+      }
+    }
+
+    print('[DIAGNOSTICS] EXECUTION_MODE=${executionMode.name.toUpperCase()}');
+    final startTime = DateTime.now();
+
+    final cached = _getCachedResponse(question);
+    if (cached != null) {
+      _metrics.recordLocal();
+      yield cached;
+      return;
+    }
+
+    if (executionMode == TutorExecutionMode.backendRag) {
+      print('[DIAGNOSTICS] BACKEND_TUTOR_START');
+      print('[DIAGNOSTICS] REQUEST_SENT');
+      _metrics.recordBackend();
+      try {
+        final backendStream = _backendService.streamTutorAnswer(
+          question: question,
+          grade: grade,
+          subject: subject,
+          chapter: chapter,
+          language: language,
+          conversationHistory: conversationHistory,
+        );
+        await for (final chunk in backendStream) {
+          yield chunk;
+        }
+        print('[DIAGNOSTICS] FINAL_EXECUTION_PATH=BACKEND_RAG');
+        final totalMs = DateTime.now().difference(startTime).inMilliseconds;
+        print('[DIAGNOSTICS] TOTAL_EXECUTION_TIME_MS=$totalMs');
+        return;
+      } catch (e) {
+        print('[DIAGNOSTICS] BACKEND_TUTOR_FAILED');
+        print('[DIAGNOSTICS] BACKEND_ERROR=$e');
+        print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_START');
+        executionMode = TutorExecutionMode.knowledgeFallback;
+      }
+    }
+
+    if (executionMode == TutorExecutionMode.curriculumRag) {
+      print('[DIAGNOSTICS] LOCAL_RAG_START');
+      final localBuffer = StringBuffer();
+      final contextText = localCurriculumContext?.join('\n\n') ?? '';
+      final localPrompt = '''
+You are an offline school tutor. 
+Use the following curriculum context to answer the question.
+Context:
+$contextText
+
+Question: $question
+''';
+      print('[DIAGNOSTICS] LOCAL_RAG_END');
+      print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
+      print('[DIAGNOSTICS] PROMPT_TO_NATIVE_LENGTH=${localPrompt.length}');
+      print('[DIAGNOSTICS] PROMPT_PREVIEW=${localPrompt.substring(0, localPrompt.length > 200 ? 200 : localPrompt.length)}');
+      
+      final localStream = _localInference.streamQuestion(localPrompt);
+      var isFirstToken = true;
+      try {
+        await for (final chunk in localStream) {
+          if (isFirstToken) {
+            print('[DIAGNOSTICS] LOCAL_FIRST_TOKEN');
+            isFirstToken = false;
+          }
+          localBuffer.write(chunk);
+          yield chunk;
+        }
+      } catch (_) {
+        _metrics.recordFailure();
+        yield 'Failed to process your question locally. Please try again.';
+        return;
+      }
+      
+      print('[DIAGNOSTICS] LOCAL_STREAM_COMPLETE');
+      print('[DIAGNOSTICS] FINAL_EXECUTION_PATH=CURRICULUM_RAG');
+      final totalMs = DateTime.now().difference(startTime).inMilliseconds;
+      print('[DIAGNOSTICS] TOTAL_EXECUTION_TIME_MS=$totalMs');
+      
+      _metrics.recordLocal();
+      final text = localBuffer.toString();
+      if (text.isNotEmpty) {
+        _cacheResponse(question, text);
+      }
+      return;
+    }
+
+    if (executionMode == TutorExecutionMode.knowledgeFallback) {
+      print('[DIAGNOSTICS] EXECUTION_MODE=KNOWLEDGE_FALLBACK');
+      final localBuffer = StringBuffer();
+      final localPrompt = '''
+You are an offline school tutor.
+The requested topic was not found in the local curriculum database.
+Answer using your general knowledge.
+Rules:
+* Explain in simple language.
+* Use age appropriate examples.
+* Be educational and factual.
+* State uncertainty when necessary.
+* Do not invent textbook references.
+* Keep answers concise.
+
+Question: $question
+''';
+      print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_PROMPT_BUILT');
+      print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
+      print('[DIAGNOSTICS] PROMPT_TO_NATIVE_LENGTH=${localPrompt.length}');
+      print('[DIAGNOSTICS] PROMPT_PREVIEW=${localPrompt.substring(0, localPrompt.length > 200 ? 200 : localPrompt.length)}');
+      
+      final localStream = _localInference.streamQuestion(localPrompt);
+      var isFirstToken = true;
+      try {
+        await for (final chunk in localStream) {
+          if (isFirstToken) {
+            print('[DIAGNOSTICS] LOCAL_FIRST_TOKEN');
+            isFirstToken = false;
+          }
+          localBuffer.write(chunk);
+          yield chunk;
+        }
+      } catch (_) {
+        _metrics.recordFailure();
+        yield 'Failed to process your question via fallback. Please try again.';
+        return;
+      }
+      
+      print('[DIAGNOSTICS] LOCAL_STREAM_COMPLETE');
+      print('[DIAGNOSTICS] FINAL_EXECUTION_PATH=KNOWLEDGE_FALLBACK');
+      final totalMs = DateTime.now().difference(startTime).inMilliseconds;
+      print('[DIAGNOSTICS] TOTAL_EXECUTION_TIME_MS=$totalMs');
+      
+      _metrics.recordLocal();
+      final text = localBuffer.toString();
+      if (text.isNotEmpty) {
+        _cacheResponse(question, text);
+      }
+      return;
     }
   }
 

@@ -11,7 +11,10 @@ import '../application/content_pack_policy_service.dart';
 import '../application/content_pack_sync_service.dart';
 import '../data/local/content_pack_repository.dart';
 import '../domain/content_pack_models.dart';
+import '../../network/data/backend_api_service.dart';
+import '../../network/domain/backend_config.dart';
 import '../../shared/application/offline_error_taxonomy.dart';
+import '../../../config/app_environment.dart';
 
 class ContentPackInstallerScreen extends StatefulWidget {
   const ContentPackInstallerScreen({super.key});
@@ -29,6 +32,7 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
   final ContentPackSyncService _syncService = const ContentPackSyncService();
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _catalogUrlController = TextEditingController();
+  late final BackendApiService _backendService = BackendApiService(config: BackendConfig.fromEnvironment() ?? const BackendConfig(baseUrl: 'http://localhost', apiKey: ''));
 
   bool _loading = true;
   bool _installing = false;
@@ -161,6 +165,47 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
     }
   }
 
+  Future<void> _checkBackendCatalog() async {
+    setState(() {
+      _checkingCatalog = true;
+      _error = null;
+    });
+
+    try {
+      final snapshot = await _syncService.fetchCatalogFromBackend(_backendService);
+      final installed = await _repository.listInstalledPacks();
+      final plan = _syncService.buildPlan(
+        snapshot: snapshot,
+        installedPacks: installed,
+      );
+
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _syncPlan = plan;
+      });
+    } catch (e) {
+      if (!mounted) {
+        return;
+      }
+      final details = OfflineErrorTaxonomy.fromError(
+        e,
+        context: OfflineErrorContext.catalogSync,
+        fallbackMessage: 'Backend catalog sync failed.',
+      );
+      setState(() {
+        _error = details.formatForUi();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _checkingCatalog = false;
+        });
+      }
+    }
+  }
+
   Future<void> _discoverCatalogServers() async {
     setState(() {
       _discoveringCatalogs = true;
@@ -280,7 +325,18 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
 
     for (final remote in plan.requiredInstallQueue) {
       try {
-        final downloadedPath = await _downloadPackArchive(remote.archiveUrl);
+        String downloadedPath;
+        if (remote.archiveUrl.toString().startsWith(AppEnvironment.backendBaseUrl)) {
+          final tempDir = await getTemporaryDirectory();
+          final ext = remote.archiveUrl.path.toLowerCase().endsWith('.zip') ? '.zip' : '.otpack';
+          final tempPath = p.join(
+            tempDir.path,
+            'catalog_pack_${DateTime.now().millisecondsSinceEpoch}$ext',
+          );
+          downloadedPath = await _backendService.downloadPack(remote.packId, tempPath);
+        } else {
+          downloadedPath = await _downloadPackArchive(remote.archiveUrl);
+        }
         await _archiveService.importPackArchive(downloadedPath);
         installedCount += 1;
       } on PackVersionConflictException catch (e) {
@@ -801,21 +857,26 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
                                       height: 14,
                                       child: CircularProgressIndicator(strokeWidth: 2),
                                     )
-                                  : const Icon(Icons.wifi_find_rounded),
-                              label: const Text('Discover Servers'),
+                                  : const Icon(Icons.search_rounded, size: 18),
+                              label: Text(
+                                _discoveringCatalogs ? 'Discovering...' : 'Auto-Discover',
+                              ),
                             ),
                             FilledButton.icon(
-                              onPressed: (_installing || _checkingCatalog)
-                                  ? null
-                                  : _checkRaspberryCatalog,
+                              onPressed: _checkingCatalog ? null : _checkRaspberryCatalog,
                               icon: _checkingCatalog
                                   ? const SizedBox(
                                       width: 14,
                                       height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                                     )
-                                  : const Icon(Icons.sync_rounded),
-                              label: const Text('Check Catalog'),
+                                  : const Icon(Icons.sync_rounded, size: 18),
+                              label: Text(_checkingCatalog ? 'Checking...' : 'Check Catalog'),
+                            ),
+                            FilledButton.tonalIcon(
+                              onPressed: _checkingCatalog ? null : _checkBackendCatalog,
+                              icon: const Icon(Icons.cloud_sync_rounded, size: 18),
+                              label: const Text('Sync from Cloud API'),
                             ),
                             OutlinedButton.icon(
                               onPressed: (_installingCatalogQueue || _checkingCatalog)

@@ -17,7 +17,7 @@ class AppDatabase {
 
     _database = await openDatabase(
       fullPath,
-      version: 14,
+      version: 15,
       onCreate: (db, version) async {
         await _createBaseTables(db);
         await _createRagTables(db);
@@ -88,6 +88,9 @@ class AppDatabase {
         if (oldVersion < 14) {
           await _createContentPackTables(db);
         }
+        if (oldVersion < 15) {
+          await _createRagFtsArtifacts(db);
+        }
       },
     );
 
@@ -150,7 +153,8 @@ class AppDatabase {
   }
 
   Future<void> _createRagFtsArtifacts(Database db) async {
-    // FTS4 not supported on this system - using LIKE queries instead
+    // FTS not supported on this system - using LIKE queries instead
+    await db.execute('DROP TABLE IF EXISTS rag_chunks_fts');
   }
 
   Future<void> _createRagV2Tables(Database db) async {

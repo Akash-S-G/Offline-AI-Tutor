@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:sqflite/sqflite.dart';
+import '../../course/data/local/app_database.dart' as offline_tutor_app;
 
 import '../../assessment/data/local/quiz_result_repository.dart';
 import '../../assessment/domain/quiz_result.dart';
@@ -50,6 +52,31 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     super.initState();
     _loadInitial();
     _loadFeatureInsights();
+    _runDiagnostics();
+  }
+
+  Future<void> _runDiagnostics() async {
+    try {
+      final db = await offline_tutor_app.AppDatabase.instance.database;
+      final packs = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_packs')) ?? 0;
+      final chunks = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks')) ?? 0;
+      
+      print('====================================================');
+      print('[DIAGNOSTICS] PHASE 1 & 2 REPORT');
+      print('[DIAGNOSTICS] LOCAL_PACK_COUNT=$packs');
+      print('[DIAGNOSTICS] RAG_CHUNK_COUNT=$chunks');
+      print('[DIAGNOSTICS] FTS_CHUNK_COUNT=0 (FTS Removed)');
+      
+      final packRows = await db.query('material_packs');
+      for (final row in packRows) {
+        final packId = row['pack_id'];
+        final items = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_pack_items WHERE pack_id = ?', [packId])) ?? 0;
+        print('[DIAGNOSTICS] PACK_ID=$packId, INSERTED_CHUNKS=0 (Items: $items)');
+      }
+      print('====================================================');
+    } catch (e) {
+      print('[DIAGNOSTICS] Error running diagnostics: $e');
+    }
   }
 
   Future<void> _loadFeatureInsights() async {

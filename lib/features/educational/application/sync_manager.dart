@@ -2,6 +2,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math' as math;
 import '../../../config/app_environment.dart';
+import '../../../features/network/data/backend_availability_cache.dart';
 import '../../../features/network/domain/endpoint_builder.dart';
 import '../models/educational_models.dart';
 
@@ -18,6 +19,13 @@ class SyncManager {
   /// Check for pack updates from backend
   Future<Map<String, String>> checkForPackUpdates() async {
     try {
+      // Consult cached backend status to avoid redundant 30s timeout
+      final cached = BackendAvailabilityCache().cachedStatus;
+      if (cached == false) {
+        AppEnvironment.log('SYNC', '[SyncManager] Skipping pack check — backend cached as unavailable');
+        return {};
+      }
+
       AppEnvironment.log('SYNC', '[SyncManager] Checking for pack updates');
 
       final endpoint = EndpointBuilder.fromEnvironment().packsSync;

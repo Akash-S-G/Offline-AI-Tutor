@@ -12,16 +12,33 @@ class PlatformTutorInferenceGateway implements TutorInferenceGateway {
   final LinuxTutorInferenceGateway _linuxGateway = LinuxTutorInferenceGateway();
 
   @override
-  Stream<String> streamResponse({required String prompt}) {
+  Stream<String> streamResponse({required String prompt}) async* {
+    print('[DIAGNOSTICS] ENTERING PlatformTutorInferenceGateway.streamResponse()');
+    print('[DIAGNOSTICS] GENERATION_START (PLATFORM)');
+    Stream<String> sourceStream;
+
     if (Platform.isLinux) {
-      return _linuxGateway.streamResponse(prompt: prompt);
+      sourceStream = _linuxGateway.streamResponse(prompt: prompt);
+    } else {
+      sourceStream = _streamChannel
+          .receiveBroadcastStream(<String, dynamic>{'question': prompt})
+          .where((event) => event is String)
+          .cast<String>()
+          .where((chunk) => chunk.isNotEmpty);
     }
 
-    return _streamChannel
-        .receiveBroadcastStream(<String, dynamic>{'question': prompt})
-        .where((event) => event is String)
-        .cast<String>()
-      .where((chunk) => chunk.isNotEmpty);
+    var isFirstToken = true;
+    try {
+      await for (final chunk in sourceStream) {
+        if (isFirstToken) {
+          print('[DIAGNOSTICS] FIRST_TOKEN (PLATFORM)');
+          isFirstToken = false;
+        }
+        yield chunk;
+      }
+    } finally {
+      print('[DIAGNOSTICS] GENERATION_END (PLATFORM)');
+    }
   }
 
   @override

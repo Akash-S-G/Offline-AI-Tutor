@@ -20,11 +20,15 @@ class BackendHttpClient {
   Future<BackendResponse<String>> get(
     String path, {
     Map<String, String>? headers,
+    int? maxRetries,
+    Duration? timeout,
   }) async {
     return _executeRequest(
       method: 'GET',
       path: path,
       headers: headers,
+      maxRetries: maxRetries,
+      timeout: timeout,
     );
   }
 
@@ -78,30 +82,35 @@ class BackendHttpClient {
     required String path,
     String? body,
     Map<String, String>? headers,
+    int? maxRetries,
+    Duration? timeout,
   }) async {
     Object? lastError;
     int? lastStatusCode;
+    
+    final retries = maxRetries ?? _config.maxRetries;
+    final requestTimeout = timeout ?? Duration(seconds: _config.requestTimeoutSeconds);
+    final connectTimeout = timeout ?? Duration(seconds: _config.connectTimeoutSeconds);
 
-    for (var attempt = 0; attempt <= _config.maxRetries; attempt++) {
+    for (var attempt = 0; attempt <= retries; attempt++) {
       try {
         final request = await _prepareRequest(
           method: method,
           path: path,
           headers: headers,
-          timeout: Duration(seconds: _config.connectTimeoutSeconds),
+          timeout: connectTimeout,
         );
 
         if (body != null) {
           request.write(body);
         }
 
-        final response = await request.close()
-            .timeout(Duration(seconds: _config.requestTimeoutSeconds));
+        final response = await request.close().timeout(requestTimeout);
         lastStatusCode = response.statusCode;
 
         if (response.statusCode < 200 || response.statusCode >= 300) {
           lastError = HttpException('HTTP ${response.statusCode}');
-          if (attempt < _config.maxRetries) {
+          if (attempt < retries) {
             await _delayBeforeRetry(attempt);
             continue;
           }
@@ -119,7 +128,7 @@ class BackendHttpClient {
         );
       } catch (error) {
         lastError = error;
-        if (attempt < _config.maxRetries && _shouldRetry(error)) {
+        if (attempt < retries && _shouldRetry(error)) {
           await _delayBeforeRetry(attempt);
           continue;
         }
@@ -132,7 +141,7 @@ class BackendHttpClient {
     }
 
     return BackendResponse.failure(
-      message: 'Request failed after ${_config.maxRetries} retries: $lastError',
+      message: 'Request failed after $retries retries: $lastError',
       error: lastError,
     );
   }

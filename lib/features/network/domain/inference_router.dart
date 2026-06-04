@@ -61,6 +61,7 @@ class InferenceRouter {
     String question, {
     required double questionComplexity,
     bool forceLocal = false,
+    bool backendAvailable = true,
   }) {
     if (forceLocal) {
       return RoutingDecision(
@@ -82,8 +83,7 @@ class InferenceRouter {
       );
     }
 
-    // Online but no backend - use local
-    if (quality.name == 'online') {
+    if (!backendAvailable) {
       return RoutingDecision(
         route: InferenceRoute.local,
         reason: 'Backend unreachable, using local',

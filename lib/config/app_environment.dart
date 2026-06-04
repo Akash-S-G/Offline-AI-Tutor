@@ -13,6 +13,13 @@ enum LogTag {
   String toString() => name.toUpperCase();
 }
 
+/// Execution mode for the offline-first tutor pipeline
+enum TutorExecutionMode {
+  curriculumRag,
+  backendRag,
+  knowledgeFallback,
+}
+
 /// Centralized application environment configuration
 /// 
 /// This singleton manages all environment variables and network configuration.
@@ -66,7 +73,7 @@ class AppEnvironment {
 
   /// Backend request timeout in seconds
   static int get backendTimeoutSeconds =>
-      int.tryParse(dotenv.env['BACKEND_TIMEOUT_SECONDS'] ?? '30') ?? 30;
+      int.tryParse(dotenv.env['BACKEND_TIMEOUT_SECONDS'] ?? '10') ?? 10;
 
   /// API key for backend authentication
   static String get backendApiKey =>

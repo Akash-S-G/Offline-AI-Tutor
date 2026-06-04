@@ -49,7 +49,6 @@ class OptionalBootstrap {
       _coordinator.completeStep('Starting resilience monitoring');
 
       _coordinator.beginStep('Checking pack versions');
-      await SyncManager().checkForPackUpdates();
       _coordinator.markSyncReady();
       _coordinator.completeStep('Checking pack versions');
     } catch (e) {

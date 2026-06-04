@@ -762,6 +762,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   }
   
   Future<void> _ask() async {
+    final startTime = DateTime.now();
+    print('[DIAGNOSTICS] QUESTION_RECEIVED');
     final question = _inputController.text.trim();
     if (question.isEmpty || _isGenerating || _sessionId == null) {
       return;
@@ -844,9 +846,6 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }
 
     final distributedStreamingReady = _distributedServiceComposer.isInitialized;
-    final modelPrompt = (useAndroidFastPath && !distributedStreamingReady)
-      ? question
-      : await _buildModelPrompt(question: question);
 
     if (_isLinux && !_engineLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -910,14 +909,41 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }
 
     try {
-        final responseStream = (Platform.isAndroid && _androidNativeFastPath)
-          ? _gateway.streamResponse(prompt: question)
-          : distributedStreamingReady
-              ? _distributedServiceComposer.hybridInferenceService.streamAnswer(
-                  question,
-                  systemPrompt: modelPrompt,
-                )
-              : _gateway.streamResponse(prompt: modelPrompt);
+      final ragCheck = await _ragRepository.localRagPreCheck(
+        chapterId: widget.chapter.id,
+        query: question,
+      );
+      
+      final hasRelevantLocalContent = ragCheck.hasRelevantLocalContent;
+      
+      bool backendAvailable = false;
+      if (!hasRelevantLocalContent) {
+        backendAvailable = await _distributedServiceComposer.backendService.isBackendAvailable();
+      }
+      
+      print('[DIAGNOSTICS] BACKEND_AVAILABLE=$backendAvailable');
+      
+      final memory = _conversationMemoryService.buildMemory(
+        _messages,
+        question: question,
+        policy: _memoryPolicy ?? ChatMemoryPolicy.defaults(_sessionId ?? ''),
+      );
+      final conversationHistory = memory.combinedLines.where((l) => l.isNotEmpty).toList();
+      final localCurriculumContext = ragCheck.chunks.map((c) => c.content).toList();
+
+      final responseStream = distributedStreamingReady
+          ? _distributedServiceComposer.hybridInferenceService.streamTutorAnswer(
+              question,
+              backendAvailable: backendAvailable,
+              hasRelevantLocalContent: hasRelevantLocalContent,
+              localCurriculumContext: localCurriculumContext,
+              grade: int.tryParse(RegExp(r'\d+').firstMatch(widget.course.id)?.group(0) ?? ''),
+              subject: widget.subject.name,
+              chapter: widget.chapter.title,
+              language: _languageCode,
+              conversationHistory: conversationHistory,
+            )
+          : _gateway.streamResponse(prompt: await _buildModelPrompt(question: question));
 
       final primaryTimeout = Duration(
         milliseconds: Platform.isAndroid
@@ -978,6 +1004,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
             }
           },
           onDone: () {
+            print('[DIAGNOSTICS] FINAL_RESPONSE_RECEIVED');
             if (!completer.isCompleted) {
               completer.complete();
             }
@@ -1035,7 +1062,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         await consumeStream(
           timeout: const Duration(milliseconds: 90000),
           isFallback: true,
-          stream: _gateway.streamResponse(prompt: modelPrompt),
+          stream: _gateway.streamResponse(prompt: await _buildModelPrompt(question: question)),
         );
       }
     } catch (error) {
@@ -1233,6 +1260,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
       _scrollToBottom(animated: true, force: true);
     }
+    
+    final elapsed = DateTime.now().difference(startTime);
+    print('[DIAGNOSTICS] TOTAL_REQUEST_TIME=${elapsed.inMilliseconds}ms');
   }
 
   void _persistUserTurnAsync({required String question, required DateTime timestamp}) {
@@ -1289,7 +1319,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
           policy: _memoryPolicy ?? ChatMemoryPolicy.defaults(_sessionId!),
         );
 
-        return _promptBuilder.buildChapterPrompt(
+        final promptText = _promptBuilder.buildChapterPrompt(
           course: widget.course,
           subject: widget.subject,
           chapter: widget.chapter,
@@ -1298,10 +1328,14 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
           retrievedContext: chapterChunks.map((chunk) => chunk.content).toList(),
           conversationMemory: memory.combinedLines,
         );
+        print('[DIAGNOSTICS] PROMPT_LENGTH=${promptText.length}');
+        return promptText;
       }
     }
 
-    return _simpleAiComponent.buildPrompt(question: question);
+    final promptText = _simpleAiComponent.buildPrompt(question: question);
+    print('[DIAGNOSTICS] PROMPT_LENGTH=${promptText.length}');
+    return promptText;
   }
 
   Future<String> _runRecoveryPrompt(String recoveryPrompt) async {

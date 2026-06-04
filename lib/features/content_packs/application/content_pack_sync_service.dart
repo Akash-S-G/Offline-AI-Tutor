@@ -6,6 +6,7 @@ import 'package:multicast_dns/multicast_dns.dart';
 import 'package:network_info_plus/network_info_plus.dart';
 
 import '../../../config/app_environment.dart';
+import '../../network/data/backend_api_service.dart';
 import '../domain/content_pack_models.dart';
 import 'content_pack_policy_service.dart';
 
@@ -328,6 +329,57 @@ class ContentPackSyncService {
     } finally {
       client.close(force: true);
     }
+  }
+
+  Future<ContentPackCatalogSnapshot> fetchCatalogFromBackend(BackendApiService backendService) async {
+    AppEnvironment.log(
+      'SYNC',
+      'Fetching catalog from backend API',
+    );
+    final response = await backendService.listPacks();
+    if (response.isFailure) {
+      throw HttpException('Failed to fetch packs from backend: ${response.message}');
+    }
+
+    final rawPacks = response.data ?? <dynamic>[];
+    final byId = <String, RemoteContentPack>{};
+    
+    final catalogUri = Uri.parse('${AppEnvironment.backendBaseUrl}/packs');
+
+    for (final item in rawPacks) {
+      if (item is! Map<String, dynamic>) continue;
+      
+      if (item.containsKey('download_url') && !item.containsKey('archive_url') && !item.containsKey('archiveUrl')) {
+        item['archive_url'] = item['download_url'];
+      }
+      if (!item.containsKey('archive_url') && item.containsKey('pack_id')) {
+        item['archive_url'] = '${AppEnvironment.backendBaseUrl}/packs/${item['pack_id']}/download';
+      }
+
+      try {
+        final remote = RemoteContentPack.fromMap(item, catalogUri: catalogUri);
+        final existing = byId[remote.packId];
+        if (existing == null || remote.version > existing.version) {
+          byId[remote.packId] = remote;
+        }
+      } catch (_) {
+        // Skip malformed entries
+      }
+    }
+
+    final packs = byId.values.toList()
+      ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+
+    AppEnvironment.log(
+      'SYNC',
+      'Backend catalog fetched successfully: ${packs.length} packs',
+    );
+
+    return ContentPackCatalogSnapshot(
+      catalogUri: catalogUri,
+      fetchedAt: DateTime.now().millisecondsSinceEpoch,
+      packs: packs,
+    );
   }
 
   Future<bool> isCatalogUrlReachable(String catalogUrl) async {

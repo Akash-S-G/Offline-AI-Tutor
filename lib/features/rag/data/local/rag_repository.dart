@@ -3,6 +3,20 @@ import 'package:sqflite/sqflite.dart';
 import '../../../course/data/local/app_database.dart';
 import '../../domain/rag_chunk.dart';
 
+class RagCheckResult {
+  final int chunkCount;
+  final double topScore;
+  final List<RagChunk> chunks;
+  
+  RagCheckResult({
+    required this.chunkCount,
+    required this.topScore,
+    required this.chunks,
+  });
+  
+  bool get hasRelevantLocalContent => chunkCount > 0 && topScore <= -0.1;
+}
+
 class RagRepository {
   RagRepository({AppDatabase? database}) : _database = database ?? AppDatabase.instance;
 
@@ -134,11 +148,86 @@ class RagRepository {
     return (rows.first['c'] as int?) ?? 0;
   }
 
+  Future<RagCheckResult> localRagPreCheck({
+    required String chapterId,
+    required String query,
+    int limit = 4,
+  }) async {
+    print('[DIAGNOSTICS] LOCAL_RAG_CHECK_START');
+    final db = await _database.database;
+    final likeTerm = '%${query.trim().replaceAll(RegExp(r'\s+'), '%')}%';
+
+    if (query.trim().isEmpty) {
+      final chunks = await getChunksForChapter(chapterId);
+      print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
+      print('[DIAGNOSTICS] TOP_SCORE=0.0');
+      print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
+      return RagCheckResult(
+        chunkCount: chunks.length,
+        topScore: 0.0,
+        chunks: chunks,
+      );
+    }
+
+    try {
+      final rows = await db.rawQuery(
+        '''
+        SELECT id, chapter_id, source_title, chunk_order, content, -1.0 as score
+        FROM rag_chunks
+        WHERE chapter_id = ?
+          AND content LIKE ?
+        ORDER BY created_at DESC, chunk_order ASC
+        LIMIT ?
+        ''',
+        [chapterId, likeTerm, limit],
+      );
+
+      final chunks = rows
+          .map(
+            (row) => RagChunk(
+              id: row['id'] as String,
+              chapterId: row['chapter_id'] as String,
+              sourceTitle: row['source_title'] as String,
+              chunkOrder: row['chunk_order'] as int,
+              content: row['content'] as String,
+            ),
+          )
+          .toList();
+
+      final topScore = chunks.isNotEmpty ? (rows.first['score'] as num).toDouble() : 0.0;
+      
+      print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
+      print('[DIAGNOSTICS] TOP_SCORE=$topScore');
+      print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
+      
+      return RagCheckResult(
+        chunkCount: chunks.length,
+        topScore: topScore,
+        chunks: chunks,
+      );
+    } catch (e) {
+      print('[DIAGNOSTICS] LOCAL_RAG_ERROR=$e');
+      print('[DIAGNOSTICS] LOCAL_RAG_AVAILABLE=false');
+      
+      final chunks = await getChunksForChapter(chapterId);
+      print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
+      print('[DIAGNOSTICS] TOP_SCORE=0.0');
+      print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
+      return RagCheckResult(
+        chunkCount: chunks.length,
+        topScore: 0.0,
+        chunks: chunks,
+      );
+    }
+  }
+
   Future<List<RagChunk>> searchChunksForChapter({
     required String chapterId,
     required String query,
     int limit = 10,
   }) async {
+    print('[DIAGNOSTICS] RAG_SEARCH_START');
+    final stopwatch = Stopwatch()..start();
     final db = await _database.database;
     final normalizedQuery = _buildFtsQuery(query);
 
@@ -160,7 +249,7 @@ class RagRepository {
         [chapterId, normalizedQuery, limit],
       );
 
-      return rows
+      final chunks = rows
           .map(
             (row) => RagChunk(
               id: row['id'] as String,
@@ -171,8 +260,26 @@ class RagRepository {
             ),
           )
           .toList();
+          
+      stopwatch.stop();
+      print('[DIAGNOSTICS] RAG_SEARCH_END');
+      print('[DIAGNOSTICS] RAG_CHUNK_COUNT=${chunks.length}');
+      final contextChars = chunks.fold<int>(0, (sum, c) => sum + c.content.length);
+      print('[DIAGNOSTICS] RAG_CONTEXT_CHARS=$contextChars');
+      print('[DIAGNOSTICS] RAG_SOURCE=LOCAL_SQLITE');
+      print('[DIAGNOSTICS] RAG_DURATION_MS=${stopwatch.elapsedMilliseconds}');
+      
+      return chunks;
     } catch (_) {
-      return getChunksForChapter(chapterId);
+      final chunks = await getChunksForChapter(chapterId);
+      stopwatch.stop();
+      print('[DIAGNOSTICS] RAG_SEARCH_END');
+      print('[DIAGNOSTICS] RAG_CHUNK_COUNT=${chunks.length}');
+      final contextChars = chunks.fold<int>(0, (sum, c) => sum + c.content.length);
+      print('[DIAGNOSTICS] RAG_CONTEXT_CHARS=$contextChars');
+      print('[DIAGNOSTICS] RAG_SOURCE=LOCAL_SQLITE_FALLBACK');
+      print('[DIAGNOSTICS] RAG_DURATION_MS=${stopwatch.elapsedMilliseconds}');
+      return chunks;
     }
   }
 

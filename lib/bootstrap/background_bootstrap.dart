@@ -7,6 +7,7 @@ import '../features/content_packs/application/content_pack_bootstrap_service.dar
 import '../features/course/data/local/course_repository.dart';
 import '../features/educational/application/inverted_index.dart';
 import '../features/educational/data/educational_database.dart';
+import '../features/educational/application/sync_manager.dart';
 import '../features/rag/data/local/rag_repository.dart';
 import 'startup_coordinator.dart';
 
@@ -46,9 +47,9 @@ class BackgroundBootstrap {
       await RagRepository().ensureSeedChunks();
       _coordinator.completeStep('Seeding offline retrieval');
 
-      _coordinator.beginStep('Syncing legacy content packs');
-      await ContentPackBootstrapService().bootstrapLegacyMediaIntoPacks();
-      _coordinator.completeStep('Syncing legacy content packs');
+      _coordinator.beginStep('Deferring content sync');
+      _runAsyncBackgroundSync();
+      _coordinator.completeStep('Deferring content sync');
 
       _coordinator.beginStep('Building offline search');
       if (!EducationalDatabase.isFullTextSearchAvailable) {
@@ -74,5 +75,26 @@ class BackgroundBootstrap {
     } catch (e) {
       AppEnvironment.log('SYNC', '[BackgroundBootstrap] Startup warmup failed: $e');
     }
+  }
+
+  void _runAsyncBackgroundSync() {
+    Future<void>(() async {
+      try {
+        AppEnvironment.log('SYNC', '[DIAGNOSTICS] BACKGROUND_SYNC_START');
+        await Future<void>.delayed(const Duration(seconds: 2));
+        
+        AppEnvironment.log('SYNC', '[DIAGNOSTICS] SYNC_START');
+        await SyncManager().checkForPackUpdates();
+        AppEnvironment.log('SYNC', '[DIAGNOSTICS] SYNC_END');
+
+        AppEnvironment.log('SYNC', '[DIAGNOSTICS] PACK_INSTALL_START');
+        await ContentPackBootstrapService().bootstrapLegacyMediaIntoPacks();
+        AppEnvironment.log('SYNC', '[DIAGNOSTICS] PACK_INSTALL_END');
+        
+        AppEnvironment.log('SYNC', '[DIAGNOSTICS] BACKGROUND_SYNC_COMPLETE');
+      } catch (e) {
+        AppEnvironment.log('SYNC', 'Async background sync failed: $e');
+      }
+    });
   }
 }
