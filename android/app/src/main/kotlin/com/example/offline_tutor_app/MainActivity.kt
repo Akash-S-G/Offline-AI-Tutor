@@ -109,7 +109,9 @@ class MainActivity : FlutterActivity() {
 							}
 
 							try {
+								println("[LLM] [TRACE] STREAM_THREAD=${Thread.currentThread().name}")
 								println("[LLM] 🚀 Starting inference: '${trimmed.take(50)}...'")
+								println("[LLM] [TRACE] CALLING_ASK_STREAM_FAST promptLength=${trimmed.length}")
 
 								println("[LLM] Inference starting (may take 30-60s for large models)...")
 								val finalAnswer = llamaEngine.askStreamFast(trimmed) { token ->
@@ -131,6 +133,7 @@ class MainActivity : FlutterActivity() {
 									}
 								}
 
+								println("[LLM] [TRACE] ASK_STREAM_FAST_RETURNED answerLength=${finalAnswer.length}")
 								flushBufferedTokens(force = true)
 
 								val totalTimeMs = SystemClock.elapsedRealtime() - startTime
@@ -148,15 +151,19 @@ class MainActivity : FlutterActivity() {
 									finalAnswer.startsWith("Failed to") || finalAnswer.startsWith("Model cannot")
 
 								if (failed && !emittedAnyToken) {
+									println("[LLM] [TRACE] EMITTING_ERROR")
 									emitErrorOnMainThread("LLM_FAILURE", finalAnswer)
 								} else {
 									if (!emittedAnyToken && finalAnswer.isNotBlank()) {
+										println("[LLM] [TRACE] EMITTING_FINAL_ANSWER (no streaming tokens)")
 										emitSuccessOnMainThread(finalAnswer)
 									}
 									emitMetricsOnMainThread(totalTimeMs, estimatedTokens, tokensPerSec)
+									println("[LLM] [TRACE] ENDING_STREAM")
 									endStreamOnMainThread()
 								}
 							} catch (e: Throwable) {
+								println("[LLM] [TRACE] EXCEPTION: ${e.javaClass.simpleName}: ${e.message}")
 								flushBufferedTokens(force = true)
 								if (emittedAnyToken) {
 									endStreamOnMainThread()

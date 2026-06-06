@@ -63,9 +63,18 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       
       print('====================================================');
       print('[DIAGNOSTICS] PHASE 1 & 2 REPORT');
-      print('[DIAGNOSTICS] LOCAL_PACK_COUNT=$packs');
-      print('[DIAGNOSTICS] RAG_CHUNK_COUNT=$chunks');
-      print('[DIAGNOSTICS] FTS_CHUNK_COUNT=0 (FTS Removed)');
+      print('[DB] CONTENT_PACKS_COUNT=$packs');
+      print('[DB] RAG_CHUNKS_COUNT=$chunks');
+      
+      final ftsTableExists = Sqflite.firstIntValue(await db.rawQuery(
+          "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rag_chunks_fts'")) ?? 0;
+      
+      if (ftsTableExists > 0) {
+        final ftsChunks = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts')) ?? 0;
+        print('[DB] RAG_FTS_COUNT=$ftsChunks');
+      } else {
+        print('[DB] RAG_FTS_COUNT=0 (Table does not exist)');
+      }
       
       final packRows = await db.query('material_packs');
       for (final row in packRows) {

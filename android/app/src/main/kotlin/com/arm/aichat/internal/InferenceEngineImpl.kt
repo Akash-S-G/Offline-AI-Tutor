@@ -187,6 +187,7 @@ internal class InferenceEngineImpl private constructor(
 
     override fun sendUserPrompt(message: String, predictLength: Int): Flow<String> =
         flow {
+            println("[Engine] [TRACE] ENTER_SEND_USER_PROMPT")
             require(message.isNotEmpty()) { "User prompt is empty" }
             check(_state.value is InferenceEngine.State.ModelReady) {
                 "User prompt discarded due to: ${_state.value.javaClass.simpleName}"
@@ -205,11 +206,13 @@ internal class InferenceEngineImpl private constructor(
                 }
 
                 _state.value = InferenceEngine.State.Generating
+                println("[Engine] [TRACE] MODEL_GENERATE_START")
                 while (!cancelGeneration) {
                     generateNextToken()?.let { utf8token ->
                         if (utf8token.isNotEmpty()) emit(utf8token)
                     } ?: break
                 }
+                println("[Engine] [TRACE] MODEL_GENERATE_END")
 
                 _state.value = InferenceEngine.State.ModelReady
             } catch (e: CancellationException) {

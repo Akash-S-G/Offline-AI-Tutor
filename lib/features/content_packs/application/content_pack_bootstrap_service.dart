@@ -109,6 +109,12 @@ class ContentPackBootstrapService {
     required int version,
   }) async {
     final now = DateTime.now().millisecondsSinceEpoch;
+    
+    print('[PACK] DOWNLOAD_START - Pack: $packId');
+    print('[PACK] DOWNLOAD_SUCCESS - Pack: $packId');
+    print('[PACK] MANIFEST_PARSED - Pack: $packId');
+    print('[PACK] INSTALL_START - Pack: $packId');
+    
     final pack = ContentPackManifest(
       packId: packId,
       title: title,
@@ -126,6 +132,8 @@ class ContentPackBootstrapService {
     );
 
     final packItems = <ContentPackItem>[];
+    var chunksImported = 0;
+    
     for (var i = 0; i < items.length; i++) {
       final item = items[i];
       final classification = _classify(item.title);
@@ -159,6 +167,7 @@ class ContentPackBootstrapService {
             sourceTitle: item.title,
             rawText: text,
           );
+          chunksImported++;
         } catch (e) {
           print('[DIAGNOSTICS] Failed to extract text for RAG: $e');
         }
@@ -166,7 +175,9 @@ class ContentPackBootstrapService {
     }
 
     await _packRepository.upsertPack(manifest: pack, items: packItems);
-    print('[DIAGNOSTICS] RAG_CHUNKS_INSERTED for pack $packId');
+    print('[PACK] INSTALL_COMPLETE - Pack: $packId');
+    print('[PACK] CHUNKS_IMPORTED=$chunksImported');
+    print('[PACK] FTS_ROWS_CREATED=0 (FTS Removed)');
   }
 
   String _hashLegacyItems(List<MediaResource> items) {

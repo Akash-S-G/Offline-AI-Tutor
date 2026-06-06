@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 import '../../../config/app_environment.dart';
 import '../data/educational_repository.dart';
 import '../models/educational_models.dart';
+import '../../rag/data/local/rag_repository.dart';
 
 /// Installs educational packs and indexes their content
 /// 
@@ -276,9 +277,24 @@ class PackInstaller {
               name: fileName,
               sequenceNumber: conceptSequence,
               definition: 'Concept: $fileName',
-              examples: content.substring(0, 200), // First 200 chars
+              examples: content.length > 200 ? content.substring(0, 200) : content,
             ),
           );
+
+          // Populate rag_chunks for RAG search
+          if (content.trim().isNotEmpty) {
+            try {
+              // We need RagRepository to ingest the content
+              // Since it's not imported at the top, we can use the full path or import it
+              await RagRepository().ingestChapterNotes(
+                chapterId: chapterId.toString(),
+                sourceTitle: fileName,
+                rawText: content,
+              );
+            } catch (e) {
+              AppEnvironment.log('SYNC', 'Failed to ingest RAG chunks for $fileName: $e');
+            }
+          }
         }
       }
 

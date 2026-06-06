@@ -24,6 +24,7 @@ import '../../rag/data/local/embedding_index_repository.dart';
 import '../../rag/data/local/rag_repository.dart';
 import '../data/local/chat_session_repository.dart';
 import '../data/llm_admin_channel_service.dart';
+import '../../network/application/session_state.dart';
 import '../../progress/data/local/progress_repository.dart';
 import '../../shared/application/offline_error_taxonomy.dart';
 
@@ -58,6 +59,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     final TutorPromptBuilder _promptBuilder = TutorPromptBuilder();
     final ConversationMemoryService _conversationMemoryService =
       const ConversationMemoryService();
+    final SessionState _sessionState = SessionState();
   final RagRepository _ragRepository = RagRepository();
   late final EmbeddingIndexService _embeddingIndexService =
       EmbeddingIndexService(
@@ -861,8 +863,10 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       : _simpleAiComponent.buildRecoveryPrompt(question: question);
 
     setState(() {
+      print("[TRACE] ASSISTANT_MESSAGE_CREATED");
       _messages.add(TutorMessage(text: question, isUser: true, timestamp: DateTime.now()));
       _messages.add(TutorMessage(text: '', isUser: false, timestamp: DateTime.now()));
+      print("[TRACE] MESSAGE_ID=${_messages.length - 1}");
       _isGenerating = true;
       _inferenceStartedAt = DateTime.now();
       _liveEstimatedTokens = 0;
@@ -942,6 +946,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
               chapter: widget.chapter.title,
               language: _languageCode,
               conversationHistory: conversationHistory,
+              sessionState: _sessionState,
             )
           : _gateway.streamResponse(prompt: await _buildModelPrompt(question: question));
 
@@ -961,6 +966,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
         subscription = stream.listen(
           (chunk) {
+            print("[TRACE] UI_RECEIVED=$chunk");
             responseBuffer.write(chunk);
 
             final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -981,7 +987,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                   ? 0
                   : ((estimatedTokens * 1000) / elapsedMs).round();
 
+              print("[TRACE] UI_APPEND_START");
               setState(() {
+                print("[TRACE] UI_STATE_UPDATED");
                 _messages[assistantIndex] = TutorMessage(
                   text: liveText,
                   isUser: false,
@@ -993,6 +1001,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                     ? 'Fallback streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s'
                     : 'Streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s';
               });
+              print("[TRACE] UI_APPEND_END");
+              print("[TRACE] MESSAGE_LENGTH=${_messages[assistantIndex].text.length}");
 
               _scrollToBottom(animated: false, force: true);
               _lastUiUpdateAtMs = nowMs;
@@ -1917,6 +1927,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
+    
+    print("[TRACE] CHAT_MESSAGE_COUNT=${_messages.length}");
 
     final memoryPolicy = _memoryPolicy ??
         ChatMemoryPolicy.defaults(_sessionId ?? 'session');

@@ -32,7 +32,7 @@ class SyncManager {
       final response = await http.get(
         Uri.parse(endpoint),
         headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 30));
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;

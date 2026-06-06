@@ -459,19 +459,21 @@ class LlamaEngine(private val context: Context) {
                     loaded = true
                     systemPromptApplied = false
                     println("[Engine] ✓ Model loaded in ${loadTimeMs}ms (phi-2, 1.66GB)")
+                    println("[MODEL] ACTIVE_MODEL=phi-2")
+                    println("[MODEL] MODEL_PATH=$modelPath")
+                    println("[MODEL] CHAT_TEMPLATE=ChatML/Phi-2")
                 } else {
                     println("[Engine] 📦 Model already loaded, using cached instance")
                 }
 
                 // TERMUX-STYLE OPTIMIZATION: Combine system + user on first question
-                // Skip explicit system prompt processing (saves 400-500ms forward pass)
-                // Instead, prepend system to user question for one continuous inference
+                // Since the Dart layer (HybridInferenceService) already provides the complete
+                // system prompt and context, we do NOT prepend activeSystemPrompt here 
+                // to avoid double-prompting and saving 30-40s of redundant KV cache computation.
                 val promptToProcess = if (!systemPromptApplied) {
-                    // First question: combine system + user (like Termux, saves 400-500ms)
-                    println("[Engine] 🔗 Q1: Processing system + user combined (Termux-style)")
-                    activeSystemPrompt + "\n\n" + question.trim()
+                    println("[Engine] 🔗 Q1: Processing prompt from Dart layer")
+                    question.trim()
                 } else {
-                    // Subsequent questions: user only (system already in KV cache)
                     println("[Engine] ⚡ Q2+: Processing user only (system cached)")
                     question.trim()
                 }
@@ -479,10 +481,33 @@ class LlamaEngine(private val context: Context) {
                 // Use the proven streaming path for stability on physical devices.
                 val genStart = System.currentTimeMillis()
                 val result = StringBuffer()
-                inferenceEngine.sendUserPrompt(
+                var tokenCount = 0
+                var firstTokenAt = 0L
+
+                println("[Engine] [TRACE] THREAD=${Thread.currentThread().name}")
+                println("[Engine] [TRACE] PROMPT_LENGTH=${promptToProcess.length}")
+                println("[Engine] [TRACE] PROMPT_FIRST_200=${promptToProcess.take(200)}")
+                println("[Engine] [TRACE] BEFORE_SEND_USER_PROMPT")
+                println("[Engine] [TRACE] SEND_USER_PROMPT_START")
+
+                val flow = inferenceEngine.sendUserPrompt(
                     message = promptToProcess,
                     predictLength = maxOutputTokens,
-                ).collect { token ->
+                )
+
+                println("[Engine] [TRACE] SEND_USER_PROMPT_FLOW_CREATED")
+                println("[Engine] [TRACE] COLLECT_START")
+
+                flow.collect { token ->
+                    tokenCount++
+                    if (firstTokenAt == 0L) {
+                        firstTokenAt = System.currentTimeMillis()
+                        val ttft = firstTokenAt - genStart
+                        println("[Engine] [TRACE] FIRST_TOKEN_AFTER_MS=${ttft}")
+                    }
+                    if (tokenCount <= 5 || tokenCount % 20 == 0) {
+                        println("[Engine] [TRACE] TOKEN_RECEIVED count=$tokenCount length=${token.length} thread=${Thread.currentThread().name}")
+                    }
                     result.append(token)
                     onToken(token)
 
@@ -493,7 +518,11 @@ class LlamaEngine(private val context: Context) {
                         inferenceEngine.stopGeneration()
                     }
                 }
+
+                println("[Engine] [TRACE] COLLECT_COMPLETE")
                 val genTimeMs = System.currentTimeMillis() - genStart
+                println("[Engine] [TRACE] TOTAL_GENERATION_TIME=$genTimeMs")
+                println("[Engine] [TRACE] TOKENS_GENERATED=$tokenCount")
                 
                 // Mark system as applied after first question processes it
                 systemPromptApplied = true

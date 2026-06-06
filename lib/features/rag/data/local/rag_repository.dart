@@ -155,7 +155,11 @@ class RagRepository {
   }) async {
     print('[DIAGNOSTICS] LOCAL_RAG_CHECK_START');
     final db = await _database.database;
-    final likeTerm = '%${query.trim().replaceAll(RegExp(r'\s+'), '%')}%';
+    final stopWords = ['what', 'is', 'the', 'meaning', 'of', 'explain', 'describe', 'tell', 'me', 'about', 'how', 'does', 'work', 'can', 'you', 'give', 'an', 'example', 'a', 'to', 'in', 'for', 'on', 'with', 'by', 'as', 'at'];
+    final words = query.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').split(RegExp(r'\s+'));
+    final cleanedWords = words.where((w) => w.isNotEmpty && !stopWords.contains(w)).toList();
+    final cleanQuery = cleanedWords.isEmpty ? query.trim() : cleanedWords.join('%');
+    final likeTerm = '%$cleanQuery%';
 
     if (query.trim().isEmpty) {
       final chunks = await getChunksForChapter(chapterId);
@@ -170,15 +174,21 @@ class RagRepository {
     }
 
     try {
-      final rows = await db.rawQuery(
-        '''
+      final sqlQuery = '''
         SELECT id, chapter_id, source_title, chunk_order, content, -1.0 as score
         FROM rag_chunks
         WHERE chapter_id = ?
           AND content LIKE ?
         ORDER BY created_at DESC, chunk_order ASC
         LIMIT ?
-        ''',
+        ''';
+      
+      print('[LOCAL_RAG] QUERY=$query');
+      print('[LOCAL_RAG] GENERATED_SQL=$sqlQuery');
+      print('[LOCAL_RAG] SQL_PARAMS=[$chapterId, $likeTerm, $limit]');
+      
+      final rows = await db.rawQuery(
+        sqlQuery,
         [chapterId, likeTerm, limit],
       );
 
@@ -198,6 +208,8 @@ class RagRepository {
       
       print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
       print('[DIAGNOSTICS] TOP_SCORE=$topScore');
+      print('[LOCAL_RAG] ROWS_FOUND=${chunks.length}');
+      print('[LOCAL_RAG] TOP_SCORE=$topScore');
       print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
       
       return RagCheckResult(

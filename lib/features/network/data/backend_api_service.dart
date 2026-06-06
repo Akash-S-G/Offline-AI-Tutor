@@ -54,26 +54,34 @@ class BackendApiService {
     final cache = BackendAvailabilityCache();
     final cached = cache.cachedStatus;
     if (cached != null) {
+      print('[DIAGNOSTICS] CACHE_HIT');
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_CACHED=$cached');
       return cached;
     }
 
+    print('[DIAGNOSTICS] CACHE_MISS');
+    final stopwatch = Stopwatch()..start();
     try {
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_START');
-      print('[DIAGNOSTICS] HEALTH_CHECK_URL=${_config.baseUrl}/health');
+      print('[DIAGNOSTICS] HEALTH_URL=${_config.baseUrl}/health');
       final response = await _httpClient.get(
         '/health',
         maxRetries: 0,
         timeout: const Duration(seconds: 3),
       );
+      stopwatch.stop();
       final available = response.isSuccess;
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_END');
+      print('[DIAGNOSTICS] HEALTH_RESPONSE_TIME=${stopwatch.elapsedMilliseconds}ms');
       print('[DIAGNOSTICS] BACKEND_AVAILABLE=$available');
       cache.updateStatus(available);
       return available;
     } catch (e) {
+      stopwatch.stop();
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_END (FAILED)');
+      print('[DIAGNOSTICS] HEALTH_RESPONSE_TIME=${stopwatch.elapsedMilliseconds}ms');
       print('[DIAGNOSTICS] BACKEND_ERROR=$e');
+      print('[DIAGNOSTICS] BACKEND_AVAILABLE=false');
       cache.updateStatus(false);
       return false;
     }
@@ -318,6 +326,7 @@ class BackendApiService {
       print('[DIAGNOSTICS] REQUEST_SENT (BACKEND)');
       var isFirstToken = true;
       await for (final chunk in _httpClient.stream('/ai/tutor', body: body)) {
+        print("[TRACE] RAW_STREAM_CHUNK=$chunk");
         if (isFirstToken) {
           final firstTokenMs = DateTime.now().difference(startTime).inMilliseconds;
           print('[DIAGNOSTICS] BACKEND_NETWORK_MS=$firstTokenMs');
@@ -338,20 +347,27 @@ class BackendApiService {
           }
           try {
             final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-            final token = data['token'] as String? ?? data['answer'] as String? ?? '';
-            if (token.isNotEmpty) {
+            print("[TRACE] PARSED_JSON=$data");
+            final answerField = data['token'] as String? ?? data['answer'] as String? ?? data['chunk'] as String? ?? '';
+            print("[TRACE] ANSWER_FIELD=$answerField");
+            
+            if (answerField.isNotEmpty) {
               if (isFirstToken) {
                 print('[DIAGNOSTICS] BACKEND_FIRST_TOKEN');
                 final firstTokenTotal = DateTime.now().difference(startTime).inMilliseconds;
                 print('[DIAGNOSTICS] BACKEND_FIRST_TOKEN_MS=$firstTokenTotal');
                 isFirstToken = false;
               }
-              yield token;
+              print("[TRACE] EMIT_TO_HYBRID=$answerField");
+              print("[TRACE] EMIT_LENGTH=${answerField.length}");
+              yield answerField;
             }
           } catch (_) {
             continue;
           }
         } else {
+          print("[TRACE] EMIT_TO_HYBRID=$trimmed");
+          print("[TRACE] EMIT_LENGTH=${trimmed.length}");
           yield trimmed;
         }
       }

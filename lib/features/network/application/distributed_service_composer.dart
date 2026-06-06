@@ -15,7 +15,7 @@ import 'escalation_coordinator.dart';
 import 'stream_transition_manager.dart';
 import 'stream_recovery_manager.dart';
 import 'subject_routing_coordinator.dart';
-import 'query_classifier.dart';
+import 'intent_detector.dart';
 import 'routing_metrics.dart';
 import 'stream_coordinator.dart';
 import 'pi_hub_discovery_coordinator.dart';
@@ -81,7 +81,7 @@ class DistributedServiceComposer {
   late SubjectRoutingCoordinator _subjectRoutingCoordinator;
   late StreamCoordinator _streamCoordinator;
   late RoutingMetricsTracker _routingMetrics;
-  late QueryClassifier _queryClassifier;
+  late IntentDetector _intentDetector;
   late PiHubDiscoveryCoordinator _piHubDiscoveryCoordinator;
   late ClassroomSessionManager _classroomSessionManager;
   late ReconnectCoordinator _reconnectCoordinator;
@@ -169,7 +169,7 @@ class DistributedServiceComposer {
     _subjectRoutingCoordinator = SubjectRoutingCoordinator();
     _streamCoordinator = StreamCoordinator();
     _routingMetrics = RoutingMetricsTracker();
-    _queryClassifier = QueryClassifier();
+    _intentDetector = IntentDetector();
     _piHubDiscoveryCoordinator = PiHubDiscoveryCoordinator();
     _classroomSessionManager = ClassroomSessionManager();
     _reconnectCoordinator = ReconnectCoordinator(sessions: _classroomSessionManager);
@@ -231,7 +231,7 @@ class DistributedServiceComposer {
       confidenceEvaluator: _confidenceEvaluator,
       streamCoordinator: _streamCoordinator,
       metricsTracker: _routingMetrics,
-      queryClassifier: _queryClassifier,
+      intentDetector: _intentDetector,
     );
 
     // Start background services

@@ -10,7 +10,9 @@ import '../domain/local_inference_source.dart';
 import 'educational_complexity_analyzer.dart';
 import 'confidence_evaluator.dart';
 import 'escalation_coordinator.dart';
-import 'query_classifier.dart';
+import 'intent_detector.dart';
+import 'asset_resolver.dart';
+import 'session_state.dart';
 import 'routing_metrics.dart';
 import 'stream_coordinator.dart';
 import 'subject_routing_coordinator.dart';
@@ -28,7 +30,8 @@ class HybridInferenceService {
     EscalationCoordinator? escalationCoordinator,
     StreamCoordinator? streamCoordinator,
     RoutingMetricsTracker? metricsTracker,
-    QueryClassifier? queryClassifier,
+    IntentDetector? intentDetector,
+    AssetResolver? assetResolver,
     SubjectRoutingCoordinator? subjectRoutingCoordinator,
     this.localCacheTTLSeconds = 604800,
   })  : _localInference = localInference,
@@ -41,7 +44,8 @@ class HybridInferenceService {
       _escalationCoordinator = escalationCoordinator ?? EscalationCoordinator(),
         _streamCoordinator = streamCoordinator ?? StreamCoordinator(),
         _metrics = metricsTracker ?? RoutingMetricsTracker(),
-      _queryClassifier = queryClassifier ?? QueryClassifier(),
+      _intentDetector = intentDetector ?? IntentDetector(),
+      _assetResolver = assetResolver ?? AssetResolver(),
       _subjectRoutingCoordinator = subjectRoutingCoordinator ?? const SubjectRoutingCoordinator();
 
   final LocalInferenceSource _localInference;
@@ -56,7 +60,8 @@ class HybridInferenceService {
   final EscalationCoordinator _escalationCoordinator;
   final StreamCoordinator _streamCoordinator;
   final RoutingMetricsTracker _metrics;
-  final QueryClassifier _queryClassifier;
+  final IntentDetector _intentDetector;
+  final AssetResolver _assetResolver;
   final SubjectRoutingCoordinator _subjectRoutingCoordinator;
 
   final Map<String, _CachedResponse> _responseCache = <String, _CachedResponse>{};
@@ -69,13 +74,13 @@ class HybridInferenceService {
     String? systemPrompt,
     bool forceLocal = false,
   }) async* {
-    final queryInfo = _queryClassifier.classify(question);
+    final queryInfo = _intentDetector.detect(question);
     final educationalInfo = _educationalComplexityAnalyzer.analyze(question);
     final subjectPreference = _subjectRoutingCoordinator.preferredRouteFor(question);
     final decision = _router.route(
       question,
-      questionComplexity: queryInfo.complexity > educationalInfo.score
-          ? queryInfo.complexity
+      questionComplexity: queryInfo.confidence > educationalInfo.score
+          ? queryInfo.confidence
           : educationalInfo.score,
       forceLocal: forceLocal || subjectPreference == 'local' && educationalInfo.score < 0.35,
     );
@@ -163,6 +168,7 @@ class HybridInferenceService {
     String? chapter,
     String? language,
     List<String>? conversationHistory,
+    SessionState? sessionState,
   }) async* {
     print('[DIAGNOSTICS] ENTERING HybridInferenceService.streamTutorAnswer()');
     print('[DIAGNOSTICS] QUESTION_ID=${DateTime.now().millisecondsSinceEpoch}');
@@ -170,6 +176,34 @@ class HybridInferenceService {
     print('[DIAGNOSTICS] GRADE=$grade');
     print('[DIAGNOSTICS] SUBJECT=$subject');
     print('[DIAGNOSTICS] CHAPTER=$chapter');
+
+    // ── INTENT DETECTION & ASSET RESOLUTION (V2) ──
+    final detection = _intentDetector.detect(
+      question,
+      sessionState: sessionState,
+    );
+
+    // Update SessionState from detection result
+    sessionState?.updateFromDetection(detection);
+    sessionState?.activeChapter ??= chapter;
+
+    // If this is an asset intent, try to resolve from local database
+    if (detection.isAssetIntent) {
+      final assetResult = await _assetResolver.resolve(
+        intent: detection.intent,
+        topic: detection.topic,
+        chapterId: chapter,
+      );
+      if (assetResult != null) {
+        print('[DIAGNOSTICS] ASSET_RESOLVED=true');
+        print('[DIAGNOSTICS] ASSET_SOURCE=${assetResult.metadata}');
+        yield assetResult.formattedResponse;
+        return;
+      } else {
+        print('[DIAGNOSTICS] ASSET_RESOLVED=false (falling back to inference)');
+      }
+    }
+
     TutorExecutionMode executionMode;
     if (hasRelevantLocalContent) {
       executionMode = TutorExecutionMode.curriculumRag;
@@ -205,6 +239,8 @@ class HybridInferenceService {
           conversationHistory: conversationHistory,
         );
         await for (final chunk in backendStream) {
+          print("[TRACE] HYBRID_RECEIVED=$chunk");
+          print("[TRACE] HYBRID_FORWARDING=$chunk");
           yield chunk;
         }
         print('[DIAGNOSTICS] FINAL_EXECUTION_PATH=BACKEND_RAG');
@@ -234,7 +270,7 @@ Question: $question
       print('[DIAGNOSTICS] LOCAL_RAG_END');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
       print('[DIAGNOSTICS] PROMPT_TO_NATIVE_LENGTH=${localPrompt.length}');
-      print('[DIAGNOSTICS] PROMPT_PREVIEW=${localPrompt.substring(0, localPrompt.length > 200 ? 200 : localPrompt.length)}');
+      print('[DIAGNOSTICS] PROMPT_FIRST_500=${localPrompt.substring(0, localPrompt.length > 500 ? 500 : localPrompt.length)}');
       
       final localStream = _localInference.streamQuestion(localPrompt);
       var isFirstToken = true;
@@ -286,7 +322,7 @@ Question: $question
       print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_PROMPT_BUILT');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
       print('[DIAGNOSTICS] PROMPT_TO_NATIVE_LENGTH=${localPrompt.length}');
-      print('[DIAGNOSTICS] PROMPT_PREVIEW=${localPrompt.substring(0, localPrompt.length > 200 ? 200 : localPrompt.length)}');
+      print('[DIAGNOSTICS] PROMPT_FIRST_500=${localPrompt.substring(0, localPrompt.length > 500 ? 500 : localPrompt.length)}');
       
       final localStream = _localInference.streamQuestion(localPrompt);
       var isFirstToken = true;
