@@ -1,5 +1,6 @@
 import '../domain/enums/experiment_enums.dart';
 import '../domain/models/experiment_models.dart';
+import '../runtime/playground/models/playground_scene.dart';
 
 class ExperimentExecutionPlan {
   final String experimentId;
@@ -10,6 +11,7 @@ class ExperimentExecutionPlan {
   final List<ExperimentVisualization> visualizations;
   final int estimatedDuration;
   final List<String> warnings;
+  PlaygroundScene? sceneDefinition;
 
   ExperimentExecutionPlan({
     required this.experimentId,
@@ -20,5 +22,6 @@ class ExperimentExecutionPlan {
     required this.visualizations,
     required this.estimatedDuration,
     required this.warnings,
+    this.sceneDefinition,
   });
 }

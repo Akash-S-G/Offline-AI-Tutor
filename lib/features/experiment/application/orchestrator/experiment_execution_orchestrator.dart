@@ -9,6 +9,7 @@ import '../../platform/experiment_capability_provider.dart';
 import '../../runtime/base_experiment_runtime.dart';
 import '../../runtime/runtime_factory.dart';
 import '../../runtime/runtime_event.dart';
+import '../../runtime/playground/models/playground_scene.dart';
 
 import 'experiment_execution_state.dart';
 import 'experiment_execution_result.dart';
@@ -32,7 +33,7 @@ class ExperimentExecutionOrchestrator {
 
   ExperimentExecutionOrchestrator(this._capabilityProvider);
 
-  Future<void> prepare(ExperimentManifest manifest) async {
+  Future<void> prepare(ExperimentManifest manifest, [PlaygroundScene? scene]) async {
     print('[ORCHESTRATOR] PREPARE_START');
     _state = ExperimentExecutionState.preparing;
     _manifest = manifest;
@@ -44,7 +45,7 @@ class ExperimentExecutionOrchestrator {
 
       _state = ExperimentExecutionState.planning;
       final report = _analyzer.analyze(manifest, capabilities);
-      final plan = _planner.buildPlan(manifest, report);
+      final plan = _planner.buildPlan(manifest, report, scene);
       print('[ORCHESTRATOR] PLAN_CREATED');
 
       _state = ExperimentExecutionState.starting;

@@ -16,16 +16,24 @@ class SimulationRuntime extends BaseExperimentRuntime {
     await super.initialize();
     await _playgroundEngine.initialize();
 
-    // Create a mock scene derived from the plan for demonstration,
-    // future integration will load real scene data.
-    final mockScene = {
-      'sceneId': plan.experimentId,
-      'name': 'Simulation Scene',
-      'objects': [],
-      'variables': [],
-      'rules': []
-    };
-    await _playgroundEngine.loadScene(mockScene);
+    // Use the injected scene definition if available
+    if (plan.sceneDefinition != null) {
+      // SimulationPlaygroundEngine doesn't have loadSceneFromModel yet, we need to add it, 
+      // or we can convert the model back to json, but wait... 
+      // The prompt says: "Inject into SimulationPlaygroundEngine".
+      // Let's modify SimulationPlaygroundEngine to accept the PlaygroundScene directly.
+      await _playgroundEngine.loadSceneModel(plan.sceneDefinition!);
+    } else {
+      // Fallback to empty scene if not provided
+      final mockScene = {
+        'sceneId': plan.experimentId,
+        'name': 'Simulation Scene',
+        'objects': [],
+        'variables': [],
+        'rules': []
+      };
+      await _playgroundEngine.loadScene(mockScene);
+    }
 
     _playgroundSubscription = _playgroundEngine.eventStream.listen((event) {
       emitEvent(

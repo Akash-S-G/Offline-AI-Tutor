@@ -40,7 +40,16 @@ class SimulationPlaygroundEngine {
 
   Future<void> loadScene(Map<String, dynamic> sceneJson) async {
     try {
-      _currentScene = _sceneLoader.loadSceneFromJson(sceneJson);
+      final scene = _sceneLoader.loadSceneFromJson(sceneJson);
+      await loadSceneModel(scene);
+    } catch (e) {
+      print('[PLAYGROUND] LOAD_ERROR error=$e');
+    }
+  }
+
+  Future<void> loadSceneModel(PlaygroundScene scene) async {
+    try {
+      _currentScene = scene;
       _state = PlaygroundState.loaded;
       print('[PLAYGROUND] SCENE_LOADED sceneId=${_currentScene?.sceneId}');
       
