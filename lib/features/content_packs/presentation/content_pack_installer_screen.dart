@@ -32,7 +32,7 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
   final ContentPackSyncService _syncService = const ContentPackSyncService();
   final TextEditingController _urlController = TextEditingController();
   final TextEditingController _catalogUrlController = TextEditingController();
-  late final BackendApiService _backendService = BackendApiService(config: BackendConfig.fromEnvironment() ?? const BackendConfig(baseUrl: 'http://localhost', apiKey: ''));
+  late final BackendApiService _backendService = BackendApiService(config: BackendConfig.fromEnvironment() ?? BackendConfig(baseUrl: 'http://localhost', apiKey: ''));
 
   bool _loading = true;
   bool _installing = false;

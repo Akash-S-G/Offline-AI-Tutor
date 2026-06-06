@@ -74,6 +74,7 @@ class IntentDetectionResult {
     TutorIntent.revisionPlan,
     TutorIntent.startQuiz,
     TutorIntent.continueQuiz,
+    TutorIntent.generateWorksheet,
   }.contains(intent);
 
   /// Whether this intent should inherit context from SessionState.
@@ -112,6 +113,7 @@ class IntentDetector {
     'show', 'please', 'i', 'want', 'need', 'would', 'like', 'could',
     'do', 'this', 'that', 'some', 'my', 'from', 'are', 'be', 'it',
     'its', 'or', 'and', 'if', 'then', 'so', 'but', 'not', 'no', 'yes',
+    't', 's', 've', 'll', 'm', 'd', 're', // Contraction leftovers
   };
 
   // ── Conversational continuity triggers ──
@@ -141,9 +143,10 @@ class IntentDetector {
   static final _rulePatterns = <_IntentRule>[
     // Assessment
     _IntentRule(TutorIntent.startQuiz, RegExp(r'\b(start|begin|take|give me)\b.*\b(quiz|test|exam)\b', caseSensitive: false), 0.95),
-    _IntentRule(TutorIntent.continueQuiz, RegExp(r'\b(continue|resume|next question)\b.*\b(quiz|test)\b', caseSensitive: false), 0.95),
+    _IntentRule(TutorIntent.continueQuiz, RegExp(r'\b(continue|resume|next question|next|skip)\b.*\b(quiz|test)?\b', caseSensitive: false), 0.95),
     _IntentRule(TutorIntent.revisionTest, RegExp(r'\b(revision|review)\b.*\b(test|quiz|exam)\b', caseSensitive: false), 0.90),
     _IntentRule(TutorIntent.evaluateAnswer, RegExp(r'\b(check|evaluate|grade|mark)\b.*\b(answer|response|solution)\b', caseSensitive: false), 0.90),
+    _IntentRule(TutorIntent.evaluateAnswer, RegExp(r'\b(show answer|what is the answer|what was the answer)\b', caseSensitive: false), 0.95),
 
     // Structured assets
     _IntentRule(TutorIntent.flashcards, RegExp(r'\b(flashcard|flash card|flashcards|flash cards|card|cards)\b', caseSensitive: false), 0.95),
@@ -155,6 +158,8 @@ class IntentDetector {
     _IntentRule(TutorIntent.solveProblem, RegExp(r'\b(solve|calculate|compute|find the value|evaluate|simplify)\b', caseSensitive: false), 0.85),
     _IntentRule(TutorIntent.guidedSolution, RegExp(r'\b(step\s*by\s*step|walk\s*me\s*through|guide|guided)\b', caseSensitive: false), 0.85),
     _IntentRule(TutorIntent.practiceQuestion, RegExp(r'\b(practice|exercise|drill|try|attempt)\b.*\b(question|problem|sum)\b', caseSensitive: false), 0.85),
+    _IntentRule(TutorIntent.practiceQuestion, RegExp(r'\b(give|ask|generate|create|make)\b.*\b(question|problem)\b', caseSensitive: false), 0.85),
+    _IntentRule(TutorIntent.practiceQuestion, RegExp(r'\b(quiz me|test me)\b', caseSensitive: false), 0.85),
     _IntentRule(TutorIntent.generateWorksheet, RegExp(r'\b(worksheet|work\s*sheet|problem\s*set|question\s*set)\b', caseSensitive: false), 0.85),
 
     // Conceptual
@@ -262,11 +267,39 @@ class IntentDetector {
     );
   }
 
-  /// Extract the educational topic from a query by removing the matched intent pattern and stop words.
+  /// Extract the educational topic from a query by removing intent keywords
+  /// and stop words, preserving content words like subject names.
   String _extractTopic(String qLower, RegExp intentPattern) {
-    String stripped = qLower.replaceAll(intentPattern, ' ');
+    // Strategy: instead of blanket-replacing the whole match (which is greedy),
+    // only remove individual intent keywords, keeping content words.
+    String stripped = qLower;
+
+    // Remove individual intent verbs/nouns rather than the entire span
+    for (final keyword in _intentKeywords) {
+      stripped = stripped.replaceAll(RegExp('\\b$keyword\\b'), ' ');
+    }
+
     return _cleanTopic(stripped);
   }
+
+  /// Intent keywords to remove from queries during topic extraction.
+  static const _intentKeywords = <String>[
+    'explain', 'describe', 'elaborate', 'clarify', 'teach',
+    'define', 'definition',
+    'solve', 'calculate', 'compute', 'simplify', 'evaluate',
+    'compare', 'contrast', 'difference', 'between', 'versus', 'vs',
+    'summarize', 'summary', 'recap', 'overview', 'outline',
+    'give', 'ask', 'generate', 'create', 'make',
+    'question', 'problem', 'exercise', 'sum',
+    'practice', 'drill', 'attempt', 'try',
+    'flashcard', 'flashcards', 'flash', 'card', 'cards',
+    'glossary', 'vocabulary', 'vocab', 'terminology',
+    'quiz', 'test', 'exam', 'start', 'begin', 'take',
+    'key', 'points', 'important', 'main', 'highlights',
+    'hint', 'clue', 'step', 'guided', 'guide',
+    'worksheet', 'problem set',
+    'dont', 'don', 'solution', 'answer',
+  ];
 
   /// Clean a raw string into a topic by removing stop words and punctuation.
   String _cleanTopic(String raw) {

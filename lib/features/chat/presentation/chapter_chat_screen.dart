@@ -25,8 +25,10 @@ import '../../rag/data/local/rag_repository.dart';
 import '../data/local/chat_session_repository.dart';
 import '../data/llm_admin_channel_service.dart';
 import '../../network/application/session_state.dart';
+import '../../network/application/intent_detector.dart';
 import '../../progress/data/local/progress_repository.dart';
 import '../../shared/application/offline_error_taxonomy.dart';
+import 'asset_message_widgets.dart';
 
 class ChapterChatScreen extends StatefulWidget {
   const ChapterChatScreen({
@@ -765,10 +767,18 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   
   Future<void> _ask() async {
     final startTime = DateTime.now();
-    print('[DIAGNOSTICS] QUESTION_RECEIVED');
+    print('[TRACE] QUESTION_RECEIVED');
     final question = _inputController.text.trim();
     if (question.isEmpty || _isGenerating || _sessionId == null) {
       return;
+    }
+
+    // ── Cancel any orphaned stream subscription ──
+    print('[TRACE] OLD_SUBSCRIPTION_EXISTS=${_activeResponseSubscription != null}');
+    if (_activeResponseSubscription != null) {
+      await _activeResponseSubscription!.cancel();
+      _activeResponseSubscription = null;
+      print('[TRACE] SUBSCRIPTION_CANCELLED=true');
     }
 
     final useAndroidFastPath = Platform.isAndroid && _androidNativeFastPath;
@@ -901,6 +911,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
     final assistantIndex = _messages.length - 1;
     final responseBuffer = StringBuffer();
+    print('[TRACE] ASSISTANT_MESSAGE_CREATED assistantIndex=$assistantIndex');
+    print('[TRACE] BUFFER_LENGTH_BEFORE_RESET=0 (new StringBuffer)');
     var assistantPersisted = false;
     var lastNonEmptyAssistant = '';
     var usedAutoFallback = false;
@@ -913,9 +925,16 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }
 
     try {
+      // ── Task B: Intent detection BEFORE retrieval ──
+      final preDetection = IntentDetector().detect(question, sessionState: _sessionState);
+      final ragQuery = preDetection.topic.isNotEmpty ? preDetection.topic : question;
+      print('[RETRIEVAL] RAW_QUERY=$question');
+      print('[RETRIEVAL] TOPIC=${preDetection.topic}');
+      print('[RETRIEVAL] FINAL_SEARCH_QUERY=$ragQuery');
+
       final ragCheck = await _ragRepository.localRagPreCheck(
         chapterId: widget.chapter.id,
-        query: question,
+        query: ragQuery,
       );
       
       final hasRelevantLocalContent = ragCheck.hasRelevantLocalContent;
@@ -966,7 +985,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
         subscription = stream.listen(
           (chunk) {
-            print("[TRACE] UI_RECEIVED=$chunk");
+            final elapsedSinceStart = DateTime.now().difference(startTime).inMilliseconds;
+            print('[TRACE] UI_RECEIVED chunk_length=${chunk.length} elapsed_ms=$elapsedSinceStart');
+            print('[TRACE] MESSAGE_ID_BEING_UPDATED=$assistantIndex');
             responseBuffer.write(chunk);
 
             final nowMs = DateTime.now().millisecondsSinceEpoch;
@@ -2271,16 +2292,20 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              message.text.isEmpty && _isGenerating
-                                  ? '...'
-                                  : message.text,
-                              style: TextStyle(
-                                color: message.isUser
-                                    ? Colors.white
-                                    : Colors.black87,
+                            // Task 4: Rich asset rendering
+                            if (!message.isUser && AssetMessageRenderer.isAssetMessage(message.text))
+                              AssetMessageRenderer.render(message.text)
+                            else
+                              Text(
+                                message.text.isEmpty && _isGenerating
+                                    ? '...'
+                                    : message.text,
+                                style: TextStyle(
+                                  color: message.isUser
+                                      ? Colors.white
+                                      : Colors.black87,
+                                ),
                               ),
-                            ),
                             if (message.text.trim().isNotEmpty) ...[
                               const SizedBox(height: 6),
                               Align(

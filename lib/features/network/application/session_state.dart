@@ -38,6 +38,12 @@ class SessionState {
     if (result.difficulty != null && result.difficulty!.isNotEmpty) {
       activeDifficulty = result.difficulty;
     }
+
+    print('[SESSION] ACTIVE_INTENT=${activeIntent?.name}');
+    print('[SESSION] ACTIVE_TOPIC=$activeTopic');
+    print('[SESSION] ACTIVE_CHAPTER=$activeChapter');
+    print('[SESSION] ACTIVE_DIFFICULTY=$activeDifficulty');
+    print('[SESSION] QUIZ_ID=$lastQuizId QUESTION_ID=$lastQuestionId');
   }
 
   void setQuizContext({String? quizId, String? questionId}) {

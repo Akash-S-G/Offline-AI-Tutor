@@ -155,11 +155,9 @@ class RagRepository {
   }) async {
     print('[DIAGNOSTICS] LOCAL_RAG_CHECK_START');
     final db = await _database.database;
-    final stopWords = ['what', 'is', 'the', 'meaning', 'of', 'explain', 'describe', 'tell', 'me', 'about', 'how', 'does', 'work', 'can', 'you', 'give', 'an', 'example', 'a', 'to', 'in', 'for', 'on', 'with', 'by', 'as', 'at'];
+    final stopWords = ['what', 'is', 'the', 'meaning', 'of', 'explain', 'describe', 'tell', 'me', 'about', 'how', 'does', 'work', 'can', 'you', 'give', 'an', 'example', 'a', 'to', 'in', 'for', 'on', 'with', 'by', 'as', 'at', 'dont', 'solution'];
     final words = query.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').split(RegExp(r'\s+'));
     final cleanedWords = words.where((w) => w.isNotEmpty && !stopWords.contains(w)).toList();
-    final cleanQuery = cleanedWords.isEmpty ? query.trim() : cleanedWords.join('%');
-    final likeTerm = '%$cleanQuery%';
 
     if (query.trim().isEmpty) {
       final chunks = await getChunksForChapter(chapterId);
@@ -173,7 +171,62 @@ class RagRepository {
       );
     }
 
+    // ── Task C: Try FTS first, fall back to LIKE ──
     try {
+      // Attempt FTS query via rag_chunks_fts
+      final ftsQuery = cleanedWords.isEmpty
+          ? query.trim()
+          : cleanedWords.map((w) => '$w*').join(' ');
+
+      final ftsRows = await db.rawQuery(
+        '''
+        SELECT rc.id, rc.chapter_id, rc.source_title, rc.chunk_order, rc.content, -1.0 as score
+        FROM rag_chunks rc
+        INNER JOIN rag_chunks_fts fts ON fts.id = rc.id
+        WHERE fts.chapter_id = ?
+          AND rag_chunks_fts MATCH ?
+        ORDER BY rc.created_at DESC, rc.chunk_order ASC
+        LIMIT ?
+        ''',
+        [chapterId, ftsQuery, limit],
+      );
+
+      print('[RETRIEVAL] MODE=FTS');
+      print('[LOCAL_RAG] FTS_QUERY=$ftsQuery');
+
+      final chunks = ftsRows
+          .map(
+            (row) => RagChunk(
+              id: row['id'] as String,
+              chapterId: row['chapter_id'] as String,
+              sourceTitle: row['source_title'] as String,
+              chunkOrder: row['chunk_order'] as int,
+              content: row['content'] as String,
+            ),
+          )
+          .toList();
+
+      final topScore = chunks.isNotEmpty ? (ftsRows.first['score'] as num).toDouble() : 0.0;
+
+      print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
+      print('[DIAGNOSTICS] TOP_SCORE=$topScore');
+      print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
+
+      return RagCheckResult(
+        chunkCount: chunks.length,
+        topScore: topScore,
+        chunks: chunks,
+      );
+    } catch (ftsError) {
+      // FTS not available — fall back to LIKE
+      print('[RETRIEVAL] MODE=LIKE_FALLBACK (FTS error: $ftsError)');
+    }
+
+    // ── LIKE fallback ──
+    try {
+      final cleanQuery = cleanedWords.isEmpty ? query.trim() : cleanedWords.join('%');
+      final likeTerm = '%$cleanQuery%';
+
       final sqlQuery = '''
         SELECT id, chapter_id, source_title, chunk_order, content, -1.0 as score
         FROM rag_chunks
@@ -183,14 +236,9 @@ class RagRepository {
         LIMIT ?
         ''';
       
-      print('[LOCAL_RAG] QUERY=$query');
-      print('[LOCAL_RAG] GENERATED_SQL=$sqlQuery');
-      print('[LOCAL_RAG] SQL_PARAMS=[$chapterId, $likeTerm, $limit]');
+      print('[LOCAL_RAG] LIKE_QUERY=$likeTerm');
       
-      final rows = await db.rawQuery(
-        sqlQuery,
-        [chapterId, likeTerm, limit],
-      );
+      final rows = await db.rawQuery(sqlQuery, [chapterId, likeTerm, limit]);
 
       final chunks = rows
           .map(
@@ -208,8 +256,6 @@ class RagRepository {
       
       print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
       print('[DIAGNOSTICS] TOP_SCORE=$topScore');
-      print('[LOCAL_RAG] ROWS_FOUND=${chunks.length}');
-      print('[LOCAL_RAG] TOP_SCORE=$topScore');
       print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
       
       return RagCheckResult(

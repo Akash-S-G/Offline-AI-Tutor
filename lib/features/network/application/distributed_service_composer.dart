@@ -19,6 +19,9 @@ import 'intent_detector.dart';
 import 'routing_metrics.dart';
 import 'stream_coordinator.dart';
 import 'pi_hub_discovery_coordinator.dart';
+import 'backend_url_manager.dart';
+import 'connectivity_controller.dart';
+import 'discovery_sync_bridge.dart';
 import 'classroom_session_manager.dart';
 import 'reconnect_coordinator.dart';
 import 'pack_version_manager.dart';
@@ -83,6 +86,9 @@ class DistributedServiceComposer {
   late RoutingMetricsTracker _routingMetrics;
   late IntentDetector _intentDetector;
   late PiHubDiscoveryCoordinator _piHubDiscoveryCoordinator;
+  late BackendUrlManager _backendUrlManager;
+  late ConnectivityController _connectivityController;
+  late DiscoverySyncBridge _discoverySyncBridge;
   late ClassroomSessionManager _classroomSessionManager;
   late ReconnectCoordinator _reconnectCoordinator;
   late PackVersionManager _packVersionManager;
@@ -171,6 +177,19 @@ class DistributedServiceComposer {
     _routingMetrics = RoutingMetricsTracker();
     _intentDetector = IntentDetector();
     _piHubDiscoveryCoordinator = PiHubDiscoveryCoordinator();
+    _backendUrlManager = BackendUrlManager(initialUrl: backendConfig.baseUrl);
+    _connectivityController = ConnectivityController();
+    _discoverySyncBridge = DiscoverySyncBridge(
+      discovery: _piHubDiscoveryCoordinator,
+      urlManager: _backendUrlManager,
+      connectivity: _connectivityController,
+    );
+    _discoverySyncBridge.start();
+
+    // Wire URL changes to BackendConfig so all HTTP requests use new URL
+    _backendUrlManager.urlChanges.listen((newUrl) {
+      _backendConfig.updateUrl(newUrl);
+    });
     _classroomSessionManager = ClassroomSessionManager();
     _reconnectCoordinator = ReconnectCoordinator(sessions: _classroomSessionManager);
     _packVersionManager = PackVersionManager();
@@ -255,6 +274,9 @@ class DistributedServiceComposer {
   EducationalComplexityAnalyzer get educationalComplexityAnalyzer => _educationalComplexityAnalyzer;
   SubjectRoutingCoordinator get subjectRoutingCoordinator => _subjectRoutingCoordinator;
   PiHubDiscoveryCoordinator get piHubDiscoveryCoordinator => _piHubDiscoveryCoordinator;
+  BackendUrlManager get backendUrlManager => _backendUrlManager;
+  ConnectivityController get connectivityController => _connectivityController;
+  DiscoverySyncBridge get discoverySyncBridge => _discoverySyncBridge;
   ClassroomSessionManager get classroomSessionManager => _classroomSessionManager;
   ReconnectCoordinator get reconnectCoordinator => _reconnectCoordinator;
   PackVersionManager get packVersionManager => _packVersionManager;

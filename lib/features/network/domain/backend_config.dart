@@ -2,7 +2,7 @@ import '../../../config/app_environment.dart';
 
 /// Configuration for backend connectivity.
 class BackendConfig {
-  const BackendConfig({
+  BackendConfig({
     required this.baseUrl,
     required this.apiKey,
     this.connectTimeoutSeconds = 10,
@@ -12,8 +12,8 @@ class BackendConfig {
     this.backoffMultiplier = 1.5,
   });
 
-  /// Backend base URL (e.g., 'https://api.example.com')
-  final String baseUrl;
+  /// Backend base URL — mutable to support dynamic PiHub discovery.
+  String baseUrl;
 
   /// API authentication key
   final String apiKey;
@@ -35,6 +35,14 @@ class BackendConfig {
 
   /// Whether configuration is valid
   bool get isValid => baseUrl.isNotEmpty && apiKey.isNotEmpty;
+
+  /// Update the backend URL at runtime (called by BackendUrlManager).
+  void updateUrl(String newUrl) {
+    if (newUrl.isNotEmpty) {
+      baseUrl = newUrl;
+      print('[BACKEND] CONFIG_URL_UPDATED=$newUrl');
+    }
+  }
 
   /// Create from centralized environment configuration
   static BackendConfig? fromEnvironment() {

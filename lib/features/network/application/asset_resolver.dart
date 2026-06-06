@@ -64,6 +64,8 @@ class AssetResolver {
       case TutorIntent.startQuiz:
       case TutorIntent.continueQuiz:
         return _resolveQuiz(topic, chapterId);
+      case TutorIntent.generateWorksheet:
+        return _resolveWorksheet(topic, chapterId);
       default:
         return null;
     }
@@ -224,6 +226,33 @@ class AssetResolver {
     return null;
   }
 
+  Future<AssetResolutionResult?> _resolveWorksheet(String topic, String? chapterId) async {
+    if (chapterId != null) {
+      final chapterIdInt = int.tryParse(chapterId.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (chapterIdInt != null) {
+        final quizzes = await EducationalRepository.getQuizzesByChapterId(chapterIdInt);
+        if (quizzes.isNotEmpty) {
+          final quiz = quizzes.first;
+          final questions = await EducationalRepository.getQuizQuestions(quiz.id!);
+          
+          if (questions.isNotEmpty) {
+            final worksheetQuestions = questions.take(5).toList();
+            return AssetResolutionResult(
+              formattedResponse: _formatWorksheet(worksheetQuestions, topic),
+              metadata: AssetSourceMetadata(
+                sourceType: 'Worksheet',
+                sourceTitle: 'Practice Set: $topic',
+                intentUsed: 'generateWorksheet',
+              ),
+            );
+          }
+        }
+      }
+    }
+    
+    return null;
+  }
+
   // ── Formatting helpers ──
 
   String _formatFlashcard(dynamic flashcard) {
@@ -268,6 +297,18 @@ class AssetResolver {
     }
     buf.writeln('**Questions: ${questions.length}** | **Passing Score: ${quiz.passingScorePercent}%**\n');
     buf.writeln('*(Navigate to the Quizzes tab to start this quiz interactively!)*');
+    return buf.toString();
+  }
+
+  String _formatWorksheet(List<dynamic> questions, String topic) {
+    final buf = StringBuffer('**📝 Source: Worksheet**\n\n');
+    buf.writeln('**Topic:** ${topic.isNotEmpty ? topic : "Practice Questions"}\n');
+    
+    for (int i = 0; i < questions.length; i++) {
+      final q = questions[i];
+      buf.writeln('**Q${i+1}:** ${q.question}\n');
+    }
+    
     return buf.toString();
   }
 

@@ -16,6 +16,7 @@ import 'session_state.dart';
 import 'routing_metrics.dart';
 import 'stream_coordinator.dart';
 import 'subject_routing_coordinator.dart';
+import 'retrieval_diagnostics_tracker.dart';
 
 /// Hybrid inference engine coordinating local and backend inference.
 class HybridInferenceService {
@@ -33,7 +34,7 @@ class HybridInferenceService {
     IntentDetector? intentDetector,
     AssetResolver? assetResolver,
     SubjectRoutingCoordinator? subjectRoutingCoordinator,
-    this.localCacheTTLSeconds = 604800,
+    this.localCacheTTLSeconds = 300,
   })  : _localInference = localInference,
         _backendService = backendService,
         _healthMonitor = healthMonitor,
@@ -65,6 +66,19 @@ class HybridInferenceService {
   final SubjectRoutingCoordinator _subjectRoutingCoordinator;
 
   final Map<String, _CachedResponse> _responseCache = <String, _CachedResponse>{};
+
+  /// Intents whose responses are deterministic and safe to cache.
+  static const _cacheableIntents = <TutorIntent>{
+    TutorIntent.explainConcept,
+    TutorIntent.defineTerm,
+    TutorIntent.summarizeTopic,
+    TutorIntent.compareConcepts,
+    TutorIntent.glossary,
+    TutorIntent.keyPoints,
+  };
+
+  /// Returns true if responses for [intent] are safe to cache.
+  bool _shouldCacheIntent(TutorIntent intent) => _cacheableIntents.contains(intent);
 
   /// Stream an answer to a question.
   /// Local stream starts first; if confidence is low, backend stream upgrades it.
@@ -215,14 +229,34 @@ class HybridInferenceService {
       }
     }
 
+    RetrievalDiagnosticsTracker.instance.update(
+      topic: detection.topic,
+      intent: detection.intent.name,
+      chunks: localCurriculumContext?.length ?? 0,
+      mode: hasRelevantLocalContent ? 'Local RAG' : 'Fallback',
+      fallback: hasRelevantLocalContent ? '' : (backendAvailable ? 'Local missing' : 'Offline'),
+      execMode: executionMode.name,
+    );
+
     print('[DIAGNOSTICS] EXECUTION_MODE=${executionMode.name.toUpperCase()}');
     final startTime = DateTime.now();
 
-    final cached = _getCachedResponse(question);
-    if (cached != null) {
-      _metrics.recordLocal();
-      yield cached;
-      return;
+    // ── INTENT-AWARE CACHE (Task A) ──
+    final cacheAllowed = _shouldCacheIntent(detection.intent);
+    print('[CACHE] INTENT=${detection.intent.name}');
+    print('[CACHE] ALLOWED=$cacheAllowed');
+    if (cacheAllowed) {
+      final cached = _getCachedResponse(question);
+      if (cached != null) {
+        print('[CACHE] HIT=true');
+        _metrics.recordLocal();
+        yield cached;
+        return;
+      } else {
+        print('[CACHE] MISS=true');
+      }
+    } else {
+      print('[CACHE] BYPASSED=true (dynamic intent)');
     }
 
     if (executionMode == TutorExecutionMode.backendRag) {
@@ -230,14 +264,28 @@ class HybridInferenceService {
       print('[DIAGNOSTICS] REQUEST_SENT');
       _metrics.recordBackend();
       try {
-        final backendStream = _backendService.streamTutorAnswer(
-          question: question,
-          grade: grade,
-          subject: subject,
-          chapter: chapter,
-          language: language,
-          conversationHistory: conversationHistory,
-        );
+        final Stream<String> backendStream;
+        
+        if (detection.intent == TutorIntent.learningPath || 
+            detection.intent == TutorIntent.prerequisiteCheck) {
+          print('[DIAGNOSTICS] ROUTING_TO_PLANNER');
+          backendStream = _backendService.streamPlannerLesson(
+            topic: detection.topic,
+            subject: subject,
+            grade: grade,
+            language: language,
+          );
+        } else {
+          backendStream = _backendService.streamTutorAnswer(
+            question: question,
+            grade: grade,
+            subject: subject,
+            chapter: chapter,
+            language: language,
+            conversationHistory: conversationHistory,
+          );
+        }
+        
         await for (final chunk in backendStream) {
           print("[TRACE] HYBRID_RECEIVED=$chunk");
           print("[TRACE] HYBRID_FORWARDING=$chunk");
@@ -297,7 +345,7 @@ Question: $question
       _metrics.recordLocal();
       final text = localBuffer.toString();
       if (text.isNotEmpty) {
-        _cacheResponse(question, text);
+        _cacheResponse(question, text, intent: detection.intent);
       }
       return;
     }
@@ -349,7 +397,7 @@ Question: $question
       _metrics.recordLocal();
       final text = localBuffer.toString();
       if (text.isNotEmpty) {
-        _cacheResponse(question, text);
+        _cacheResponse(question, text, intent: detection.intent);
       }
       return;
     }
@@ -383,11 +431,16 @@ Question: $question
     _responseCache.clear();
   }
 
-  void _cacheResponse(String question, String response) {
+  void _cacheResponse(String question, String response, {TutorIntent? intent}) {
+    if (intent != null && !_shouldCacheIntent(intent)) {
+      print('[CACHE] STORE_SKIPPED intent=${intent.name} (dynamic)');
+      return;
+    }
     _responseCache[question.toLowerCase()] = _CachedResponse(
       response: response,
       timestamp: DateTime.now(),
     );
+    print('[CACHE] STORED key=${question.toLowerCase().substring(0, question.length > 60 ? 60 : question.length)}');
   }
 
   String? _getCachedResponse(String question) {

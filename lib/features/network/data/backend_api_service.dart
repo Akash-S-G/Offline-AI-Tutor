@@ -318,8 +318,12 @@ class BackendApiService {
     if (chapter != null && chapter.isNotEmpty) body['chapter'] = chapter;
     if (language != null && language.isNotEmpty) body['language'] = language;
     if (conversationHistory != null && conversationHistory.isNotEmpty) {
-      body['conversationHistory'] = conversationHistory;
+      body['conversation_history'] = conversationHistory;
     }
+
+    // Task E: Log exact request payload for 400 debugging
+    print('[BACKEND] REQUEST_JSON=${body.keys.toList()}');
+    print('[BACKEND] REQUEST_QUESTION=${question.substring(0, question.length > 100 ? 100 : question.length)}');
 
     try {
       final startTime = DateTime.now();
@@ -380,6 +384,64 @@ class BackendApiService {
         'Tutor stream error: $error',
       );
       rethrow;
+    }
+  }
+
+  /// Stream a planner lesson response
+  Stream<String> streamPlannerLesson({
+    required String topic,
+    String? subject,
+    int? grade,
+    String? language,
+  }) async* {
+    if (!_config.isValid) {
+      yield 'Backend not configured. Please check your settings.';
+      return;
+    }
+
+    final body = <String, dynamic>{
+      'topic': topic,
+    };
+
+    if (subject != null) body['subject'] = subject;
+    if (grade != null) body['grade'] = grade;
+    if (language != null) body['language'] = language;
+
+    print('[BACKEND] REQUEST_JSON (PLANNER)=${body.keys.toList()}');
+    print('[BACKEND] REQUEST_TOPIC=$topic');
+
+    try {
+      final startTime = DateTime.now();
+      var isFirstToken = true;
+      await for (final chunk in _httpClient.stream('/planner/lesson', body: body)) {
+        if (isFirstToken) {
+          final firstTokenMs = DateTime.now().difference(startTime).inMilliseconds;
+          print('[DIAGNOSTICS] PLANNER_NETWORK_MS=$firstTokenMs');
+          isFirstToken = false;
+        }
+        final trimmed = chunk.trim();
+        if (trimmed.isEmpty || trimmed.startsWith(':')) {
+          continue;
+        }
+
+        if (trimmed.startsWith('data:')) {
+          final jsonStr = trimmed.substring(5).trim();
+          if (jsonStr == '[DONE]') {
+            break;
+          }
+          try {
+            final data = jsonDecode(jsonStr);
+            if (data is Map<String, dynamic> && data.containsKey('chunk')) {
+              yield data['chunk'].toString();
+            }
+          } catch (_) {
+            yield jsonStr;
+          }
+        }
+      }
+    } catch (e) {
+      print('[BACKEND] Error streaming planner lesson: $e');
+      yield 'Connection to planner lost. Please try again.';
     }
   }
 
