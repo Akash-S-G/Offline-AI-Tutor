@@ -16,6 +16,7 @@ import '../../data/repositories/experiment_manifest_execution_repository_impl.da
 import '../../data/experiment_api_service.dart';
 import '../../../network/domain/backend_config.dart';
 import '../../application/execution_definition_mapper.dart';
+import '../../../network/domain/runtime_backend_url.dart';
 
 class ExperimentPlayerController extends ChangeNotifier {
   late final ExperimentExecutionOrchestrator _orchestrator;
@@ -35,21 +36,28 @@ class ExperimentPlayerController extends ChangeNotifier {
   Stream<RuntimeEvent> get eventStream => _orchestrator.eventStream;
 
   StreamSubscription<RuntimeEvent>? _eventSubscription;
+  bool _disposed = false;
 
   ExperimentPlayerController() {
     final cache = ExperimentCapabilityCache();
     final provider = ExperimentCapabilityProviderImpl(cache);
     _orchestrator = ExperimentExecutionOrchestrator(provider);
     
-    // In a real app this would be injected via dependency injection
-    final config = BackendConfig(baseUrl: 'http://localhost:3000', apiKey: 'dummy');
+    final baseUrl = RuntimeBackendUrl().current.isNotEmpty ? RuntimeBackendUrl().current : 'http://localhost';
+    final config = BackendConfig.fromEnvironment() ?? BackendConfig(baseUrl: baseUrl, apiKey: 'dummy');
     _repository = ExperimentManifestExecutionRepositoryImpl(ExperimentApiService(config));
   }
 
   Future<void> prepare(ExperimentManifest manifest) async {
     try {
       print('[EXPERIMENT] EXECUTION_FETCH_START');
-      final definitionJson = await _repository.getExecutionDefinition(manifest.id);
+      Map<String, dynamic>? definitionJson;
+      try {
+        definitionJson = await _repository.getExecutionDefinition(manifest.id);
+      } catch (e) {
+        print('[EXPERIMENT] REMOTE_EXECUTION_FETCH_FAILED error=$e');
+        // network fetch failed, definitionJson remains null and will trigger fallback below
+      }
       
       if (definitionJson != null) {
         print('[EXPERIMENT] EXECUTION_FETCH_SUCCESS');
@@ -62,10 +70,11 @@ class ExperimentPlayerController extends ChangeNotifier {
         
         await _orchestrator.prepare(manifest, scene);
       } else {
-        print('[EXPERIMENT] NO_REMOTE_EXECUTION_DEFINITION_FOUND');
+        print('[EXPERIMENT] FALLBACK_TO_LOCAL_MANIFEST_EXECUTION');
         await _orchestrator.prepare(manifest);
       }
       
+      if (_disposed) return;
       _updateState();
       
       _eventSubscription = _orchestrator.eventStream.listen((event) {
@@ -73,10 +82,12 @@ class ExperimentPlayerController extends ChangeNotifier {
         if (_events.length > 100) {
           _events.removeLast(); // Keep only last 100 events for UI
         }
+        if (_disposed) return;
         _updateState();
       });
     } catch (e) {
       print('[EXPERIMENT_UI] PREPARE_ERROR error=$e');
+      if (_disposed) return;
       _updateState();
     }
   }
@@ -84,18 +95,21 @@ class ExperimentPlayerController extends ChangeNotifier {
   Future<void> start() async {
     print('[EXPERIMENT_UI] PLAYER_STARTED');
     await _orchestrator.start();
+    if (_disposed) return;
     _updateState();
   }
 
   Future<void> pause() async {
     print('[EXPERIMENT_UI] PLAYER_PAUSED');
     await _orchestrator.pause();
+    if (_disposed) return;
     _updateState();
   }
 
   Future<void> resume() async {
     print('[EXPERIMENT_UI] PLAYER_RESUMED');
     await _orchestrator.resume();
+    if (_disposed) return;
     _updateState();
   }
 
@@ -103,6 +117,7 @@ class ExperimentPlayerController extends ChangeNotifier {
     print('[EXPERIMENT_UI] PLAYER_STOPPED');
     await _orchestrator.stop();
     _executionResult = await _orchestrator.getResult();
+    if (_disposed) return;
     _updateState();
   }
 
@@ -115,6 +130,7 @@ class ExperimentPlayerController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     _eventSubscription?.cancel();
     _orchestrator.dispose();
     super.dispose();

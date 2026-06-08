@@ -1,9 +1,8 @@
-import 'dart:convert';
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path/path.dart' as p;
 import '../../course/domain/curriculum_models.dart';
+import '../../course/domain/textbook_models.dart';
+import '../../course/data/local/textbook_repository.dart';
+import '../../../core/theme/idp_colors.dart';
 
 class ChapterReaderScreen extends StatefulWidget {
   const ChapterReaderScreen({
@@ -20,15 +19,29 @@ class ChapterReaderScreen extends StatefulWidget {
 class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
   bool _loading = true;
   String? _error;
-  List<Map<String, dynamic>> _chunks = [];
-  List<String> _sections = [];
-  String _currentSection = 'All';
+  TextbookChapter? _textbookChapter;
+  List<TextbookSection> _sections = [];
+  String _currentSectionId = 'all';
+  
   final ScrollController _scrollController = ScrollController();
+  int _estimatedTimeMinutes = 0;
+  double _scrollProgress = 0.0;
+  final TextbookRepository _repository = TextbookRepository();
 
   @override
   void initState() {
     super.initState();
     _loadContent();
+    _scrollController.addListener(() {
+      if (_scrollController.hasClients) {
+        final maxScroll = _scrollController.position.maxScrollExtent;
+        if (maxScroll > 0) {
+          setState(() {
+            _scrollProgress = _scrollController.offset / maxScroll;
+          });
+        }
+      }
+    });
   }
 
   @override
@@ -44,59 +57,50 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     });
 
     try {
-      final contentPath = p.join(widget.chapter.rootPath, 'content.json');
-      final file = File(contentPath);
-      if (!await file.exists()) {
+      final chapter = await _repository.loadChapter(widget.chapter.rootPath);
+      if (chapter == null) {
         setState(() {
-          _error = 'Textbook content file (content.json) not found on disk.';
+          _error = 'Textbook structured content not available for this chapter yet. Please update the content pack.';
           _loading = false;
         });
         return;
       }
 
-      final content = await file.readAsString();
-      final List<dynamic> decoded = jsonDecode(content);
-      
-      final List<Map<String, dynamic>> parsedChunks = [];
-      final Set<String> uniqueSections = {};
-
-      for (final item in decoded) {
-        if (item is Map<String, dynamic>) {
-          parsedChunks.add(item);
-          final metadata = item['metadata'] as Map<String, dynamic>? ?? {};
-          final section = metadata['section'] as String? ?? '';
-          if (section.trim().isNotEmpty) {
-            uniqueSections.add(section.trim());
+      int totalWords = 0;
+      for (final section in chapter.sections) {
+        for (final block in section.blocks) {
+          if (block.type == 'paragraph' || block.type == 'example' || block.type == 'definition') {
+            totalWords += block.content.split(RegExp(r'\s+')).length;
           }
         }
       }
 
+      final estimatedTime = (totalWords / 200).ceil();
+
       if (mounted) {
         setState(() {
-          _chunks = parsedChunks;
-          _sections = ['All', ...uniqueSections];
+          _textbookChapter = chapter;
+          _sections = chapter.sections;
+          _estimatedTimeMinutes = estimatedTime == 0 ? 1 : estimatedTime;
           _loading = false;
         });
       }
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = 'Failed to parse textbook content: $e';
+          _error = 'Failed to load textbook content: $e';
           _loading = false;
         });
       }
     }
   }
 
-  List<Map<String, dynamic>> get _filteredChunks {
-    if (_currentSection == 'All') {
-      return _chunks;
+  List<TextbookSection> get _filteredSections {
+    if (_textbookChapter == null) return [];
+    if (_currentSectionId == 'all') {
+      return _sections;
     }
-    return _chunks.where((chunk) {
-      final metadata = chunk['metadata'] as Map<String, dynamic>? ?? {};
-      final section = metadata['section'] as String? ?? '';
-      return section.trim() == _currentSection;
-    }).toList();
+    return _sections.where((sec) => sec.id == _currentSectionId).toList();
   }
 
   void _scrollToTop() {
@@ -110,8 +114,15 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
-        title: Text(widget.chapter.title),
-        backgroundColor: const Color(0xFF3B82F6),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.chapter.title, style: const TextStyle(fontSize: 18)),
+            if (!_loading && _estimatedTimeMinutes > 0)
+              Text('$_estimatedTimeMinutes min read', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.normal, color: Colors.white70)),
+          ],
+        ),
+        backgroundColor: IDPColors.primary,
         foregroundColor: Colors.white,
         actions: [
           if (_sections.length > 1)
@@ -123,10 +134,10 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF3B82F6)))
+          ? const Center(child: CircularProgressIndicator(color: IDPColors.primary))
           : _error != null
               ? _buildErrorView()
-              : _chunks.isEmpty
+              : _sections.isEmpty
                   ? _buildEmptyState()
                   : Column(
                       children: [
@@ -136,16 +147,21 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
                             child: ListView.builder(
                               controller: _scrollController,
                               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-                              itemCount: _filteredChunks.length,
+                              itemCount: _filteredSections.length,
                               itemBuilder: (context, index) {
-                                final chunk = _filteredChunks[index];
-                                final text = chunk['text'] as String? ?? '';
-                                final metadata = chunk['metadata'] as Map<String, dynamic>? ?? {};
-                                return _buildChunkView(text, metadata, index);
+                                final section = _filteredSections[index];
+                                return _buildSectionView(section);
                               },
                             ),
                           ),
                         ),
+                        if (_scrollController.hasClients && _scrollController.position.maxScrollExtent > 0)
+                          LinearProgressIndicator(
+                            value: _scrollProgress.clamp(0.0, 1.0),
+                            backgroundColor: IDPColors.border,
+                            valueColor: const AlwaysStoppedAnimation<Color>(IDPColors.primary),
+                            minHeight: 4,
+                          ),
                       ],
                     ),
     );
@@ -155,23 +171,26 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     return Container(
       height: 48,
       decoration: const BoxDecoration(
-        color: Color(0xFFF8FAFC),
-        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+        color: IDPColors.surface,
+        border: Border(bottom: BorderSide(color: IDPColors.border)),
       ),
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        itemCount: _sections.length,
+        itemCount: _sections.length + 1,
         itemBuilder: (context, index) {
-          final sec = _sections[index];
-          final isSelected = sec == _currentSection;
+          final isAll = index == 0;
+          final secId = isAll ? 'all' : _sections[index - 1].id;
+          final secTitle = isAll ? 'All' : _sections[index - 1].title;
+          
+          final isSelected = secId == _currentSectionId;
           return Container(
             margin: const EdgeInsets.only(right: 8),
             child: ChoiceChip(
               label: Text(
-                sec,
+                secTitle,
                 style: TextStyle(
-                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                  color: isSelected ? Colors.white : IDPColors.textSecondary,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
@@ -179,14 +198,14 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
               onSelected: (selected) {
                 if (selected) {
                   setState(() {
-                    _currentSection = sec;
+                    _currentSectionId = secId;
                   });
                   _scrollToTop();
                 }
               },
-              selectedColor: const Color(0xFF3B82F6),
-              backgroundColor: const Color(0xFFE2E8F0),
-              border: Border.all(color: Colors.transparent),
+              selectedColor: IDPColors.primary,
+              backgroundColor: IDPColors.border,
+              side: BorderSide.none,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
               padding: const EdgeInsets.symmetric(horizontal: 8),
             ),
@@ -211,31 +230,34 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
             children: [
               const Text(
                 'Table of Contents',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: IDPColors.textPrimary),
               ),
               const SizedBox(height: 12),
               Expanded(
                 child: ListView.builder(
-                  itemCount: _sections.length,
+                  itemCount: _sections.length + 1,
                   itemBuilder: (context, index) {
-                    final sec = _sections[index];
-                    final isSelected = sec == _currentSection;
+                    final isAll = index == 0;
+                    final secId = isAll ? 'all' : _sections[index - 1].id;
+                    final secTitle = isAll ? 'All' : _sections[index - 1].title;
+                    
+                    final isSelected = secId == _currentSectionId;
                     return ListTile(
                       title: Text(
-                        sec,
+                        secTitle,
                         style: TextStyle(
-                          color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF334155),
+                          color: isSelected ? IDPColors.primary : IDPColors.textPrimary,
                           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                         ),
                       ),
                       leading: Icon(
-                        sec == 'All' ? Icons.library_books_rounded : Icons.label_important_rounded,
-                        color: isSelected ? const Color(0xFF3B82F6) : const Color(0xFF64748B),
+                        isAll ? Icons.library_books_rounded : Icons.label_important_rounded,
+                        color: isSelected ? IDPColors.primary : IDPColors.textSecondary,
                       ),
-                      trailing: isSelected ? const Icon(Icons.check_rounded, color: Color(0xFF3B82F6)) : null,
+                      trailing: isSelected ? const Icon(Icons.check_rounded, color: IDPColors.primary) : null,
                       onTap: () {
                         setState(() {
-                          _currentSection = sec;
+                          _currentSectionId = secId;
                         });
                         Navigator.of(context).pop();
                         _scrollToTop();
@@ -251,214 +273,207 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
     );
   }
 
-  Widget _buildChunkView(String text, Map<String, dynamic> metadata, int index) {
-    final List<String> lines = text.split('\n');
-    final List<Widget> widgets = [];
-    
-    // Check if the chunk is structured as an example or callout
-    final String section = metadata['section'] as String? ?? '';
-    final String topic = metadata['topic'] as String? ?? '';
-    final String contentType = metadata['contentType'] as String? ?? '';
-    
-    // Header helper
-    if (index == 0 || (metadata['section'] != null && _chunks[index - 1]['metadata']['section'] != metadata['section'])) {
-      if (section.isNotEmpty) {
-        widgets.add(
+  Widget _buildSectionView(TextbookSection section) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (section.title.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(top: 12, bottom: 8),
+            padding: const EdgeInsets.only(top: 16, bottom: 12),
             child: Text(
-              section.toUpperCase(),
+              section.title.toUpperCase(),
               style: const TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.bold,
-                color: Color(0xFF3B82F6),
+                color: IDPColors.primary,
                 letterSpacing: 1.2,
               ),
             ),
           ),
-        );
-      }
-    }
+        ...section.blocks.map((block) => _buildBlockView(block)),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
 
-    bool inBulletList = false;
-    List<String> listItems = [];
-
-    for (var i = 0; i < lines.length; i++) {
-      final line = lines[i].trim();
-      if (line.isEmpty) {
-        if (inBulletList) {
-          widgets.add(_buildBulletList(listItems));
-          listItems = [];
-          inBulletList = false;
-        }
-        widgets.add(const SizedBox(height: 8));
-        continue;
-      }
-
-      // Check bullet list item
-      if (line.startsWith('- ') || line.startsWith('* ') || line.startsWith('• ')) {
-        inBulletList = true;
-        listItems.add(line.substring(2).trim());
-        continue;
-      }
-
-      if (inBulletList) {
-        widgets.add(_buildBulletList(listItems));
-        listItems = [];
-        inBulletList = false;
-      }
-
-      // Render Headings
-      if (line.startsWith('### ')) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(top: 14, bottom: 6),
-            child: Text(
-              line.substring(4),
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-            ),
+  Widget _buildBlockView(TextbookBlock block) {
+    switch (block.type) {
+      case 'heading':
+        return Padding(
+          padding: const EdgeInsets.only(top: 22, bottom: 12),
+          child: Text(
+            block.content,
+            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: IDPColors.textPrimary),
           ),
         );
-      } else if (line.startsWith('## ')) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(top: 18, bottom: 8),
-            child: Text(
-              line.substring(3),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-            ),
+      case 'subheading':
+        return Padding(
+          padding: const EdgeInsets.only(top: 18, bottom: 8),
+          child: Text(
+            block.content,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: IDPColors.textPrimary),
           ),
         );
-      } else if (line.startsWith('# ')) {
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.only(top: 22, bottom: 12),
-            child: Text(
-              line.substring(2),
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-            ),
+      case 'definition':
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3E8FF),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFA855F7), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.menu_book_rounded, color: Color(0xFF7E22CE), size: 20),
+                  SizedBox(width: 8),
+                  Text('Definition', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF7E22CE), fontSize: 15)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                block.content,
+                style: const TextStyle(color: Color(0xFF581C87), height: 1.5, fontSize: 14, fontStyle: FontStyle.italic),
+              ),
+            ],
           ),
         );
-      } else if (line.toLowerCase().startsWith('example') || line.toLowerCase().startsWith('activity')) {
-        // Styled Example/Activity block
-        widgets.add(
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.symmetric(vertical: 10),
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFEF3C7), // Light amber
-              borderRadius: BorderRadius.circular(8),
-              border: const BorderSide(color: Color(0xFFF59E0B), width: 1.5),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      line.toLowerCase().startsWith('example') ? Icons.assignment_rounded : Icons.explore_rounded,
-                      color: const Color(0xFFB45309),
-                      size: 20,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      line.toLowerCase().startsWith('example') ? 'Example' : 'Activity',
-                      style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFB45309), fontSize: 15),
-                    ),
-                  ],
+      case 'example':
+      case 'worked_example':
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFFEF3C7),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFF59E0B), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.assignment_rounded, color: Color(0xFFB45309), size: 20),
+                  SizedBox(width: 8),
+                  Text('Example', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFB45309), fontSize: 15)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                block.content,
+                style: const TextStyle(color: Color(0xFF78350F), height: 1.5, fontSize: 14),
+              ),
+            ],
+          ),
+        );
+      case 'formula':
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFECFCCB),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF84CC16), width: 1.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Row(
+                children: [
+                  Icon(Icons.functions_rounded, color: Color(0xFF4D7C0F), size: 20),
+                  SizedBox(width: 8),
+                  Text('Formula', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF4D7C0F), fontSize: 15)),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                block.content,
+                style: const TextStyle(color: Color(0xFF365314), height: 1.5, fontSize: 16, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+              ),
+            ],
+          ),
+        );
+      case 'note':
+      case 'important':
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.symmetric(vertical: 10),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFF6FF),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFF3B82F6), width: 1.5),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.info_rounded, color: Color(0xFF1D4ED8), size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  block.content,
+                  style: const TextStyle(color: Color(0xFF1E40AF), height: 1.5, fontSize: 14),
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  line.contains(':') ? line.substring(line.indexOf(':') + 1).trim() : line,
-                  style: const TextStyle(color: Color(0xFF78350F), height: 1.5, fontSize: 14),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
-      } else if (line.toLowerCase().startsWith('note:') || line.toLowerCase().startsWith('important:')) {
-        // Styled Callout block
-        widgets.add(
-          Container(
-            width: double.infinity,
+      case 'activity':
+      case 'exercise':
+        // Activity/Exercise can be a collapsible or just a styled block
+        return Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: Container(
             margin: const EdgeInsets.symmetric(vertical: 10),
-            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF6FF), // Light blue
+              border: Border.all(color: IDPColors.border),
               borderRadius: BorderRadius.circular(8),
-              border: const BorderSide(color: Color(0xFF3B82F6), width: 1.5),
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: ExpansionTile(
+              initiallyExpanded: block.type == 'activity',
+              title: Text(
+                block.type == 'activity' ? 'Activity' : 'Exercise',
+                style: const TextStyle(fontWeight: FontWeight.bold, color: IDPColors.textPrimary),
+              ),
+              leading: Icon(
+                block.type == 'activity' ? Icons.explore_rounded : Icons.fitness_center_rounded,
+                color: IDPColors.primary,
+              ),
               children: [
-                const Icon(Icons.info_rounded, color: Color(0xFF1D4ED8), size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    line,
-                    style: const TextStyle(color: Color(0xFF1E40AF), height: 1.5, fontSize: 14),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      block.content,
+                      style: const TextStyle(fontSize: 15, height: 1.6, color: IDPColors.textPrimary),
+                    ),
                   ),
                 ),
               ],
             ),
           ),
         );
-      } else {
-        // Standard Paragraph
-        widgets.add(
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Text(
-              line,
-              style: const TextStyle(
-                fontSize: 15,
-                height: 1.6,
-                color: Color(0xFF334155),
-              ),
+      case 'paragraph':
+      default:
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Text(
+            block.content,
+            style: const TextStyle(
+              fontSize: 15,
+              height: 1.6,
+              color: IDPColors.textPrimary,
             ),
           ),
         );
-      }
     }
-
-    if (inBulletList) {
-      widgets.add(_buildBulletList(listItems));
-    }
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: widgets,
-      ),
-    );
-  }
-
-  Widget _buildBulletList(List<String> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: items.map((item) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0, left: 6, right: 10),
-                child: Icon(Icons.fiber_manual_record, size: 6, color: Color(0xFF64748B)),
-              ),
-              Expanded(
-                child: Text(
-                  item,
-                  style: const TextStyle(fontSize: 15, height: 1.6, color: Color(0xFF334155)),
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-    );
   }
 
   Widget _buildErrorView() {
@@ -472,13 +487,13 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
             const SizedBox(height: 16),
             const Text(
               'Failed to Load Content',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: IDPColors.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(
               _error!,
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF64748B), fontSize: 14),
+              style: const TextStyle(color: IDPColors.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
@@ -498,17 +513,17 @@ class _ChapterReaderScreenState extends State<ChapterReaderScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.library_books_rounded, size: 64, color: Color(0xFF94A3B8)),
-            const SizedBox(height: 16),
+            Icon(Icons.library_books_rounded, size: 64, color: IDPColors.textHint),
+            SizedBox(height: 16),
             Text(
               'No Content Found',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: IDPColors.textPrimary),
             ),
-            const SizedBox(height: 8),
+            SizedBox(height: 8),
             Text(
-              'The content file is empty. Check content pack integrity.',
+              'This chapter does not contain any structured textbook sections.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 14),
+              style: TextStyle(color: IDPColors.textSecondary, fontSize: 14),
             ),
           ],
         ),

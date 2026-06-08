@@ -31,6 +31,7 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
+  bool _disposed = false;
 
   ExperimentBuilderController({
     required this.draftManager,
@@ -49,6 +50,7 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     draftManager.removeListener(_onDraftManagerUpdated);
     super.dispose();
   }
@@ -104,6 +106,7 @@ class ExperimentBuilderController extends ChangeNotifier {
       print('[BUILDER] VALIDATION_FAILED');
     }
 
+    if (_disposed) return;
     _isLoading = false;
     notifyListeners();
   }
@@ -115,6 +118,7 @@ class ExperimentBuilderController extends ChangeNotifier {
 
     _compatibilityResult = await _manifestRepository.checkCompatibility(generateManifest());
 
+    if (_disposed) return;
     _isLoading = false;
     notifyListeners();
   }
@@ -134,6 +138,7 @@ class ExperimentBuilderController extends ChangeNotifier {
       print('Migration failed: $e');
     }
 
+    if (_disposed) return;
     _isLoading = false;
     notifyListeners();
   }
@@ -186,6 +191,7 @@ class ExperimentBuilderController extends ChangeNotifier {
       print('Execution package fetch failed: $_error');
     }
 
+    if (_disposed) return;
     _isLoading = false;
     notifyListeners();
   }

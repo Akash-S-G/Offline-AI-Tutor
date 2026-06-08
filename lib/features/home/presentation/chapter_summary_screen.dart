@@ -29,7 +29,7 @@ class _ChapterSummaryScreenState extends State<ChapterSummaryScreen> with Single
   // Flashcards state
   int _cardIndex = 0;
   bool _showBack = false;
-  Set<int> _knownCardIndexes = {};
+  Map<int, String> _cardStates = {}; // 'known', 'review', 'difficult'
 
   @override
   void initState() {
@@ -104,24 +104,20 @@ class _ChapterSummaryScreenState extends State<ChapterSummaryScreen> with Single
     });
   }
 
-  void _markCard(bool known) {
+  void _markCard(String state) {
     setState(() {
-      if (known) {
-        _knownCardIndexes.add(_cardIndex);
-      } else {
-        _knownCardIndexes.remove(_cardIndex);
-      }
+      _cardStates[_cardIndex] = state;
       
       // Auto advance to next card if not at end
       if (_cardIndex < _flashcards.length - 1) {
         _cardIndex++;
         _showBack = false;
-      } else if (_knownCardIndexes.length == _flashcards.length) {
+      } else if (_cardStates.values.where((s) => s == 'known').length == _flashcards.length) {
         // All mastered! Keep index at last or trigger finished
       } else {
-        // Loop back to find first unknown
+        // Loop back to find first non-known card
         for (int i = 0; i < _flashcards.length; i++) {
-          if (!_knownCardIndexes.contains(i)) {
+          if (_cardStates[i] != 'known') {
             _cardIndex = i;
             _showBack = false;
             break;
@@ -135,7 +131,7 @@ class _ChapterSummaryScreenState extends State<ChapterSummaryScreen> with Single
     setState(() {
       _cardIndex = 0;
       _showBack = false;
-      _knownCardIndexes.clear();
+      _cardStates.clear();
     });
   }
 
@@ -248,7 +244,7 @@ class _ChapterSummaryScreenState extends State<ChapterSummaryScreen> with Single
     }
 
     final totalCards = _flashcards.length;
-    final masteredCount = _knownCardIndexes.length;
+    final masteredCount = _cardStates.values.where((s) => s == 'known').length;
     final allMastered = masteredCount == totalCards;
 
     if (allMastered) {
@@ -258,7 +254,7 @@ class _ChapterSummaryScreenState extends State<ChapterSummaryScreen> with Single
     final card = _flashcards[_cardIndex];
     final frontText = card['front'] as String? ?? '';
     final backText = card['back'] as String? ?? '';
-    final isKnown = _knownCardIndexes.contains(_cardIndex);
+    final isKnown = _cardStates[_cardIndex] == 'known';
 
     return Padding(
       padding: const EdgeInsets.all(24),
@@ -370,32 +366,42 @@ class _ChapterSummaryScreenState extends State<ChapterSummaryScreen> with Single
           ),
           const SizedBox(height: 32),
 
-          // Known/Unknown buttons
+          // Known/Review/Difficult buttons
           Row(
             children: [
               Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () => _markCard(false),
-                  icon: const Icon(Icons.close_rounded, color: Colors.red),
-                  label: const Text('Study Again', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                child: OutlinedButton(
+                  onPressed: () => _markCard('difficult'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     side: const BorderSide(color: Colors.red),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: const Text('Difficult', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
               Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => _markCard(true),
-                  icon: const Icon(Icons.check_rounded, color: Colors.white),
-                  label: const Text('Got It!', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: OutlinedButton(
+                  onPressed: () => _markCard('review'),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.orange),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: const Text('Review', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 13)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FilledButton(
+                  onPressed: () => _markCard('known'),
                   style: FilledButton.styleFrom(
                     backgroundColor: const Color(0xFF10B981),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: const Text('Known', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
               ),
             ],

@@ -118,7 +118,7 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -129,10 +129,32 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
             label: const Text('Validate & Load into Engine'),
           ),
           const SizedBox(height: 16),
-          Text('Status: $_status', style: const TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Text('Objects Loaded: $_objectCount'),
-          Text('Variables Loaded: $_variableCount'),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Status: $_status', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                  const Divider(height: 24),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 8,
+                    children: [
+                      Chip(
+                        avatar: const Icon(Icons.category, size: 16),
+                        label: Text('Objects Loaded: $_objectCount'),
+                      ),
+                      Chip(
+                        avatar: const Icon(Icons.data_object, size: 16),
+                        label: Text('Variables Loaded: $_variableCount'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );

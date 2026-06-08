@@ -80,14 +80,83 @@ class _SubjectScreenState extends State<SubjectScreen> {
           : widget.subject.chapters.isEmpty
               ? _buildEmptyState()
               : ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: widget.subject.chapters.length,
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  itemCount: widget.subject.chapters.length + 1,
                   itemBuilder: (context, index) {
-                    final chapter = widget.subject.chapters[index];
+                    if (index == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 24),
+                        child: _buildSubjectAnalytics(themeColor),
+                      );
+                    }
+                    final chapterIndex = index - 1;
+                    final chapter = widget.subject.chapters[chapterIndex];
                     final result = _chapterResults[chapter.packId];
-                    return _buildChapterCard(chapter, result, index + 1, themeColor);
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: _buildChapterCard(chapter, result, chapterIndex + 1, themeColor),
+                    );
                   },
                 ),
+    );
+  }
+
+  Widget _buildSubjectAnalytics(Color themeColor) {
+    int totalQuizzes = 0;
+    int correctAnswers = 0;
+    int chaptersCompleted = 0;
+
+    for (final result in _chapterResults.values) {
+      if (result != null) {
+        chaptersCompleted++;
+        totalQuizzes += result.totalQuestions;
+        correctAnswers += (result.score / 100 * result.totalQuestions).round();
+      }
+    }
+
+    final double progress = widget.subject.chapters.isEmpty ? 0 : (chaptersCompleted / widget.subject.chapters.length) * 100;
+    final double avgScore = totalQuizzes > 0 ? (correctAnswers / totalQuizzes) * 100 : 0;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Subject Analytics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatColumn('Progress', '${progress.toStringAsFixed(0)}%', themeColor),
+              ),
+              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+              Expanded(
+                child: _buildStatColumn('Avg Score', '${avgScore.toStringAsFixed(1)}%', const Color(0xFFF59E0B)),
+              ),
+              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
+              Expanded(
+                child: _buildStatColumn('Completed', '$chaptersCompleted/${widget.subject.chapters.length}', const Color(0xFF3B82F6)),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatColumn(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 4),
+        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+      ],
     );
   }
 

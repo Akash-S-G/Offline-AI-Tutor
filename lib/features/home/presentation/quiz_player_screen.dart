@@ -46,6 +46,9 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
   int _score = 0;
   Map<int, int> _answers = {}; // questionIndex -> selectedIndex
   
+  final Set<int> _reviewLaterIndices = {};
+  int? _confidenceLevel; // 1: Low, 2: Medium, 3: High
+  
   bool _quizFinished = false;
 
   @override
@@ -156,7 +159,7 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
   }
 
   void _checkAnswer() {
-    if (_selectedOptionIndex == null || _checked) return;
+    if (_selectedOptionIndex == null || _checked || _confidenceLevel == null) return;
 
     final q = _questions[_currentIndex];
     final isCorrect = _selectedOptionIndex == q.correctIndex;
@@ -176,10 +179,21 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
         _currentIndex++;
         _selectedOptionIndex = null;
         _checked = false;
+        _confidenceLevel = null;
       });
     } else {
       _finishQuiz();
     }
+  }
+
+  void _toggleReviewLater() {
+    setState(() {
+      if (_reviewLaterIndices.contains(_currentIndex)) {
+        _reviewLaterIndices.remove(_currentIndex);
+      } else {
+        _reviewLaterIndices.add(_currentIndex);
+      }
+    });
   }
 
   Future<void> _finishQuiz() async {
@@ -249,9 +263,22 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
                 'Question ${_currentIndex + 1} of ${_questions.length}',
                 style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF475569)),
               ),
-              Text(
-                'Score: $_score',
-                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+              Row(
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      _reviewLaterIndices.contains(_currentIndex) ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                      color: const Color(0xFFF59E0B),
+                    ),
+                    tooltip: 'Review Later',
+                    onPressed: _toggleReviewLater,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Score: $_score',
+                    style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF10B981)),
+                  ),
+                ],
               ),
             ],
           ),
@@ -356,10 +383,25 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
             ),
           ),
 
-          // Action Button
-          if (!_checked)
+          // Confidence Indicator & Action Button
+          if (!_checked) ...[
+            if (_selectedOptionIndex != null) ...[
+              const SizedBox(height: 16),
+              const Text('How confident are you?', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  _buildConfidenceButton(1, 'Low', Icons.sentiment_dissatisfied_rounded, Colors.orange),
+                  const SizedBox(width: 8),
+                  _buildConfidenceButton(2, 'Medium', Icons.sentiment_neutral_rounded, Colors.blue),
+                  const SizedBox(width: 8),
+                  _buildConfidenceButton(3, 'High', Icons.sentiment_very_satisfied_rounded, Colors.green),
+                ],
+              ),
+              const SizedBox(height: 16),
+            ],
             FilledButton(
-              onPressed: _selectedOptionIndex == null ? null : _checkAnswer,
+              onPressed: (_selectedOptionIndex == null || _confidenceLevel == null) ? null : _checkAnswer,
               style: FilledButton.styleFrom(
                 backgroundColor: const Color(0xFF10B981),
                 padding: const EdgeInsets.symmetric(vertical: 16),
@@ -367,7 +409,7 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
               ),
               child: const Text('Check Answer', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             )
-          else
+          ] else
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -409,6 +451,35 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
               ],
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildConfidenceButton(int level, String label, IconData icon, MaterialColor baseColor) {
+    final isSelected = _confidenceLevel == level;
+    return Expanded(
+      child: InkWell(
+        onTap: () {
+          setState(() {
+            _confidenceLevel = level;
+          });
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? baseColor.shade50 : Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: isSelected ? baseColor : const Color(0xFFE2E8F0), width: isSelected ? 2 : 1),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? baseColor : const Color(0xFF64748B), size: 20),
+              const SizedBox(height: 4),
+              Text(label, style: TextStyle(fontSize: 12, color: isSelected ? baseColor : const Color(0xFF64748B), fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -475,6 +546,30 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
           ),
           const SizedBox(height: 40),
 
+          if (_reviewLaterIndices.isNotEmpty) ...[
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFFCD34D)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.bookmark_rounded, color: Color(0xFFF59E0B)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'You marked ${_reviewLaterIndices.length} question(s) for review. Check the breakdown below.',
+                      style: const TextStyle(color: Color(0xFF92400E), fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
+
           // Breakdown section
           const Text(
             'Question Breakdown',
@@ -498,10 +593,19 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
-                    isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                    color: isCorrect ? Colors.green : Colors.red,
-                    size: 20,
+                  Column(
+                    children: [
+                      Icon(
+                        isCorrect ? Icons.check_circle_rounded : Icons.cancel_rounded,
+                        color: isCorrect ? Colors.green : Colors.red,
+                        size: 20,
+                      ),
+                      if (_reviewLaterIndices.contains(idx))
+                        const Padding(
+                          padding: EdgeInsets.only(top: 8.0),
+                          child: Icon(Icons.bookmark_rounded, color: Color(0xFFF59E0B), size: 16),
+                        ),
+                    ],
                   ),
                   const SizedBox(width: 12),
                   Expanded(

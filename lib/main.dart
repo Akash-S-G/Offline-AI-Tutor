@@ -7,6 +7,7 @@ import 'features/course/data/local/course_repository.dart';
 import 'features/home/presentation/app_shell.dart';
 import 'features/network/application/pi_hub_discovery_coordinator.dart';
 import 'features/onboarding/application/background_prefetch_service.dart';
+import 'core/theme/idp_theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,19 +43,10 @@ class OfflineTutorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const primary = Color(0xFF0B6E4F);
-    const surface = Color(0xFFF7FCFA);
-
     return MaterialApp(
       title: 'Offline Tutor',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: primary,
-          surface: surface,
-        ),
-      ),
+      theme: IDPTheme.lightTheme,
       home: AppShell(
         courseRepository: courseRepository,
         startupCoordinator: startupCoordinator,

@@ -1,16 +1,19 @@
 import 'dart:convert';
 import 'dart:io';
 
-
 import '../../network/domain/backend_config.dart';
+import '../../network/data/backend_http_client.dart';
 import 'models/experiment_run_dto.dart';
 import 'models/experiment_event_dto.dart';
 import 'models/analytics_dto.dart';
 
 class ExperimentApiService {
   final BackendConfig _config;
+  late final BackendHttpClient _client;
 
-  ExperimentApiService(this._config);
+  ExperimentApiService(this._config) {
+    _client = BackendHttpClient(config: _config);
+  }
 
   Future<void> createRun(ExperimentRunDto run) async {
     await _post('/experiment-runs', run.toJson());
@@ -49,44 +52,19 @@ class ExperimentApiService {
 
   Future<void> _post(String path, Map<String, dynamic> body) async {
     if (!_config.isValid) throw Exception('Backend config invalid');
-    final uri = Uri.parse('${_config.baseUrl}$path');
-    final client = HttpClient();
-    client.connectionTimeout = Duration(seconds: _config.connectTimeoutSeconds);
-    
-    try {
-      final request = await client.postUrl(uri);
-      request.headers.set('Authorization', 'Bearer ${_config.apiKey}');
-      request.headers.set('Content-Type', 'application/json');
-      request.write(jsonEncode(body));
-      
-      final response = await request.close().timeout(Duration(seconds: _config.requestTimeoutSeconds));
-      if (response.statusCode >= 400) {
-        throw HttpException('HTTP ${response.statusCode} on POST $path');
-      }
-    } finally {
-      client.close(force: true);
+    final response = await _client.post(path, body: body);
+    if (!response.isSuccess) {
+      throw HttpException('HTTP ${response.statusCode} on POST $path: ${response.message}');
     }
   }
 
   Future<Map<String, dynamic>?> _get(String path) async {
     if (!_config.isValid) throw Exception('Backend config invalid');
-    final uri = Uri.parse('${_config.baseUrl}$path');
-    final client = HttpClient();
-    client.connectionTimeout = Duration(seconds: _config.connectTimeoutSeconds);
-    
-    try {
-      final request = await client.getUrl(uri);
-      request.headers.set('Authorization', 'Bearer ${_config.apiKey}');
-      
-      final response = await request.close().timeout(Duration(seconds: _config.requestTimeoutSeconds));
-      if (response.statusCode >= 400) {
-        throw HttpException('HTTP ${response.statusCode} on GET $path');
-      }
-      
-      final responseBody = await response.transform(utf8.decoder).join();
-      return jsonDecode(responseBody) as Map<String, dynamic>;
-    } finally {
-      client.close(force: true);
+    final response = await _client.get(path);
+    if (!response.isSuccess) {
+      throw HttpException('HTTP ${response.statusCode} on GET $path: ${response.message}');
     }
+    if (response.data == null) return null;
+    return jsonDecode(response.data!) as Map<String, dynamic>;
   }
 }

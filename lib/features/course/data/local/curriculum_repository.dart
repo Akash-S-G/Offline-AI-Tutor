@@ -2,8 +2,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
-import '../../content_packs/data/local/content_pack_repository.dart';
-import '../domain/curriculum_models.dart';
+import '../../../content_packs/data/local/content_pack_repository.dart';
+import '../../domain/curriculum_models.dart';
 
 class CurriculumRepository {
   CurriculumRepository({ContentPackRepository? packRepository})

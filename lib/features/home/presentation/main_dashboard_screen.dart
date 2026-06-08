@@ -28,6 +28,7 @@ import '../../experiment/builder/storage/builder_draft_manager.dart';
 import '../../experiment/builder/storage/builder_draft_repository.dart';
 import '../../experiment/builder/data/repositories/experiment_manifest_repository.dart';
 import '../../experiment/builder/data/api/experiment_manifest_api_service.dart';
+import '../../experiment/presentation/screens/experiment_hub_screen.dart';
 import '../../network/domain/backend_config.dart';
 
 import '../../classroom/repositories/classroom_repository.dart';
@@ -305,10 +306,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     await _loadFeatureInsights();
   }
 
-  void _navigateExperimentBuilder() {
+  void _navigateExperimentHub() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => const ExperimentBuilderScreen(),
+        builder: (_) => const ExperimentHubScreen(),
       ),
     );
   }
@@ -487,10 +488,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             const SizedBox(height: 12),
             _LearningCard(
               icon: Icons.science_rounded,
-              title: 'Experiment Builder',
-              description: 'Design and simulate physics experiments',
+              title: 'Experiment Studio',
+              description: 'Create, test, and manage physics experiments',
               color: Colors.purple,
-              onTap: _navigateExperimentBuilder,
+              onTap: _navigateExperimentHub,
             ),
             const SizedBox(height: 24),
             

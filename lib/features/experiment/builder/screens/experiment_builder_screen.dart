@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import '../controllers/experiment_builder_controller.dart';
-import '../widgets/scene_editor.dart';
-import '../widgets/variable_editor.dart';
-import '../widgets/object_editor.dart';
 import '../widgets/rule_editor.dart';
-import '../widgets/manifest_preview_panel.dart';
-import '../widgets/runtime_preview_panel.dart';
-import '../widgets/builder_validation_panel.dart';
-import '../widgets/builder_compatibility_panel.dart';
-import '../widgets/builder_execution_preview_panel.dart';
 import '../widgets/builder_drafts_screen.dart';
+
+import '../widgets/design_workspace_panel.dart';
+import '../widgets/preview_workspace_panel.dart';
+import '../widgets/publish_workspace_panel.dart';
+import '../widgets/builder_workflow_sidebar.dart';
 
 import '../storage/builder_draft_manager.dart';
 import '../storage/builder_draft_repository.dart';
@@ -29,7 +26,7 @@ class ExperimentBuilderScreen extends StatefulWidget {
   State<ExperimentBuilderScreen> createState() => _ExperimentBuilderScreenState();
 }
 
-class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> {
+class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> with SingleTickerProviderStateMixin {
   late final ExperimentBuilderController _controller;
   late final AiGeneratorController _aiController;
 
@@ -56,23 +53,8 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> {
       aiRepository: aiRepo,
       manifestRepository: repo,
     );
+
   }
-
-  int _currentIndex = 0;
-
-  final List<String> _tabTitles = [
-    'AI Generator',
-    'Drafts',
-    'Scene',
-    'Variables',
-    'Objects',
-    'Rules',
-    'Manifest Preview',
-    'Runtime Preview',
-    'Validation',
-    'Compatibility',
-    'Execution',
-  ];
 
   @override
   void dispose() {
@@ -81,53 +63,113 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> {
     super.dispose();
   }
 
+  BuilderWorkflowStep _currentStep = BuilderWorkflowStep.create;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_tabTitles[_currentIndex]),
-        actions: [
-          PopupMenuButton<int>(
-            icon: const Icon(Icons.menu, color: Colors.white),
-            tooltip: 'Select View',
-            onSelected: (int index) {
-              setState(() {
-                _currentIndex = index;
-              });
-            },
-            itemBuilder: (BuildContext context) {
-              return List.generate(_tabTitles.length, (index) {
-                return PopupMenuItem<int>(
-                  value: index,
-                  child: Text(
-                    _tabTitles[index],
-                    style: TextStyle(
-                      fontWeight: _currentIndex == index ? FontWeight.bold : FontWeight.normal,
-                      color: _currentIndex == index ? Colors.blue : Colors.black87,
-                    ),
-                  ),
-                );
-              });
-            },
-          ),
-        ],
+        title: const Text('Experiment Builder'),
+        backgroundColor: const Color(0xFF0F172A),
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: [
-          AiGeneratorTab(aiController: _aiController, builderController: _controller),
-          BuilderDraftsScreen(draftManager: _controller.draftManager),
-          SceneEditor(controller: _controller),
-          VariableEditor(controller: _controller),
-          ObjectEditor(controller: _controller),
-          RuleEditor(controller: _controller),
-          ManifestPreviewPanel(controller: _controller),
-          RuntimePreviewPanel(controller: _controller),
-          BuilderValidationPanel(controller: _controller),
-          BuilderCompatibilityPanel(controller: _controller),
-          BuilderExecutionPreviewPanel(controller: _controller),
-        ],
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 800;
+
+          if (isMobile) {
+            return Column(
+              children: [
+                Expanded(
+                  child: Container(
+                    color: Colors.white,
+                    child: _buildWorkspaceForStep(_currentStep),
+                  ),
+                ),
+                BottomNavigationBar(
+                  type: BottomNavigationBarType.fixed,
+                  backgroundColor: const Color(0xFF0F172A),
+                  selectedItemColor: const Color(0xFF3B82F6),
+                  unselectedItemColor: const Color(0xFF64748B),
+                  currentIndex: BuilderWorkflowStep.values.indexOf(_currentStep),
+                  onTap: (index) {
+                    setState(() {
+                      _currentStep = BuilderWorkflowStep.values[index];
+                    });
+                  },
+                  items: const [
+                    BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Create'),
+                    BottomNavigationBarItem(icon: Icon(Icons.design_services), label: 'Design'),
+                    BottomNavigationBarItem(icon: Icon(Icons.account_tree), label: 'Logic'),
+                    BottomNavigationBarItem(icon: Icon(Icons.play_circle_outline), label: 'Preview'),
+                    BottomNavigationBarItem(icon: Icon(Icons.publish), label: 'Publish'),
+                  ],
+                ),
+              ],
+            );
+          }
+
+          // Desktop / Large Tablet Layout
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              BuilderWorkflowSidebar(
+                currentStep: _currentStep,
+                controller: _controller,
+                onStepSelected: (step) {
+                  setState(() {
+                    _currentStep = step;
+                  });
+                },
+              ),
+              Expanded(
+                child: Container(
+                  color: Colors.white,
+                  child: _buildWorkspaceForStep(_currentStep),
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  Widget _buildWorkspaceForStep(BuilderWorkflowStep step) {
+    switch (step) {
+      case BuilderWorkflowStep.create:
+        return DefaultTabController(
+          length: 2,
+          child: Column(
+            children: [
+              const TabBar(
+                labelColor: Color(0xFF1E293B),
+                unselectedLabelColor: Color(0xFF64748B),
+                tabs: [
+                  Tab(text: 'AI Generator'),
+                  Tab(text: 'My Drafts'),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  children: [
+                    AiGeneratorTab(aiController: _aiController, builderController: _controller),
+                    BuilderDraftsScreen(draftManager: _controller.draftManager),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      case BuilderWorkflowStep.design:
+        return DesignWorkspacePanel(controller: _controller);
+      case BuilderWorkflowStep.logic:
+        return RuleEditor(controller: _controller);
+      case BuilderWorkflowStep.preview:
+        return PreviewWorkspacePanel(controller: _controller);
+      case BuilderWorkflowStep.publish:
+        return PublishWorkspacePanel(controller: _controller);
+    }
   }
 }

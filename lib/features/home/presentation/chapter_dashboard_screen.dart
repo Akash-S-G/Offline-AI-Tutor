@@ -6,8 +6,17 @@ import '../../chat/presentation/chapter_chat_screen.dart';
 import 'chapter_reader_screen.dart';
 import 'quiz_player_screen.dart';
 import 'chapter_summary_screen.dart';
+import 'widgets/chapter_experiments_section.dart';
 
-class ChapterDashboardScreen extends StatelessWidget {
+import '../../analytics/domain/learning_profile_models.dart';
+import '../../analytics/application/learning_insights_service.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
+import '../../../core/widgets/idp_skeleton_loader.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/theme/idp_theme.dart';
+import '../../../core/theme/idp_typography.dart';
+
+class ChapterDashboardScreen extends StatefulWidget {
   const ChapterDashboardScreen({
     required this.chapter,
     required this.subject,
@@ -16,6 +25,31 @@ class ChapterDashboardScreen extends StatelessWidget {
 
   final CurriculumChapter chapter;
   final CurriculumSubject subject;
+
+  @override
+  State<ChapterDashboardScreen> createState() => _ChapterDashboardScreenState();
+}
+
+class _ChapterDashboardScreenState extends State<ChapterDashboardScreen> {
+  ChapterAnalytics? _analytics;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAnalytics();
+  }
+
+  Future<void> _loadAnalytics() async {
+    final insights = await LearningInsightsService.create();
+    final analytics = await insights.getChapterAnalytics(widget.chapter.packId);
+    if (mounted) {
+      setState(() {
+        _analytics = analytics;
+        _loading = false;
+      });
+    }
+  }
 
   Color _getSubjectColor(String name) {
     final lower = name.toLowerCase();
@@ -35,12 +69,28 @@ class ChapterDashboardScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeColor = _getSubjectColor(subject.name);
+    final themeColor = _getSubjectColor(widget.subject.name);
+
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: Text(widget.subject.name), backgroundColor: themeColor, foregroundColor: Colors.white),
+        body: ListView.separated(
+          padding: const EdgeInsets.all(IDPSpacing.lg),
+          itemCount: 4,
+          separatorBuilder: (_, __) => const SizedBox(height: IDPSpacing.md),
+          itemBuilder: (_, index) => IDPSkeletonLoader(
+            width: double.infinity,
+            height: index == 0 ? 120 : 80,
+            borderRadius: IDPRadius.lg,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: Text(subject.name),
+        title: Text(widget.subject.name),
         backgroundColor: themeColor,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -52,7 +102,7 @@ class ChapterDashboardScreen extends StatelessWidget {
           children: [
             // Chapter Title Header
             Text(
-              chapter.title,
+              widget.chapter.title,
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -61,7 +111,7 @@ class ChapterDashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              'Grade ${chapter.grade} • ${chapter.language.toUpperCase()}',
+              'Grade ${widget.chapter.grade} • ${widget.chapter.language.toUpperCase()}',
               style: const TextStyle(
                 color: Color(0xFF64748B),
                 fontSize: 14,
@@ -69,6 +119,11 @@ class ChapterDashboardScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+
+            if (_analytics != null) ...[
+              _buildChapterAnalyticsPanel(_analytics!, themeColor),
+              const SizedBox(height: 24),
+            ],
 
             // Summary Card
             _buildSummaryCard(context, themeColor),
@@ -90,12 +145,17 @@ class ChapterDashboardScreen extends StatelessWidget {
               subtitle: 'Study textbook content & examples offline',
               icon: Icons.menu_book_rounded,
               colors: [const Color(0xFF3B82F6), const Color(0xFF1D4ED8)],
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => ChapterReaderScreen(chapter: chapter),
-                  ),
-                );
+              onTap: () async {
+                final insights = await LearningInsightsService.create();
+                await insights.markChapterRead(widget.chapter.packId);
+                
+                if (mounted) {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ChapterReaderScreen(chapter: widget.chapter),
+                    ),
+                  ).then((_) => _loadAnalytics());
+                }
               },
             ),
             const SizedBox(height: 12),
@@ -108,9 +168,9 @@ class ChapterDashboardScreen extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => QuizPlayerScreen(chapter: chapter),
+                    builder: (_) => QuizPlayerScreen(chapter: widget.chapter),
                   ),
-                );
+                ).then((_) => _loadAnalytics());
               },
             ),
             const SizedBox(height: 12),
@@ -123,9 +183,9 @@ class ChapterDashboardScreen extends StatelessWidget {
               onTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => ChapterSummaryScreen(chapter: chapter),
+                    builder: (_) => ChapterSummaryScreen(chapter: widget.chapter),
                   ),
-                );
+                ).then((_) => _loadAnalytics());
               },
             ),
             const SizedBox(height: 12),
@@ -138,19 +198,19 @@ class ChapterDashboardScreen extends StatelessWidget {
               onTap: () {
                 // Map to legacy models to pass to ChapterChatScreen
                 final legacyCourse = Course(
-                  id: 'grade_${chapter.grade}',
-                  name: 'Grade ${chapter.grade}',
+                  id: 'grade_${widget.chapter.grade}',
+                  name: 'Grade ${widget.chapter.grade}',
                 );
                 final legacySubject = Subject(
-                  id: 'sub_${subject.name.toLowerCase()}',
+                  id: 'sub_${widget.subject.name.toLowerCase()}',
                   courseId: legacyCourse.id,
-                  name: subject.name,
+                  name: widget.subject.name,
                 );
                 final legacyChapter = Chapter(
-                  id: chapter.packId,
+                  id: widget.chapter.packId,
                   subjectId: legacySubject.id,
-                  title: chapter.title,
-                  summary: chapter.summary,
+                  title: widget.chapter.title,
+                  summary: widget.chapter.summary,
                 );
 
                 Navigator.of(context).push(
@@ -161,8 +221,14 @@ class ChapterDashboardScreen extends StatelessWidget {
                       chapter: legacyChapter,
                     ),
                   ),
-                );
+                ).then((_) => _loadAnalytics());
               },
+            ),
+
+            // Inject the new Experiments Section here
+            ChapterExperimentsSection(
+              chapter: widget.chapter,
+              subject: widget.subject,
             ),
           ],
         ),
@@ -170,50 +236,71 @@ class ChapterDashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, Color themeColor) {
-    final hasSummary = chapter.summary.isNotEmpty;
-    
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 6,
-            offset: Offset(0, 2),
-          )
-        ],
-      ),
+  Widget _buildChapterAnalyticsPanel(ChapterAnalytics analytics, Color themeColor) {
+    return IDPCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.lightbulb_rounded, color: themeColor, size: 24),
-              const SizedBox(width: 8),
-              const Text(
-                'Chapter Summary',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
+              Icon(Icons.analytics_rounded, color: themeColor, size: 20),
+              const SizedBox(width: IDPSpacing.sm),
+              Text('Chapter Progress', style: IDPTypography.heading3.copyWith(fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: IDPSpacing.md),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildMiniStat('Status', analytics.hasRead ? 'Read' : 'Unread', analytics.hasRead ? IDPColors.success : IDPColors.textHint),
+              _buildMiniStat('Quiz Score', analytics.quizAttempts > 0 ? '${analytics.latestQuizScore}%' : '-', IDPColors.warning),
+              _buildMiniStat('Experiments', '${analytics.experimentsCompleted}', IDPColors.secondary),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMiniStat(String label, String value, Color color) {
+    return Column(
+      children: [
+        Text(value, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        const SizedBox(height: 4),
+        Text(label, style: IDPTypography.caption),
+      ],
+    );
+  }
+
+  Widget _buildSummaryCard(BuildContext context, Color themeColor) {
+    final hasSummary = widget.chapter.summary.isNotEmpty;
+    
+    return IDPCard(
+      backgroundColor: themeColor.withValues(alpha: 0.05),
+      padding: const EdgeInsets.all(IDPSpacing.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.lightbulb_outline_rounded,
+                color: themeColor,
+                size: 24,
+              ),
+              const SizedBox(width: IDPSpacing.sm),
+              Text(
+                'Chapter Overview',
+                style: IDPTypography.heading3.copyWith(color: themeColor),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: IDPSpacing.sm),
           Text(
             hasSummary 
-                ? chapter.summary 
+                ? widget.chapter.summary 
                 : 'Study this chapter to master core concepts, definition rules, and practice application questions.',
-            style: const TextStyle(
-              fontSize: 14,
-              height: 1.5,
-              color: Color(0xFF475569),
-            ),
+            style: IDPTypography.body.copyWith(color: IDPColors.textSecondary),
           ),
         ],
       ),

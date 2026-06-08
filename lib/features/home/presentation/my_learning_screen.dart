@@ -4,6 +4,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../course/data/local/curriculum_repository.dart';
 import '../../course/domain/curriculum_models.dart';
 import '../../assessment/data/local/quiz_result_repository.dart';
+import '../../analytics/application/learning_insights_service.dart';
+import '../../analytics/domain/learning_profile_models.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
+import '../../../core/widgets/idp_skeleton_loader.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/theme/idp_theme.dart';
+import '../../analytics/presentation/widgets/recommended_learning_panel.dart';
+import '../../analytics/presentation/screens/offline_learning_report_screen.dart';
 import '../../onboarding/presentation/grade_sync_screen.dart';
 import 'subject_screen.dart';
 
@@ -22,6 +30,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
   int _selectedGrade = 8;
   List<CurriculumSubject> _subjects = [];
   Map<String, int> _chapterQuizAttempts = {};
+  LearningProfile? _profile;
 
   @override
   void initState() {
@@ -44,6 +53,10 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
       attemptsMap[res.chapterId] = (attemptsMap[res.chapterId] ?? 0) + 1;
     }
 
+    // Fetch Insights
+    final insights = await LearningInsightsService.create();
+    final profile = await insights.generateProfile();
+
     // Fetch curriculum
     final curriculum = await _curriculumRepo.getCurriculum();
     
@@ -58,6 +71,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
         _selectedGrade = grade;
         _subjects = matchedGrade.subjects;
         _chapterQuizAttempts = attemptsMap;
+        _profile = profile;
         _loading = false;
       });
     }
@@ -109,9 +123,14 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(
-          color: Color(0xFF0B6E4F),
+      return ListView.separated(
+        padding: const EdgeInsets.all(IDPSpacing.lg),
+        itemCount: 5,
+        separatorBuilder: (_, __) => const SizedBox(height: IDPSpacing.md),
+        itemBuilder: (_, index) => IDPSkeletonLoader(
+          width: double.infinity,
+          height: index == 0 ? 150 : 80,
+          borderRadius: IDPRadius.lg,
         ),
       );
     }
@@ -124,11 +143,81 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
       onRefresh: _loadData,
       color: const Color(0xFF0B6E4F),
       child: ListView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.symmetric(vertical: 20),
         children: [
-          _buildHeader(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildHeader(),
+          ),
           const SizedBox(height: 24),
-          ..._subjects.map((subj) => _buildSubjectCard(subj)),
+          if (_profile != null) ...[
+            _buildProgressDashboard(_profile!),
+            const SizedBox(height: 24),
+            RecommendedLearningPanel(recommendations: _profile!.recommendations),
+            const SizedBox(height: 24),
+          ],
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: IDPSectionHeader(title: 'My Subjects'),
+          ),
+          const SizedBox(height: 12),
+          ..._subjects.map((subj) => Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildSubjectCard(subj),
+          )),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProgressDashboard(LearningProfile profile) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          IDPSectionHeader(
+            title: 'Progress Dashboard',
+            trailing: TextButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const OfflineLearningReportScreen()),
+                );
+              },
+              icon: const Icon(Icons.analytics_rounded, size: 16),
+              label: const Text('View Report'),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildStatBox('Study Streak', '${profile.studyStreakDays} Days', Icons.local_fire_department_rounded, const Color(0xFFF59E0B))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatBox('Accuracy', '${profile.averageQuizAccuracy.toStringAsFixed(1)}%', Icons.check_circle_outline_rounded, const Color(0xFF10B981))),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildStatBox('Chapters', '${profile.completedChapters}', Icons.menu_book_rounded, const Color(0xFF3B82F6))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatBox('Experiments', '${profile.experimentsCompleted}', Icons.science_rounded, const Color(0xFF8B5CF6))),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatBox(String label, String value, IconData icon, Color color) {
+    return IDPCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: IDPSpacing.sm),
+          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: IDPColors.textPrimary)),
+          Text(label, style: const TextStyle(fontSize: 12, color: IDPColors.textSecondary)),
         ],
       ),
     );
