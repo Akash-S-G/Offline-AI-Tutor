@@ -404,7 +404,7 @@ class _P2PScreenState extends State<P2PScreen> {
     });
 
     try {
-      final picked = await FilePicker.platform.pickFiles(
+      final picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['json', 'otpack', 'zip'],
         allowMultiple: false,
@@ -920,7 +920,7 @@ class _P2PScreenState extends State<P2PScreen> {
 
   Future<void> _shareApkFile() async {
     try {
-      final picked = await FilePicker.platform.pickFiles(
+      final picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['apk'],
         allowMultiple: false,

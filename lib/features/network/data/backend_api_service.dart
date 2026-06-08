@@ -60,9 +60,12 @@ class BackendApiService {
     }
 
     print('[DIAGNOSTICS] CACHE_MISS');
+    print('[HEALTH] CACHE_MISS');
+    print('[URL] SERVICE=BackendApiService URL=${_config.baseUrl}/health');
     final stopwatch = Stopwatch()..start();
     try {
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_START');
+      print('[HEALTH] URL=${_config.baseUrl}/health');
       print('[DIAGNOSTICS] HEALTH_URL=${_config.baseUrl}/health');
       final response = await _httpClient.get(
         '/health',
@@ -73,6 +76,11 @@ class BackendApiService {
       final available = response.isSuccess;
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_END');
       print('[DIAGNOSTICS] HEALTH_RESPONSE_TIME=${stopwatch.elapsedMilliseconds}ms');
+      print('[HEALTH] RESPONSE_TIME_MS=${stopwatch.elapsedMilliseconds}');
+      print('[HEALTH] STATUS_CODE=${response.statusCode}');
+      print('[HEALTH] RESPONSE_BODY=${response.data}');
+      print('[HEALTH] PAYLOAD_VALID=$available');
+      print('[HEALTH] FINAL_RESULT=$available');
       print('[DIAGNOSTICS] BACKEND_AVAILABLE=$available');
       cache.updateStatus(available);
       return available;
@@ -81,6 +89,9 @@ class BackendApiService {
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_END (FAILED)');
       print('[DIAGNOSTICS] HEALTH_RESPONSE_TIME=${stopwatch.elapsedMilliseconds}ms');
       print('[DIAGNOSTICS] BACKEND_ERROR=$e');
+      print('[HEALTH] RESPONSE_TIME_MS=${stopwatch.elapsedMilliseconds}');
+      print('[HEALTH] JSON_PARSE_SUCCESS=false');
+      print('[HEALTH] FINAL_RESULT=false');
       print('[DIAGNOSTICS] BACKEND_AVAILABLE=false');
       cache.updateStatus(false);
       return false;
@@ -298,6 +309,7 @@ class BackendApiService {
     String? subject,
     String? chapter,
     String? language,
+    String? context,
     List<String>? conversationHistory,
   }) async* {
     print('[DIAGNOSTICS] ENTERING BackendApiService.streamTutorAnswer()');
@@ -317,6 +329,7 @@ class BackendApiService {
     if (subject != null && subject.isNotEmpty) body['subject'] = subject;
     if (chapter != null && chapter.isNotEmpty) body['chapter'] = chapter;
     if (language != null && language.isNotEmpty) body['language'] = language;
+    if (context != null && context.isNotEmpty) body['context'] = context;
     if (conversationHistory != null && conversationHistory.isNotEmpty) {
       body['conversation_history'] = conversationHistory;
     }

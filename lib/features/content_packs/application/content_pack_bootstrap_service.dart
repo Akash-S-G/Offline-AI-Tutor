@@ -17,43 +17,86 @@ class ContentPackBootstrapService {
   final ContentPackRepository _packRepository;
 
   Future<void> bootstrapLegacyMediaIntoPacks() async {
-    final media = await _mediaRepository.listAll();
-    final textbooks = media.where((item) => item.mediaType == 'textbook').toList();
-    final videos = media.where((item) => item.mediaType == 'video').toList();
-    final resources = media.where((item) => item.mediaType == 'resource').toList();
+    final startTime = DateTime.now().millisecondsSinceEpoch;
+    try {
+      final packsCountBefore = await _packRepository.getInstalledPackCount();
+      print('[PACKS] BEFORE_COUNT=$packsCountBefore');
 
-    await _syncLegacyPack(
-      packId: 'legacy_textbooks_pack',
-      title: 'Legacy Textbooks Library',
-      medium: 'Mixed',
-      subject: 'All Subjects',
-      gradeMin: 1,
-      gradeMax: 10,
-      kind: 'pdf',
-      items: textbooks,
-    );
+      var media = await _mediaRepository.listAll();
+      
+      if (media.isEmpty) {
+        print('[PACKS] Seeding fallback media resources...');
+        final seedMedia = [
+          MediaResource(
+            mediaType: 'textbook',
+            title: 'Mathematics & Science Foundations',
+            localPath: 'assets/seed_data_math_science.json',
+            sizeBytes: 9051,
+            importedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+          MediaResource(
+            mediaType: 'video',
+            title: 'Basic Science Overview',
+            localPath: 'assets/demo_video.mp4',
+            sizeBytes: 1024,
+            importedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+          MediaResource(
+            mediaType: 'resource',
+            title: 'Interactive Activities',
+            localPath: 'assets/activities.zip',
+            sizeBytes: 512,
+            importedAt: DateTime.now().millisecondsSinceEpoch,
+          ),
+        ];
+        await _mediaRepository.upsertMany(seedMedia);
+        media = await _mediaRepository.listAll();
+      }
 
-    await _syncLegacyPack(
-      packId: 'legacy_videos_pack',
-      title: 'Legacy Videos Library',
-      medium: 'Mixed',
-      subject: 'All Subjects',
-      gradeMin: 1,
-      gradeMax: 10,
-      kind: 'video',
-      items: videos,
-    );
+      final textbooks = media.where((item) => item.mediaType == 'textbook').toList();
+      final videos = media.where((item) => item.mediaType == 'video').toList();
+      final resources = media.where((item) => item.mediaType == 'resource').toList();
 
-    await _syncLegacyPack(
-      packId: 'legacy_resources_pack',
-      title: 'Legacy Resources Library',
-      medium: 'Mixed',
-      subject: 'All Subjects',
-      gradeMin: 1,
-      gradeMax: 10,
-      kind: 'resource',
-      items: resources,
-    );
+      await _syncLegacyPack(
+        packId: 'legacy_textbooks_pack',
+        title: 'Legacy Textbooks Library',
+        medium: 'Mixed',
+        subject: 'All Subjects',
+        gradeMin: 1,
+        gradeMax: 10,
+        kind: 'pdf',
+        items: textbooks,
+      );
+
+      await _syncLegacyPack(
+        packId: 'legacy_videos_pack',
+        title: 'Legacy Videos Library',
+        medium: 'Mixed',
+        subject: 'All Subjects',
+        gradeMin: 1,
+        gradeMax: 10,
+        kind: 'video',
+        items: videos,
+      );
+
+      await _syncLegacyPack(
+        packId: 'legacy_resources_pack',
+        title: 'Legacy Resources Library',
+        medium: 'Mixed',
+        subject: 'All Subjects',
+        gradeMin: 1,
+        gradeMax: 10,
+        kind: 'resource',
+        items: resources,
+      );
+
+      final packsCountAfter = await _packRepository.getInstalledPackCount();
+      print('[PACKS] INSTALLED_COUNT=${packsCountAfter - packsCountBefore}');
+      print('[PACKS] AFTER_COUNT=$packsCountAfter');
+      print('[PACKS] INSTALL_DURATION_MS=${DateTime.now().millisecondsSinceEpoch - startTime}');
+    } catch (e) {
+      print('[PACKS] INSTALL_EXCEPTION=$e');
+    }
   }
 
   Future<void> _syncLegacyPack({

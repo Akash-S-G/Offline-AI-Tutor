@@ -40,7 +40,7 @@ class VariablePanel extends StatelessWidget {
                     children: [
                       Text(e.key, style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
                       const Text(' = ', style: TextStyle(color: Colors.grey)),
-                      Text('${_formatValue(e.value)}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                      Text(_formatValue(e.value), style: const TextStyle(fontWeight: FontWeight.bold)),
                     ],
                   ),
                 );

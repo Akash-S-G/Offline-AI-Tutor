@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import '../domain/runtime_backend_url.dart';
 import 'connectivity_service.dart';
 
 /// Network quality indicators.
@@ -24,14 +25,11 @@ enum NetworkQuality {
 class NetworkStateService {
   NetworkStateService({
     required ConnectivityService connectivityService,
-    required String backendUrl,
     this.pollIntervalSeconds = 30,
   })  : _connectivityService = connectivityService,
-        _backendUrl = backendUrl,
         _snapshots = StreamController<ConnectivitySnapshot>.broadcast();
 
   final ConnectivityService _connectivityService;
-  final String _backendUrl;
   final int pollIntervalSeconds;
   final StreamController<ConnectivitySnapshot> _snapshots;
 
@@ -94,7 +92,7 @@ class NetworkStateService {
   Future<void> _refresh() async {
     try {
       final snapshot = await _connectivityService.getSnapshot(
-        backendUrl: _backendUrl,
+        backendUrl: RuntimeBackendUrl().current,
       );
       _lastSnapshot = snapshot;
       _snapshots.add(snapshot);

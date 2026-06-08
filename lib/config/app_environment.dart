@@ -184,6 +184,10 @@ class AppEnvironment {
   // DISCOVERY CONFIGURATION
   // ========================================================================
 
+  /// Ignore environment seed for discovery testing
+  static bool get ignoreEnvironmentSeed =>
+      dotenv.env['DISCOVERY_IGNORE_ENV']?.toLowerCase() == 'true';
+
   /// Enable mDNS service discovery
   static bool get enableMdnsDiscovery =>
       dotenv.env['ENABLE_MDNS_DISCOVERY']?.toLowerCase() != 'false';

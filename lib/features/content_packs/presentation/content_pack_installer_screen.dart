@@ -503,7 +503,7 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
       return;
     }
 
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const <String>['otpack', 'zip'],
       allowMultiple: false,

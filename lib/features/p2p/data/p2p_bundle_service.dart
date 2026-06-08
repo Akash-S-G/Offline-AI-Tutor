@@ -8,6 +8,16 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../course/domain/course_tree.dart';
 import '../../rag/data/local/rag_repository.dart';
+import 'package:flutter/foundation.dart';
+
+String _encodeJson(dynamic data) {
+  return jsonEncode(data);
+}
+
+Map<String, dynamic> _decodeJson(String data) {
+  return jsonDecode(data) as Map<String, dynamic>;
+}
+
 
 class BundleExportResult {
   const BundleExportResult({
@@ -107,7 +117,7 @@ class P2PBundleService {
           .toList(),
     };
 
-    final payloadJson = jsonEncode(payload);
+    final payloadJson = await compute(_encodeJson, payload);
     final payloadHash = sha256.convert(utf8.encode(payloadJson)).toString();
     final payloadSignature = Hmac(sha256, utf8.encode(secret))
         .convert(utf8.encode(payloadJson))
@@ -136,7 +146,8 @@ class P2PBundleService {
         chapter.title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
     final fileName = 'bundle_${chapter.id}_$safeTitle.json';
     final file = File(path.join(outDir.path, fileName));
-    await file.writeAsString(jsonEncode(bundle));
+    final bundleJson = await compute(_encodeJson, bundle);
+    await file.writeAsString(bundleJson);
 
     onProgress(BundleTransferProgress(
       current: 3,
@@ -220,7 +231,7 @@ class P2PBundleService {
     ));
 
     final raw = await file.readAsString();
-    final decoded = jsonDecode(raw) as Map<String, dynamic>;
+    final decoded = await compute(_decodeJson, raw);
     final manifest = decoded['manifest'] as Map<String, dynamic>?;
     final payload = decoded['payload'] as Map<String, dynamic>?;
 
@@ -234,7 +245,7 @@ class P2PBundleService {
       operation: 'importing',
     ));
 
-    final payloadJson = jsonEncode(payload);
+    final payloadJson = await compute(_encodeJson, payload);
     final actualHash = sha256.convert(utf8.encode(payloadJson)).toString();
     final expectedHash = manifest['payloadHash'] as String? ?? '';
     final expectedSignature = manifest['payloadSignature'] as String? ?? '';

@@ -13,9 +13,26 @@ import '../../p2p/presentation/p2p_screen.dart';
 import '../../progress/presentation/progress_dashboard_screen.dart';
 import '../../rag/presentation/screens/document_rag_ingestion_screen.dart';
 import '../../settings/presentation/model_selection_screen.dart';
+import '../../settings/presentation/manage_content_screen.dart';
 import 'learning_materials_screen.dart';
 import 'math_simulator_screen.dart';
 import 'quiz_assessment_screen.dart';
+
+import '../../experiment/builder/screens/experiment_builder_screen.dart';
+import '../../experiment_sharing/screens/experiment_share_screen.dart';
+import '../../experiment_sharing/controllers/experiment_sharing_controller.dart';
+import '../../experiment_sharing/repositories/experiment_sharing_repository.dart';
+import '../../experiment/builder/storage/builder_draft_manager.dart';
+import '../../experiment/builder/storage/builder_draft_repository.dart';
+import '../../experiment/builder/data/repositories/experiment_manifest_repository.dart';
+import '../../experiment/builder/data/api/experiment_manifest_api_service.dart';
+import '../../network/domain/backend_config.dart';
+
+import '../../classroom/repositories/classroom_repository.dart';
+import '../../classroom/controllers/teacher_dashboard_controller.dart';
+import '../../classroom/controllers/student_dashboard_controller.dart';
+import '../../classroom/screens/teacher_dashboard_screen.dart';
+import '../../classroom/screens/student_dashboard_screen.dart';
 
 class MainDashboardScreen extends StatefulWidget {
   const MainDashboardScreen({
@@ -32,6 +49,9 @@ class MainDashboardScreen extends StatefulWidget {
 class _MainDashboardScreenState extends State<MainDashboardScreen> {
   final QuizResultRepository _quizResultRepository = QuizResultRepository();
   final P2PChannelService _p2pChannelService = P2PChannelService();
+  
+  // Shared Classroom Repository for offline testing simulation
+  final ClassroomRepository _classroomRepository = ClassroomRepository();
 
   List<Course> _courses = const [];
   List<Subject> _subjects = const [];
@@ -293,6 +313,60 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     await _loadFeatureInsights();
   }
 
+  void _navigateExperimentBuilder() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => const ExperimentBuilderScreen(),
+      ),
+    );
+  }
+
+  void _navigateExperimentSharing() {
+    final config = BackendConfig.fromEnvironment() ?? BackendConfig(baseUrl: 'http://localhost', apiKey: 'dummy');
+    final manifestRepo = ExperimentManifestRepositoryImpl(ExperimentManifestApiService(config));
+    final draftManager = BuilderDraftManager(SharedPreferencesBuilderDraftRepository());
+    final sharingController = ExperimentSharingController(
+      sharingRepository: ExperimentSharingRepository(),
+      manifestRepository: manifestRepo,
+      draftManager: draftManager,
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => ExperimentShareScreen(
+          sharingController: sharingController,
+          draftManager: draftManager,
+        ),
+      ),
+    );
+  }
+
+  void _navigateTeacherDashboard() {
+    final draftManager = BuilderDraftManager(SharedPreferencesBuilderDraftRepository());
+    final controller = TeacherDashboardController(_classroomRepository);
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => TeacherDashboardScreen(
+          controller: controller,
+          draftManager: draftManager,
+        ),
+      ),
+    );
+  }
+
+  void _navigateStudentDashboard() {
+    final controller = StudentDashboardController(_classroomRepository);
+
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => StudentDashboardScreen(
+          controller: controller,
+        ),
+      ),
+    );
+  }
+
   String _quizDescription() {
     if (_quizAttempts == 0) {
       return 'Take your first chapter quiz';
@@ -387,6 +461,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             ),
             tooltip: 'Import materials',
             icon: const Icon(Icons.upload_file_rounded),
+          ),
+          IconButton(
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ManageContentScreen(),
+              ),
+            ),
+            tooltip: 'Manage Offline Content',
+            icon: const Icon(Icons.folder_zip_rounded),
           ),
           IconButton(
             onPressed: () => Navigator.of(context).push(
@@ -628,6 +711,50 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                       _quickSendSelectedChapter();
                     }
                   : null,
+            ),
+
+            const SizedBox(height: 12),
+
+            // Experiment Builder Card
+            _LearningCard(
+              icon: Icons.science_rounded,
+              title: 'Experiment Builder',
+              description: 'Design and simulate physics experiments',
+              color: Colors.purple,
+              onTap: _navigateExperimentBuilder,
+            ),
+
+            const SizedBox(height: 12),
+
+            // Experiment Sharing Card
+            _LearningCard(
+              icon: Icons.share_rounded,
+              title: 'Share Experiments',
+              description: 'P2P Experiment Exchange',
+              color: Colors.deepOrange,
+              onTap: _navigateExperimentSharing,
+            ),
+
+            const SizedBox(height: 12),
+
+            // Classroom - Teacher Mode
+            _LearningCard(
+              icon: Icons.school_rounded,
+              title: 'Teacher Dashboard',
+              description: 'Distribute & Collect Assignments',
+              color: Colors.teal,
+              onTap: _navigateTeacherDashboard,
+            ),
+
+            const SizedBox(height: 12),
+
+            // Classroom - Student Mode
+            _LearningCard(
+              icon: Icons.backpack_rounded,
+              title: 'Student Dashboard',
+              description: 'Receive & Submit Assignments',
+              color: Colors.indigo,
+              onTap: _navigateStudentDashboard,
             ),
 
             const SizedBox(height: 24),

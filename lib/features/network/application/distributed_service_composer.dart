@@ -56,6 +56,7 @@ import 'persistent_classroom_recovery_manager.dart';
 import 'persistent_sync_recovery_manager_v2.dart';
 import 'manifest_recovery_coordinator.dart';
 import 'deployment_diagnostics_manager.dart';
+import '../../educational/application/sync_manager.dart';
 
 /// Singleton service composition root for the distributed client.
 class DistributedServiceComposer {
@@ -144,7 +145,6 @@ class DistributedServiceComposer {
     _connectivityService = ConnectivityService();
     _networkStateService = NetworkStateService(
       connectivityService: _connectivityService,
-      backendUrl: AppEnvironment.backendBaseUrl,
     );
     
     AppEnvironment.log(
@@ -183,8 +183,20 @@ class DistributedServiceComposer {
       discovery: _piHubDiscoveryCoordinator,
       urlManager: _backendUrlManager,
       connectivity: _connectivityController,
+      onSyncRequested: () async {
+        final updates = await SyncManager().checkForPackUpdates();
+        await SyncManager().processPackUpdates(updates);
+      },
     );
     _discoverySyncBridge.start();
+
+    // CRITICAL: Fire discovery immediately as a background task.
+    // Without this call, the bridge only subscribes to the stream but nothing
+    // ever triggers the actual subnet scan, so the app always uses the .env seed.
+    print('[DISCOVERY] BOOTSTRAP_DISCOVERY_TRIGGERED');
+    Future<void>(() => _discoverySyncBridge.discoverAndSync()).catchError((e) {
+      print('[DISCOVERY] BOOTSTRAP_DISCOVERY_ERROR=$e');
+    });
 
     // Wire URL changes to BackendConfig so all HTTP requests use new URL
     _backendUrlManager.urlChanges.listen((newUrl) {

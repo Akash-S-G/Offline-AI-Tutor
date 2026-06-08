@@ -205,7 +205,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   }
 
   Future<void> _pickLinuxModel() async {
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       type: FileType.custom,
       allowMultiple: false,
       allowedExtensions: const ['gguf', 'bin'],
@@ -263,7 +263,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   }
 
   Future<void> _pickLinuxExecutable() async {
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       allowMultiple: false,
       type: FileType.any,
     );
@@ -657,7 +657,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   }
 
   Future<void> _pickApertiumBinary() async {
-    final picked = await FilePicker.platform.pickFiles(
+    final picked = await FilePicker.pickFiles(
       allowMultiple: false,
       type: FileType.any,
     );

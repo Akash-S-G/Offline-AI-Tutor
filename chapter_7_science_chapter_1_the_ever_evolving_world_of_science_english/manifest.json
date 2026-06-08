@@ -1,0 +1,31 @@
+{
+  "artifact_counts": {
+    "content": 0,
+    "enrichment": 2,
+    "flashcards": 0,
+    "glossary": 0,
+    "quizzes": 0,
+    "retrieval_index": 2,
+    "summaries": 0
+  },
+  "chapter": "chapter 1 the ever evolving world of science",
+  "checksum": "sha256:4ecd9972f13fc13d5dd352a8a895a3001afaba54ec034cd5219fe71a5ab398fb",
+  "content_checksum": "sha256:23d77535e70d31e927f8cf9c7f4986423b58beb71991379c1f110bf8877f55ce",
+  "generated_at": "2026-05-18T12:23:08.942700+00:00",
+  "generation_metadata": {
+    "chapter": "chapter 1 the ever evolving world of science",
+    "compression": "gzip",
+    "grade": 7,
+    "include_media": false,
+    "language": "english",
+    "pack_type": "chapter",
+    "quantize_embeddings": false,
+    "subject": "science"
+  },
+  "grade": 7,
+  "language": "english",
+  "pack_id": "chapter_7_science_chapter_1_the_ever_evolving_world_of_science_english",
+  "retrieval_index_version": "v2",
+  "subject": "science",
+  "version": "1.0.0"
+}

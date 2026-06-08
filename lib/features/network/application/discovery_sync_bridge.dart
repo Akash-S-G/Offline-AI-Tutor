@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../domain/runtime_backend_url.dart';
 import 'backend_url_manager.dart';
 import 'connectivity_controller.dart';
 import 'pi_hub_discovery_coordinator.dart';
@@ -56,6 +57,30 @@ class DiscoverySyncBridge {
     // Update the backend URL
     _urlManager.updateUrl(best.baseUrl);
     _connectivity.goOnline(best.baseUrl);
+
+    // Give synchronous streams a tiny microtask to propagate URL
+    await Future.microtask(() {});
+
+    // Verification Harness
+    final runtimeUrl = RuntimeBackendUrl().current;
+    final syncUrl = '$runtimeUrl/packs/sync';
+    final healthUrl = '$runtimeUrl/health';
+    final downloadUrl = '$runtimeUrl/packs/{id}/download';
+    
+    print('[VERIFY] ACTIVE_BACKEND=$runtimeUrl');
+    print('[VERIFY] ACTIVE_SYNC_URL=$syncUrl');
+    print('[VERIFY] ACTIVE_HEALTH_URL=$healthUrl');
+    print('[VERIFY] ACTIVE_DOWNLOAD_URL=$downloadUrl');
+
+    final expectedHost = Uri.parse(best.baseUrl).host;
+    final rUri = Uri.parse(runtimeUrl);
+    final sUri = Uri.parse(syncUrl);
+    final hUri = Uri.parse(healthUrl);
+    final dUri = Uri.parse(downloadUrl);
+
+    if (rUri.host != expectedHost || sUri.host != expectedHost || hUri.host != expectedHost || dUri.host != expectedHost) {
+      print('[VERIFY] URL_PROPAGATION_FAILURE');
+    }
 
     // Debounce: skip if we synced recently
     if (_lastSyncAt != null &&

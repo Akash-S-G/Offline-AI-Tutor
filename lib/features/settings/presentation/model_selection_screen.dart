@@ -96,7 +96,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     });
 
     try {
-      final picked = await FilePicker.platform.pickFiles(
+      final picked = await FilePicker.pickFiles(
         type: FileType.any,
         allowMultiple: false,
       );

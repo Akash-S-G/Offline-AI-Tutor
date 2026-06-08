@@ -1,0 +1,31 @@
+{
+  "artifact_counts": {
+    "content": 72,
+    "enrichment": 2,
+    "flashcards": 10,
+    "glossary": 10,
+    "quizzes": 5,
+    "retrieval_index": 2,
+    "summaries": 5
+  },
+  "chapter": "chapter 4 electricity magnetic and heating effects",
+  "checksum": "sha256:d1fff237633d603f232504f1d36849ac477c1d8e67801a92fc556a24afcf7124",
+  "content_checksum": "sha256:29e404fd8c627f9577dfb00edfe80f9ec9fdaecbda20b12ad58cfcfecf32dd61",
+  "generated_at": "2026-06-07T12:20:18.528284+00:00",
+  "generation_metadata": {
+    "chapter": "chapter 4 electricity magnetic and heating effects",
+    "compression": "gzip",
+    "grade": 8,
+    "include_media": false,
+    "language": "english",
+    "pack_type": "chapter",
+    "quantize_embeddings": false,
+    "subject": "science"
+  },
+  "grade": 8,
+  "language": "english",
+  "pack_id": "chapter_8_science_chapter_4_electricity_magnetic_and_heating_effects_english",
+  "retrieval_index_version": "v2",
+  "subject": "science",
+  "version": "1.0.0"
+}

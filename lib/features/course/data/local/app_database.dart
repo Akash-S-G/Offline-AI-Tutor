@@ -153,8 +153,11 @@ class AppDatabase {
   }
 
   Future<void> _createRagFtsArtifacts(Database db) async {
-    // FTS not supported on this system - using LIKE queries instead
-    await db.execute('DROP TABLE IF EXISTS rag_chunks_fts');
+    // Re-enabled FTS4 table for fast RAG lookups
+    await db.execute('''
+      CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts 
+      USING fts4(id, chapter_id, content)
+    ''');
   }
 
   Future<void> _createRagV2Tables(Database db) async {

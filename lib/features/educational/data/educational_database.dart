@@ -209,23 +209,33 @@ class EducationalDatabase {
     await db.execute('CREATE INDEX idx_packs_syncState ON educational_packs(syncState)');
     await db.execute('CREATE INDEX idx_progress_state ON learner_progress(completionState)');
 
-    // Create full-text search (FTS) table for content search when supported.
-    // Some Android builds ship SQLite without the fts5 module, so we treat it
-    // as an optional optimization and keep startup working without it.
-      // Create FTS virtual table for quick search (optional)
+    // Create full-text search table for content search.
+    // Priority: fts4 (universally supported on Android) → fts3 → no FTS.
+    // fts5 is intentionally skipped — it is absent from many Android SQLite builds.
+    try {
+      await db.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts4(
+          content, title, contentId, type
+        );
+      ''');
+      _ftsSearchAvailable = true;
+      print('[FTS] FTS_MODULE=fts4 STATUS=ok');
+    } catch (e4) {
+      print('[FTS] FTS4_FAILED=$e4 — trying fts3');
       try {
         await db.execute('''
-          CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts5(
+          CREATE VIRTUAL TABLE IF NOT EXISTS content_fts USING fts3(
             content, title, contentId, type
           );
         ''');
         _ftsSearchAvailable = true;
-      } catch (e, st) {
-        // If the underlying SQLite does not provide fts5, avoid crashing the app.
+        print('[FTS] FTS_MODULE=fts3 STATUS=ok');
+      } catch (e3) {
         _ftsSearchAvailable = false;
-        // Log for diagnostics but continue startup.
-        print('[EducationalDatabase] FTS initialization failed: $e\n$st');
+        print('[FTS] FTS_MODULE=none STATUS=degraded error=$e3');
       }
+    }
+
 
     AppEnvironment.log('SYNC', 'Database schema created successfully');
   }

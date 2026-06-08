@@ -7,6 +7,8 @@ import 'package:path/path.dart' as p;
 
 import '../data/local/content_pack_repository.dart';
 import '../domain/content_pack_models.dart';
+import '../../course/data/local/app_database.dart';
+import 'package:sqflite/sqflite.dart';
 
 class PackArchiveExportResult {
   const PackArchiveExportResult({
@@ -112,6 +114,16 @@ class ContentPackArchiveService {
     String archivePath, {
     bool allowReplaceSameOrOlder = false,
   }) async {
+    final db = await AppDatabase.instance.database;
+    final packsBefore = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_packs'));
+    final itemsBefore = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_pack_items'));
+    final ragBefore = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'));
+    final ftsBefore = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'));
+    print('PACKS_BEFORE=$packsBefore');
+    print('ITEMS_BEFORE=$itemsBefore');
+    print('RAG_BEFORE=$ragBefore');
+    print('FTS_BEFORE=$ftsBefore');
+
     final archiveFile = File(archivePath);
     if (!await archiveFile.exists()) {
       throw Exception('Pack archive not found: $archivePath');
@@ -123,45 +135,118 @@ class ContentPackArchiveService {
     );
     await unpackDir.create(recursive: true);
 
-    File? tempZipAlias;
     try {
-      var extractionInputPath = archivePath;
-      if (archivePath.toLowerCase().endsWith('.otpack')) {
-        tempZipAlias = File(
-          p.join(
-            Directory.systemTemp.path,
-            'pack_${DateTime.now().millisecondsSinceEpoch}.zip',
-          ),
-        );
-        await archiveFile.copy(tempZipAlias.path);
-        extractionInputPath = tempZipAlias.path;
+      final stat = await archiveFile.stat();
+      print('[PACK] ARCHIVE_PATH=$archivePath');
+      print('[PACK] ARCHIVE_SIZE=${stat.size}');
+      print('[PACK_VERIFY] ARCHIVE_OPENED');
+
+      final bytes = await archiveFile.readAsBytes();
+      Archive? decodedArchive;
+
+      try {
+        final gzipBytes = GZipDecoder().decodeBytes(bytes);
+        decodedArchive = TarDecoder().decodeBytes(gzipBytes);
+      } catch (_) {
+        try {
+          decodedArchive = ZipDecoder().decodeBytes(bytes);
+        } catch (e) {
+          throw Exception('Failed to decode archive: $e');
+        }
       }
 
-      extractFileToDisk(extractionInputPath, unpackDir.path);
-    } finally {
-      if (tempZipAlias != null && await tempZipAlias.exists()) {
-        await tempZipAlias.delete();
+      if (decodedArchive != null) {
+        for (final file in decodedArchive) {
+          if (file.isFile) {
+            final data = file.content as List<int>;
+            final outFile = File(p.join(unpackDir.path, file.name));
+            outFile.createSync(recursive: true);
+            outFile.writeAsBytesSync(data);
+          }
+        }
+      }
+    } catch (e) {
+      throw Exception('Extraction failed: $e');
+    }
+
+    File? manifestFile;
+    Directory? packRootDir;
+
+    final allEntities = await unpackDir.list(recursive: true).toList();
+    for (final entity in allEntities) {
+      if (entity is File) {
+        final name = p.basename(entity.path);
+        if (name == 'pack_manifest.json' || name == 'manifest.json') {
+          manifestFile = entity;
+          packRootDir = entity.parent;
+          break;
+        }
       }
     }
 
-    final manifestFile = File(p.join(unpackDir.path, 'pack_manifest.json'));
-    if (!await manifestFile.exists()) {
-      throw Exception('Invalid pack archive: missing pack_manifest.json');
+    if (manifestFile == null) {
+      throw Exception('Invalid pack archive: missing pack_manifest.json or manifest.json');
     }
+    
+    print('[PACK] MANIFEST_FOUND=${p.basename(manifestFile.path)}');
 
     final raw = await manifestFile.readAsString();
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
-    final manifest = decoded['manifest'] as Map<String, dynamic>?;
-    final items = decoded['items'] as List<dynamic>?;
-    if (manifest == null || items == null) {
-      throw Exception('Invalid pack archive: missing manifest/items section');
+    
+    var manifest = decoded['manifest'] as Map<String, dynamic>?;
+    var items = decoded['items'] as List<dynamic>?;
+
+    // Handle new backend flat manifest format
+    if (manifest == null) {
+      manifest = decoded;
     }
 
-    final packId = manifest['packId'] as String?;
+    if (items == null) {
+      items = [];
+      final files = await packRootDir!.list(recursive: true).toList();
+      for (final f in files) {
+        if (f is File && f.path.endsWith('.json') && f.path != manifestFile.path) {
+          final relative = p.relative(f.path, from: packRootDir!.path);
+          String kind = 'other';
+          if (relative.endsWith('content.json')) kind = 'content_json';
+          else if (relative.endsWith('quizzes.json')) kind = 'quiz';
+          else if (relative.endsWith('flashcards.json')) kind = 'flashcard';
+          else if (relative.endsWith('summaries.json')) kind = 'summary';
+          else if (relative.endsWith('glossary.json')) kind = 'glossary';
+          
+          items.add({
+            'relativePath': relative,
+            'kind': kind,
+            'title': p.basenameWithoutExtension(relative),
+          });
+        }
+      }
+    }
+
+    if (manifest.isEmpty) {
+      throw Exception('Invalid pack archive: empty manifest');
+    }
+
+    final packId = manifest['packId'] as String? ?? manifest['pack_id'] as String?;
     if (packId == null || packId.trim().isEmpty) {
       throw Exception('Invalid pack archive: packId missing');
     }
-    final incomingVersion = manifest['version'] as int? ?? 1;
+    
+    print('[PACK] INSTALL_START=$packId');
+    print('[PACK] EXTRACTION_COMPLETE=$packId');
+    
+    // Version might be an int (1) or string ("1.0.0")
+    int incomingVersion = 1;
+    final rawVersion = manifest['version'];
+    if (rawVersion is int) {
+      incomingVersion = rawVersion;
+    } else if (rawVersion is String) {
+      final parts = rawVersion.split('.');
+      if (parts.isNotEmpty) {
+        incomingVersion = int.tryParse(parts.first) ?? 1;
+      }
+    }
+    
     final existingPack = await _repository.getPackById(packId);
     if (!allowReplaceSameOrOlder &&
         existingPack != null &&
@@ -173,13 +258,19 @@ class ContentPackArchiveService {
       );
     }
 
-    final contentDir = Directory(p.join(unpackDir.path, 'content'));
+    var contentDir = Directory(p.join(packRootDir!.path, 'content'));
     if (!await contentDir.exists()) {
-      throw Exception('Invalid pack archive: content directory missing');
+      contentDir = packRootDir;
     }
 
     final packItems = <ContentPackItem>[];
     var totalSize = 0;
+    
+    int contentJsonCount = 0;
+    int flashcardCount = 0;
+    int quizCount = 0;
+    int summaryCount = 0;
+    int glossaryCount = 0;
 
     for (var i = 0; i < items.length; i++) {
       final item = items[i] as Map<String, dynamic>;
@@ -211,7 +302,19 @@ class ContentPackArchiveService {
           metadataJson: item['metadataJson'] as String?,
         ),
       );
+      
+      final kindLower = (item['kind'] as String? ?? 'other').toLowerCase();
+      if (kindLower == 'json' || kindLower == 'content_json') contentJsonCount++;
+      if (kindLower == 'flashcard') flashcardCount++;
+      if (kindLower == 'quiz') quizCount++;
+      if (kindLower == 'summary') summaryCount++;
+      if (kindLower == 'glossary') glossaryCount++;
     }
+
+    print('[PACK] CONTENT_ROWS=$contentJsonCount');
+    print('[PACK] QUIZZES=$quizCount');
+    print('[PACK] SUMMARIES=$summaryCount');
+    print('[PACK] GLOSSARY=$glossaryCount');
 
     final installedAt = DateTime.now().millisecondsSinceEpoch;
     final hash = sha256.convert(utf8.encode('$packId:$installedAt:$totalSize:${packItems.length}')).toString();
@@ -233,6 +336,24 @@ class ContentPackArchiveService {
     );
 
     await _repository.upsertPack(manifest: packManifest, items: packItems);
+
+    final packsAfter = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_packs')) ?? 0;
+    final itemsAfter = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_pack_items')) ?? 0;
+    final ragAfter = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks')) ?? 0;
+    final ftsAfter = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts')) ?? 0;
+    
+    print('PACKS_AFTER=$packsAfter');
+    print('ITEMS_AFTER=$itemsAfter');
+    print('RAG_AFTER=$ragAfter');
+    print('FTS_AFTER=$ftsAfter');
+
+    final sqliteRowsAdded = (itemsAfter - (itemsBefore ?? 0));
+    final ragRowsAdded = (ragAfter - (ragBefore ?? 0));
+    final ftsRowsAdded = (ftsAfter - (ftsBefore ?? 0));
+
+    print('[PACK] SQLITE_ROWS_ADDED=$sqliteRowsAdded');
+    print('[PACK] RAG_ROWS_ADDED=$ragRowsAdded');
+    print('[PACK] FTS_ROWS_ADDED=$ftsRowsAdded');
 
     return PackArchiveImportResult(
       packId: packId,

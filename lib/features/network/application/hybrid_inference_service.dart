@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import '../../../config/app_environment.dart';
+import '../domain/runtime_backend_url.dart';
 
 import '../data/backend_api_service.dart';
 import '../data/backend_health_monitor.dart';
@@ -190,6 +191,9 @@ class HybridInferenceService {
     print('[DIAGNOSTICS] GRADE=$grade');
     print('[DIAGNOSTICS] SUBJECT=$subject');
     print('[DIAGNOSTICS] CHAPTER=$chapter');
+    print('[TUTOR] ACTIVE_BACKEND_URL=${RuntimeBackendUrl().current}');
+    print('[TUTOR] BACKEND_AVAILABLE=$backendAvailable');
+    print('[TUTOR] HAS_LOCAL_CONTENT=$hasRelevantLocalContent');
 
     // ── INTENT DETECTION & ASSET RESOLUTION (V2) ──
     final detection = _intentDetector.detect(
@@ -239,6 +243,10 @@ class HybridInferenceService {
     );
 
     print('[DIAGNOSTICS] EXECUTION_MODE=${executionMode.name.toUpperCase()}');
+    print('[TUTOR] EXECUTION_MODE=${executionMode.name}');
+    print('[TUTOR] CONTEXT_CHUNKS=${localCurriculumContext?.length ?? 0}');
+    final contextChars = localCurriculumContext?.join('\n\n').length ?? 0;
+    print('[TUTOR] LOCAL_CONTEXT_CHARS=$contextChars');
     final startTime = DateTime.now();
 
     // ── INTENT-AWARE CACHE (Task A) ──
@@ -262,6 +270,7 @@ class HybridInferenceService {
     if (executionMode == TutorExecutionMode.backendRag) {
       print('[DIAGNOSTICS] BACKEND_TUTOR_START');
       print('[DIAGNOSTICS] REQUEST_SENT');
+      print('[TUTOR] REQUEST_SENT url=${RuntimeBackendUrl().current}/ai/tutor');
       _metrics.recordBackend();
       try {
         final Stream<String> backendStream;
@@ -282,6 +291,7 @@ class HybridInferenceService {
             subject: subject,
             chapter: chapter,
             language: language,
+            context: localCurriculumContext?.join('\n\n'),
             conversationHistory: conversationHistory,
           );
         }
@@ -292,6 +302,7 @@ class HybridInferenceService {
           yield chunk;
         }
         print('[DIAGNOSTICS] FINAL_EXECUTION_PATH=BACKEND_RAG');
+        print('[TUTOR] RESPONSE_RECEIVED execution=BACKEND_RAG');
         final totalMs = DateTime.now().difference(startTime).inMilliseconds;
         print('[DIAGNOSTICS] TOTAL_EXECUTION_TIME_MS=$totalMs');
         return;

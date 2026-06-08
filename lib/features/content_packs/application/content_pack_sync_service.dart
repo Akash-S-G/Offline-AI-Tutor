@@ -7,6 +7,7 @@ import 'package:network_info_plus/network_info_plus.dart';
 
 import '../../../config/app_environment.dart';
 import '../../network/data/backend_api_service.dart';
+import '../../network/domain/runtime_backend_url.dart';
 import '../domain/content_pack_models.dart';
 import 'content_pack_policy_service.dart';
 
@@ -344,7 +345,7 @@ class ContentPackSyncService {
     final rawPacks = response.data ?? <dynamic>[];
     final byId = <String, RemoteContentPack>{};
     
-    final catalogUri = Uri.parse('${AppEnvironment.backendBaseUrl}/packs');
+    final catalogUri = Uri.parse('${RuntimeBackendUrl().current}/packs');
 
     for (final item in rawPacks) {
       if (item is! Map<String, dynamic>) continue;
@@ -353,7 +354,7 @@ class ContentPackSyncService {
         item['archive_url'] = item['download_url'];
       }
       if (!item.containsKey('archive_url') && item.containsKey('pack_id')) {
-        item['archive_url'] = '${AppEnvironment.backendBaseUrl}/packs/${item['pack_id']}/download';
+        item['archive_url'] = '${RuntimeBackendUrl().current}/packs/${item['pack_id']}/download';
       }
 
       try {

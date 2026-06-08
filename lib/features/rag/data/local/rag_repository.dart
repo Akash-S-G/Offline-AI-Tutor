@@ -44,6 +44,12 @@ class RagRepository {
       'created_at': now,
     });
 
+    batch.insert('rag_chunks_fts', {
+      'id': 'chunk_linear_1',
+      'chapter_id': 'chap_linear_eq',
+      'content': 'A linear equation in one variable has the form ax + b = 0 where a is not zero. Solve by isolating x using inverse operations on both sides.',
+    });
+
     batch.insert('rag_chunks', {
       'id': 'chunk_linear_2',
       'chapter_id': 'chap_linear_eq',
@@ -51,6 +57,11 @@ class RagRepository {
       'chunk_order': 2,
       'content': 'For word problems, define the unknown as x, write an equation from the statement, simplify, solve, and verify the solution in context.',
       'created_at': now,
+    });
+    batch.insert('rag_chunks_fts', {
+      'id': 'chunk_linear_2',
+      'chapter_id': 'chap_linear_eq',
+      'content': 'For word problems, define the unknown as x, write an equation from the statement, simplify, solve, and verify the solution in context.',
     });
 
     batch.insert('rag_chunks', {
@@ -61,6 +72,11 @@ class RagRepository {
       'content': 'A chemical reaction changes reactants into products. Common signs are color change, gas release, precipitate formation, and temperature change.',
       'created_at': now,
     });
+    batch.insert('rag_chunks_fts', {
+      'id': 'chunk_rxn_1',
+      'chapter_id': 'chap_chemical_rxn',
+      'content': 'A chemical reaction changes reactants into products. Common signs are color change, gas release, precipitate formation, and temperature change.',
+    });
 
     batch.insert('rag_chunks', {
       'id': 'chunk_rxn_2',
@@ -69,6 +85,11 @@ class RagRepository {
       'chunk_order': 2,
       'content': 'Balanced equations follow conservation of mass. Adjust coefficients, not subscripts, until atom counts are equal on both sides.',
       'created_at': now,
+    });
+    batch.insert('rag_chunks_fts', {
+      'id': 'chunk_rxn_2',
+      'chapter_id': 'chap_chemical_rxn',
+      'content': 'Balanced equations follow conservation of mass. Adjust coefficients, not subscripts, until atom counts are equal on both sides.',
     });
 
     await batch.commit(noResult: true);
@@ -79,6 +100,10 @@ class RagRepository {
     required String sourceTitle,
     required String rawText,
   }) async {
+    print('[RAG_VERIFY] INGEST_START');
+    print('[RAG_VERIFY] CHAPTER=$chapterId');
+    print('[RAG_VERIFY] TEXT_LENGTH=${rawText.length}');
+    
     final db = await _database.database;
     final normalized = rawText.trim();
     if (normalized.isEmpty) {
@@ -86,19 +111,84 @@ class RagRepository {
     }
 
     final chunks = _chunkText(normalized);
+    
     final batch = db.batch();
     final now = DateTime.now().millisecondsSinceEpoch;
+    
+    int sqliteInserts = 0;
+    int ftsInserts = 0;
 
     for (var i = 0; i < chunks.length; i++) {
+      final id = '${chapterId}_${now}_$i';
       batch.insert('rag_chunks', {
-        'id': '${chapterId}_${now}_$i',
+        'id': id,
         'chapter_id': chapterId,
         'source_title': sourceTitle,
         'chunk_order': i,
         'content': chunks[i],
         'created_at': now,
       });
+      sqliteInserts++;
+      
+      batch.insert('rag_chunks_fts', {
+        'id': id,
+        'chapter_id': chapterId,
+        'content': chunks[i],
+      });
+      ftsInserts++;
     }
+
+    print('[RAG] CHUNKS_CREATED=$sqliteInserts');
+    print('[RAG] FTS_ROWS_CREATED=$ftsInserts');
+
+    await batch.commit(noResult: true);
+  }
+
+  Future<void> ingestPrecomputedChunks({
+    required String chapterId,
+    required List<dynamic> chunks,
+  }) async {
+    print('[RAG_VERIFY] INGEST_PRECOMPUTED_START');
+    print('[RAG_VERIFY] CHAPTER=$chapterId');
+    print('[RAG_VERIFY] CHUNK_COUNT=${chunks.length}');
+    
+    final db = await _database.database;
+    final batch = db.batch();
+    final now = DateTime.now().millisecondsSinceEpoch;
+    
+    int sqliteInserts = 0;
+    int ftsInserts = 0;
+
+    for (var i = 0; i < chunks.length; i++) {
+      final chunkData = chunks[i] as Map<String, dynamic>;
+      final chunkId = chunkData['chunk_id'] as String? ?? '${chapterId}_${now}_$i';
+      final content = chunkData['text'] as String? ?? '';
+      
+      if (content.trim().isEmpty) continue;
+
+      final metadata = chunkData['metadata'] as Map<String, dynamic>? ?? {};
+      final sourceTitle = metadata['chapter'] as String? ?? chapterId;
+
+      batch.insert('rag_chunks', {
+        'id': chunkId,
+        'chapter_id': chapterId,
+        'source_title': sourceTitle,
+        'chunk_order': i,
+        'content': content,
+        'created_at': now,
+      }, conflictAlgorithm: ConflictAlgorithm.replace);
+      sqliteInserts++;
+      
+      batch.insert('rag_chunks_fts', {
+        'id': chunkId,
+        'chapter_id': chapterId,
+        'content': content,
+      });
+      ftsInserts++;
+    }
+
+    print('[RAG] CHUNKS_CREATED=$sqliteInserts');
+    print('[RAG] FTS_ROWS_CREATED=$ftsInserts');
 
     await batch.commit(noResult: true);
   }
@@ -154,6 +244,7 @@ class RagRepository {
     int limit = 4,
   }) async {
     print('[DIAGNOSTICS] LOCAL_RAG_CHECK_START');
+    print('[RAG] QUERY=$query');
     final db = await _database.database;
     final stopWords = ['what', 'is', 'the', 'meaning', 'of', 'explain', 'describe', 'tell', 'me', 'about', 'how', 'does', 'work', 'can', 'you', 'give', 'an', 'example', 'a', 'to', 'in', 'for', 'on', 'with', 'by', 'as', 'at', 'dont', 'solution'];
     final words = query.toLowerCase().replaceAll(RegExp(r'[^\w\s]'), '').split(RegExp(r'\s+'));
@@ -161,8 +252,8 @@ class RagRepository {
 
     if (query.trim().isEmpty) {
       final chunks = await getChunksForChapter(chapterId);
-      print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
-      print('[DIAGNOSTICS] TOP_SCORE=0.0');
+      print('[RAG] CHUNKS_FOUND=${chunks.length}');
+      print('[RAG] TOP_SCORE=0.0');
       print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
       return RagCheckResult(
         chunkCount: chunks.length,
@@ -208,8 +299,8 @@ class RagRepository {
 
       final topScore = chunks.isNotEmpty ? (ftsRows.first['score'] as num).toDouble() : 0.0;
 
-      print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
-      print('[DIAGNOSTICS] TOP_SCORE=$topScore');
+      print('[RAG] CHUNKS_FOUND=${chunks.length}');
+      print('[RAG] TOP_SCORE=$topScore');
       print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
 
       return RagCheckResult(
@@ -254,8 +345,8 @@ class RagRepository {
 
       final topScore = chunks.isNotEmpty ? (rows.first['score'] as num).toDouble() : 0.0;
       
-      print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
-      print('[DIAGNOSTICS] TOP_SCORE=$topScore');
+      print('[RAG] CHUNKS_FOUND=${chunks.length}');
+      print('[RAG] TOP_SCORE=$topScore');
       print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
       
       return RagCheckResult(
@@ -268,8 +359,8 @@ class RagRepository {
       print('[DIAGNOSTICS] LOCAL_RAG_AVAILABLE=false');
       
       final chunks = await getChunksForChapter(chapterId);
-      print('[DIAGNOSTICS] LOCAL_CHUNKS_FOUND=${chunks.length}');
-      print('[DIAGNOSTICS] TOP_SCORE=0.0');
+      print('[RAG] CHUNKS_FOUND=${chunks.length}');
+      print('[RAG] TOP_SCORE=0.0');
       print('[DIAGNOSTICS] LOCAL_RAG_CHECK_END');
       return RagCheckResult(
         chunkCount: chunks.length,

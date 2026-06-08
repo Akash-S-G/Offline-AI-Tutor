@@ -6,6 +6,8 @@ import '../../../bootstrap/startup_coordinator.dart';
 import '../../course/data/local/course_repository.dart';
 import 'hero_page.dart';
 import 'main_dashboard_screen.dart';
+import '../../onboarding/presentation/grade_selection_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// App shell that manages navigation between hero page and main dashboard
 class AppShell extends StatefulWidget {
@@ -44,10 +46,21 @@ class _AppShellState extends State<AppShell> {
     });
   }
 
-  void _onGetStarted() {
-    setState(() {
-      _showHero = false;
-    });
+  Future<void> _onGetStarted() async {
+    final prefs = await SharedPreferences.getInstance();
+    final grade = prefs.getInt('selected_grade');
+
+    if (!mounted) return;
+
+    if (grade == null) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const GradeSelectionScreen()),
+      );
+    } else {
+      setState(() {
+        _showHero = false;
+      });
+    }
   }
 
   @override

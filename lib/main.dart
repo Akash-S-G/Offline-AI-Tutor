@@ -5,11 +5,17 @@ import 'bootstrap/startup_coordinator.dart';
 import 'config/app_environment.dart';
 import 'features/course/data/local/course_repository.dart';
 import 'features/home/presentation/app_shell.dart';
+import 'features/network/application/pi_hub_discovery_coordinator.dart';
+import 'features/onboarding/application/background_prefetch_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Enforce a completely clean slate for discovery on every boot (Sprint requirement)
+  await PiHubDiscoveryCoordinator.clearPersistedCache();
+
   await AppEnvironment.initialize();
+  await BackgroundPrefetchService.initialize();
 
   CriticalBootstrap.configureDesktopSqlite();
 

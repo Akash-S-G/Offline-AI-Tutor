@@ -3,7 +3,6 @@ import '../../domain/models/experiment_models.dart';
 import '../../application/orchestrator/experiment_execution_state.dart';
 import '../controllers/experiment_player_controller.dart';
 import '../widgets/experiment_status_banner.dart';
-import '../widgets/runtime_event_tile.dart';
 import '../widgets/measurement_counter_card.dart';
 import '../widgets/execution_mode_chip.dart';
 import '../runtime_visualization/controllers/runtime_visualization_controller.dart';

@@ -91,7 +91,7 @@ class _DocumentRagIngestionScreenState extends State<DocumentRagIngestionScreen>
     });
 
     try {
-      final picked = await FilePicker.platform.pickFiles(
+      final picked = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: const ['pdf'],
         allowMultiple: true,

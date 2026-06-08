@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../domain/runtime_backend_url.dart';
 
 /// Manages the active backend URL dynamically.
 ///
@@ -35,6 +36,10 @@ class BackendUrlManager extends ChangeNotifier {
 
     print('[DISCOVERY] URL_UPDATED=$newUrl');
     print('[BACKEND] URL_SWITCH from=$previousUrl to=$newUrl');
+
+    // Propagate to RuntimeBackendUrl so SyncManager and all static callers
+    // immediately use the newly discovered LAN node.
+    RuntimeBackendUrl().updateUrl(newUrl);
 
     _urlStreamController.add(newUrl);
     notifyListeners();

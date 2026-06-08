@@ -79,6 +79,9 @@ class EndpointBuilder {
   /// GET /packs/catalog - Educational pack catalog
   String get packsCatalog => '$baseUrl/packs/catalog';
 
+  /// GET /packs/recommended - Recommended adjacent packs
+  String get packsRecommended => '$baseUrl/packs/recommended';
+
   /// POST /packs/sync - Sync educational packs
   String get packsSync => '$baseUrl/packs/sync';
 

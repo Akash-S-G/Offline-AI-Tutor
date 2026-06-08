@@ -63,6 +63,53 @@ class RagRepositoryV2 {
     await batch.commit(noResult: true);
   }
 
+  /// Insert multiple chunks directly from backend JSON
+  Future<void> insertBackendChunks({
+    required String chapterId,
+    required List<dynamic> backendChunks,
+  }) async {
+    if (backendChunks.isEmpty) return;
+    final db = await _database.database;
+    final batch = db.batch();
+    final now = DateTime.now().millisecondsSinceEpoch;
+
+    for (var i = 0; i < backendChunks.length; i++) {
+      final chunkData = backendChunks[i] as Map<String, dynamic>;
+      final chunkId = chunkData['chunk_id'] as String? ?? '${chapterId}_${now}_$i';
+      final content = chunkData['text'] as String? ?? '';
+      if (content.trim().isEmpty) continue;
+
+      final metadata = chunkData['metadata'] as Map<String, dynamic>? ?? {};
+      final sourceLanguage = metadata['language'] as String? ?? 'en';
+      final sourceTitle = metadata['chapter'] as String? ?? chapterId;
+      final contentType = metadata['chunk_type'] as String? ?? 'text';
+      
+      // Calculate a rough token count like RagIngestionService does
+      final tokenCount = (content.length / 4).ceil();
+
+      batch.insert(
+        'rag_chunks_v2',
+        {
+          'id': chunkId,
+          'chapter_id': chapterId,
+          'source_language': sourceLanguage,
+          'source_title': sourceTitle,
+          'chunk_order': i,
+          'content_type': contentType,
+          'content': content,
+          'formulas_json': '[]',
+          'original_markdown': content,
+          'token_count': tokenCount,
+          'metadata_json': '{}',
+          'created_at': now,
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+
+    await batch.commit(noResult: true);
+  }
+
   /// Get chunks for chapter
   Future<List<ChunkV2>> getChunksForChapter(
     String chapterId, {

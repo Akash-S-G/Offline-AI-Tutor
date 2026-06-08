@@ -5,6 +5,7 @@ import '../config/app_environment.dart';
 import '../features/chat/data/llm_admin_channel_service.dart';
 import '../features/content_packs/application/content_pack_bootstrap_service.dart';
 import '../features/course/data/local/course_repository.dart';
+import '../features/course/data/local/database_auto_repair_service.dart';
 import '../features/educational/application/inverted_index.dart';
 import '../features/educational/data/educational_database.dart';
 import '../features/educational/application/sync_manager.dart';
@@ -37,6 +38,10 @@ class BackgroundBootstrap {
     try {
       _coordinator.beginStep('Warming local database');
       await EducationalDatabase.database;
+      
+      // Run the database auto-repair to ensure FTS and packs are intact
+      await DatabaseAutoRepairService().runAutoRepair();
+      
       _coordinator.completeStep('Warming local database');
 
       _coordinator.beginStep('Seeding courses');
@@ -84,9 +89,12 @@ class BackgroundBootstrap {
         await Future<void>.delayed(const Duration(seconds: 2));
         
         AppEnvironment.log('SYNC', '[DIAGNOSTICS] SYNC_START');
-        await SyncManager().checkForPackUpdates();
+        // Bulk sync has been replaced by Grade-based Selective Sync (Onboarding + PrefetchService)
+        // Background sync is now handled by workmanager in BackgroundPrefetchService
         AppEnvironment.log('SYNC', '[DIAGNOSTICS] SYNC_END');
 
+        // ContentPackBootstrapService is already handled synchronously in runAutoRepair 
+        // if the database was empty. However, keeping this ensures updates process cleanly.
         AppEnvironment.log('SYNC', '[DIAGNOSTICS] PACK_INSTALL_START');
         await ContentPackBootstrapService().bootstrapLegacyMediaIntoPacks();
         AppEnvironment.log('SYNC', '[DIAGNOSTICS] PACK_INSTALL_END');

@@ -5,6 +5,8 @@ import 'package:uuid/uuid.dart';
 
 import '../models/playground_scene.dart';
 import '../models/playground_object.dart';
+import '../models/playground_variable.dart';
+import '../models/playground_rule.dart';
 
 import '../models/playground_event.dart';
 import 'playground_event_bus.dart';
@@ -153,6 +155,42 @@ class SimulationPlaygroundEngine {
   Future<void> stop() async {
     _state = PlaygroundState.stopped;
     print('[PLAYGROUND] ENGINE_STOPPED');
+  }
+
+  void addVariable(PlaygroundVariable variable) {
+    if (_currentScene == null) return;
+    _currentScene!.variables.add(variable);
+    print('[PLAYGROUND] VARIABLE_ADDED name=${variable.name}');
+  }
+
+  void removeVariable(String name) {
+    if (_currentScene == null) return;
+    _currentScene!.variables.removeWhere((v) => v.name == name);
+    print('[PLAYGROUND] VARIABLE_REMOVED name=$name');
+  }
+
+  void addObject(PlaygroundObject object) {
+    if (_currentScene == null) return;
+    _currentScene!.objects.add(object);
+    print('[PLAYGROUND] OBJECT_ADDED id=${object.objectId}');
+  }
+
+  void removeObject(String objectId) {
+    if (_currentScene == null) return;
+    _currentScene!.objects.removeWhere((o) => o.objectId == objectId);
+    print('[PLAYGROUND] OBJECT_REMOVED id=$objectId');
+  }
+
+  void addRule(PlaygroundRule rule) {
+    if (_currentScene == null) return;
+    _currentScene!.rules.add(rule);
+    print('[PLAYGROUND] RULE_ADDED id=${rule.ruleId}');
+  }
+
+  void removeRule(String ruleId) {
+    if (_currentScene == null) return;
+    _currentScene!.rules.removeWhere((r) => r.ruleId == ruleId);
+    print('[PLAYGROUND] RULE_REMOVED id=$ruleId');
   }
 
   Future<void> dispose() async {

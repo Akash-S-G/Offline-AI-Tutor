@@ -4,6 +4,7 @@ import 'dart:io';
 
 import '../domain/backend_config.dart';
 import '../domain/backend_response.dart';
+import '../domain/runtime_backend_url.dart';
 
 /// Low-level HTTP client for backend communication.
 class BackendHttpClient {
@@ -153,7 +154,10 @@ class BackendHttpClient {
     Map<String, String>? headers,
     Duration? timeout,
   }) async {
-    final uri = Uri.parse('${_config.baseUrl}$path');
+    final activeBaseUrl = RuntimeBackendUrl().current.isNotEmpty 
+        ? RuntimeBackendUrl().current 
+        : _config.baseUrl;
+    final uri = Uri.parse('$activeBaseUrl$path');
     final request = await _httpClient
         .openUrl(method, uri)
         .timeout(timeout ?? Duration(seconds: _config.connectTimeoutSeconds));

@@ -35,6 +35,7 @@ class RuntimeTimeline extends StatelessWidget {
     Color iconColor;
 
     switch (event.type) {
+      case RuntimeEventType.sessionCreated:
       case RuntimeEventType.sessionStarted:
       case RuntimeEventType.sessionResumed:
         iconData = Icons.play_circle;
