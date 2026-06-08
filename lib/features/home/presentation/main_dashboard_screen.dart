@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
-import '../../course/data/local/app_database.dart' as offline_tutor_app;
+import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../course/data/local/app_database.dart' as offline_tutor_app;
 import '../../assessment/data/local/quiz_result_repository.dart';
 import '../../assessment/domain/quiz_result.dart';
 import '../../chat/presentation/chapter_chat_screen.dart';
@@ -14,7 +15,8 @@ import '../../progress/presentation/progress_dashboard_screen.dart';
 import '../../rag/presentation/screens/document_rag_ingestion_screen.dart';
 import '../../settings/presentation/model_selection_screen.dart';
 import '../../settings/presentation/manage_content_screen.dart';
-import 'learning_materials_screen.dart';
+import '../../onboarding/presentation/grade_selection_screen.dart';
+import 'my_learning_screen.dart';
 import 'math_simulator_screen.dart';
 import 'quiz_assessment_screen.dart';
 
@@ -49,10 +51,9 @@ class MainDashboardScreen extends StatefulWidget {
 class _MainDashboardScreenState extends State<MainDashboardScreen> {
   final QuizResultRepository _quizResultRepository = QuizResultRepository();
   final P2PChannelService _p2pChannelService = P2PChannelService();
-  
-  // Shared Classroom Repository for offline testing simulation
   final ClassroomRepository _classroomRepository = ClassroomRepository();
 
+  int _currentIndex = 0;
   List<Course> _courses = const [];
   List<Subject> _subjects = const [];
   List<Chapter> _chapters = const [];
@@ -66,6 +67,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   QuizResult? _latestQuizResult;
   String _p2pSummary = 'Scanning peers...';
   bool _p2pAvailable = true;
+  int _selectedGrade = 8;
 
   @override
   void initState() {
@@ -120,9 +122,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       if (allResults.isNotEmpty) {
         latest = allResults.first;
       }
-    } catch (_) {
-      // Keep dashboard resilient even if quiz history fails to load.
-    }
+    } catch (_) {}
 
     try {
       final status = await _p2pChannelService.getStatus();
@@ -145,15 +145,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       p2pSummary = 'P2P status unavailable right now';
     }
 
-    if (!mounted) {
-      return;
-    }
+    final prefs = await SharedPreferences.getInstance();
+    final grade = prefs.getInt('selected_grade') ?? 8;
+
+    if (!mounted) return;
 
     setState(() {
       _quizAttempts = attemptCount;
       _latestQuizResult = latest;
       _p2pSummary = p2pSummary;
       _p2pAvailable = p2pAvailable;
+      _selectedGrade = grade;
     });
   }
 
@@ -239,16 +241,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           course: course,
           subject: subject,
           chapter: chapter,
-        ),
-      ),
-    );
-  }
-
-  void _navigateMaterials() {
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => LearningMaterialsScreen(
-          courseRepository: widget.courseRepository,
         ),
       ),
     );
@@ -382,39 +374,27 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   Course? _selectedCourseInList() {
     final selectedId = _selectedCourse?.id;
-    if (selectedId == null) {
-      return null;
-    }
+    if (selectedId == null) return null;
     for (final course in _courses) {
-      if (course.id == selectedId) {
-        return course;
-      }
+      if (course.id == selectedId) return course;
     }
     return null;
   }
 
   Subject? _selectedSubjectInList() {
     final selectedId = _selectedSubject?.id;
-    if (selectedId == null) {
-      return null;
-    }
+    if (selectedId == null) return null;
     for (final subject in _subjects) {
-      if (subject.id == selectedId) {
-        return subject;
-      }
+      if (subject.id == selectedId) return subject;
     }
     return null;
   }
 
   Chapter? _selectedChapterInList() {
     final selectedId = _selectedChapter?.id;
-    if (selectedId == null) {
-      return null;
-    }
+    if (selectedId == null) return null;
     for (final chapter in _chapters) {
-      if (chapter.id == selectedId) {
-        return chapter;
-      }
+      if (chapter.id == selectedId) return chapter;
     }
     return null;
   }
@@ -427,251 +407,72 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       );
     }
 
-    const primary = Color(0xFF0B6E4F);
-    const accent = Color(0xFFFF6B35);
-    final selectedCourseValue = _selectedCourseInList();
-    final selectedSubjectValue = _selectedSubjectInList();
-    final selectedChapterValue = _selectedChapterInList();
-
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Offline Tutor'),
-        elevation: 0,
-        backgroundColor: primary,
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => ProgressDashboardScreen(
-                  courseRepository: widget.courseRepository,
-                ),
-              ),
-            ),
-            tooltip: 'Learning progress',
-            icon: const Icon(Icons.trending_up_rounded),
+      backgroundColor: const Color(0xFFF8FAFC),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        selectedItemColor: const Color(0xFF0B6E4F),
+        unselectedItemColor: const Color(0xFF64748B),
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+          _loadFeatureInsights();
+        },
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.school_rounded),
+            label: 'My Learning',
           ),
-          IconButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const DocumentRagIngestionScreen(
-                  textbooksPath: '/home/akash/Desktop/IDP/TEXTBOOKS',
-                ),
-              ),
-            ),
-            tooltip: 'Import materials',
-            icon: const Icon(Icons.upload_file_rounded),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.construction_rounded),
+            label: 'Tools & Class',
           ),
-          IconButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ManageContentScreen(),
-              ),
-            ),
-            tooltip: 'Manage Offline Content',
-            icon: const Icon(Icons.folder_zip_rounded),
-          ),
-          IconButton(
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ModelSelectionScreen(),
-              ),
-            ),
-            tooltip: 'Settings',
-            icon: const Icon(Icons.settings_rounded),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.settings_rounded),
+            label: 'Settings',
           ),
         ],
       ),
+      body: SafeArea(
+        child: IndexedStack(
+          index: _currentIndex,
+          children: [
+            const MyLearningScreen(),
+            _buildToolsTab(),
+            _buildSettingsTab(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildToolsTab() {
+    const primary = Color(0xFF0B6E4F);
+    const accent = Color(0xFFFF6B35);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text('Tools & Classroom'),
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Course Selection
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Select Your Learning Path',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<Course>(
-                      key: ValueKey('course-${_courses.length}-${selectedCourseValue?.id ?? 'none'}'),
-                      initialValue: selectedCourseValue,
-                      isExpanded: true,
-                      items: _courses
-                          .map(
-                            (course) => DropdownMenuItem<Course>(
-                              value: course,
-                              child: Text(
-                                course.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      selectedItemBuilder: (context) => _courses
-                          .map(
-                            (course) => Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                course.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _onCourseChanged,
-                      decoration: InputDecoration(
-                        labelText: 'Course',
-                        prefixIcon: const Icon(Icons.school_rounded),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<Subject>(
-                      key: ValueKey('subject-${_subjects.length}-${selectedSubjectValue?.id ?? 'none'}'),
-                      initialValue: selectedSubjectValue,
-                      isExpanded: true,
-                      items: _subjects
-                          .map(
-                            (subject) => DropdownMenuItem<Subject>(
-                              value: subject,
-                              child: Text(
-                                subject.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      selectedItemBuilder: (context) => _subjects
-                          .map(
-                            (subject) => Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                subject.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _onSubjectChanged,
-                      decoration: InputDecoration(
-                        labelText: 'Subject',
-                        prefixIcon: const Icon(Icons.category_rounded),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    DropdownButtonFormField<Chapter>(
-                      key: ValueKey('chapter-${_chapters.length}-${selectedChapterValue?.id ?? 'none'}'),
-                      initialValue: selectedChapterValue,
-                      isExpanded: true,
-                      items: _chapters
-                          .map(
-                            (chapter) => DropdownMenuItem<Chapter>(
-                              value: chapter,
-                              child: Text(
-                                chapter.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      selectedItemBuilder: (context) => _chapters
-                          .map(
-                            (chapter) => Align(
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                chapter.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: _onChapterChanged,
-                      decoration: InputDecoration(
-                        labelText: 'Chapter',
-                        prefixIcon: const Icon(Icons.bookmark_rounded),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Learning Options
             const Text(
-              'Learning Options',
+              'Interactive Tools',
               style: TextStyle(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
               ),
             ),
-
-            const SizedBox(height: 16),
-
-            // AI Tutor Card
-            _LearningCard(
-              icon: Icons.auto_awesome_rounded,
-              title: 'AI Tutor',
-              description: 'Chat with intelligent tutor',
-              color: primary,
-              onTap: _navigateTutor,
-            ),
-
             const SizedBox(height: 12),
-
-            // Materials Card
-            _LearningCard(
-              icon: Icons.library_books_rounded,
-              title: 'Learning Materials',
-              description: 'Textbooks, videos & resources',
-              color: const Color(0xFF6366F1),
-              onTap: _navigateMaterials,
-            ),
-
-            const SizedBox(height: 12),
-
-            // Quiz Card
-            _LearningCard(
-              icon: Icons.quiz_rounded,
-              title: 'Quiz & Assessment',
-              description: _quizDescription(),
-              color: accent,
-              onTap: () {
-                _navigateQuiz();
-              },
-            ),
-
-            const SizedBox(height: 12),
-
-            // Math Simulator Card
             _LearningCard(
               icon: Icons.calculate_rounded,
               title: 'Math Simulator',
@@ -683,10 +484,25 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 12),
-
-            // P2P Card
+            _LearningCard(
+              icon: Icons.science_rounded,
+              title: 'Experiment Builder',
+              description: 'Design and simulate physics experiments',
+              color: Colors.purple,
+              onTap: _navigateExperimentBuilder,
+            ),
+            const SizedBox(height: 24),
+            
+            const Text(
+              'Sharing & P2P Transfer',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
+            const SizedBox(height: 12),
             _LearningCard(
               icon: Icons.group_rounded,
               title: 'Community Learning',
@@ -698,35 +514,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     }
                   : null,
             ),
-
             const SizedBox(height: 12),
-
-            _LearningCard(
-              icon: Icons.send_to_mobile_rounded,
-              title: 'Quick Send Chapter',
-              description: 'One-tap export + transfer selected chapter',
-              color: const Color(0xFF0EA5E9),
-              onTap: _p2pAvailable
-                  ? () {
-                      _quickSendSelectedChapter();
-                    }
-                  : null,
-            ),
-
-            const SizedBox(height: 12),
-
-            // Experiment Builder Card
-            _LearningCard(
-              icon: Icons.science_rounded,
-              title: 'Experiment Builder',
-              description: 'Design and simulate physics experiments',
-              color: Colors.purple,
-              onTap: _navigateExperimentBuilder,
-            ),
-
-            const SizedBox(height: 12),
-
-            // Experiment Sharing Card
             _LearningCard(
               icon: Icons.share_rounded,
               title: 'Share Experiments',
@@ -734,10 +522,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               color: Colors.deepOrange,
               onTap: _navigateExperimentSharing,
             ),
-
+            const SizedBox(height: 24),
+            
+            const Text(
+              'Classroom Dashboard',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1E293B),
+              ),
+            ),
             const SizedBox(height: 12),
-
-            // Classroom - Teacher Mode
             _LearningCard(
               icon: Icons.school_rounded,
               title: 'Teacher Dashboard',
@@ -745,10 +540,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               color: Colors.teal,
               onTap: _navigateTeacherDashboard,
             ),
-
             const SizedBox(height: 12),
-
-            // Classroom - Student Mode
             _LearningCard(
               icon: Icons.backpack_rounded,
               title: 'Student Dashboard',
@@ -756,10 +548,146 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               color: Colors.indigo,
               onTap: _navigateStudentDashboard,
             ),
-
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsTab() {
+    const primary = Color(0xFF0B6E4F);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      appBar: AppBar(
+        title: const Text('Settings & Diagnostics'),
+        backgroundColor: primary,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.school_rounded, color: primary, size: 40),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Active Learning Grade',
+                        style: TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Grade $_selectedGrade Curriculum',
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                      ),
+                    ],
+                  ),
+                ),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const GradeSelectionScreen()),
+                    ).then((_) => _loadFeatureInsights());
+                  },
+                  child: const Text('Change', style: TextStyle(color: primary, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'System Actions',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+          ),
+          const SizedBox(height: 12),
+          _buildSettingsItem(
+            icon: Icons.trending_up_rounded,
+            title: 'Learning Progress',
+            subtitle: 'View quiz attempts and performance statistics',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ProgressDashboardScreen(
+                  courseRepository: widget.courseRepository,
+                ),
+              ),
+            ),
+          ),
+          _buildSettingsItem(
+            icon: Icons.folder_zip_rounded,
+            title: 'Manage Content Packs',
+            subtitle: 'Sync, install, and clear offline content packs',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ManageContentScreen(),
+              ),
+            ).then((_) => _loadFeatureInsights()),
+          ),
+          _buildSettingsItem(
+            icon: Icons.upload_file_rounded,
+            title: 'Import Custom Materials',
+            subtitle: 'Import PDF files to parse and build local indexes',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const DocumentRagIngestionScreen(
+                  textbooksPath: '/home/akash/Desktop/IDP/TEXTBOOKS',
+                ),
+              ),
+            ),
+          ),
+          _buildSettingsItem(
+            icon: Icons.settings_rounded,
+            title: 'Model Settings',
+            subtitle: 'Select offline/online LLM configuration',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const ModelSelectionScreen(),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: ListTile(
+        leading: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, color: const Color(0xFF475569)),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B))),
+        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+        trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+        onTap: onTap,
       ),
     );
   }
@@ -784,7 +712,7 @@ class _LearningCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     return Card(
-      elevation: 2,
+      elevation: 1,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
       ),

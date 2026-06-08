@@ -184,8 +184,8 @@ class DistributedServiceComposer {
       urlManager: _backendUrlManager,
       connectivity: _connectivityController,
       onSyncRequested: () async {
-        final updates = await SyncManager().checkForPackUpdates();
-        await SyncManager().processPackUpdates(updates);
+        // Bulk sync replaced by Grade-based Selective Sync.
+        // Discovery correctly updates the URL, but automatic full sync is disabled.
       },
     );
     _discoverySyncBridge.start();

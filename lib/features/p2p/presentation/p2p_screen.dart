@@ -1600,11 +1600,15 @@ class _P2PScreenState extends State<P2PScreen> {
                   const SizedBox(height: 12),
                   DropdownButtonFormField<P2PPeer>(
                     initialValue: _selectedPeer,
+                    isExpanded: true,
                     items: _peers
                         .map(
                           (peer) => DropdownMenuItem<P2PPeer>(
                             value: peer,
-                            child: Text('${peer.name} (${peer.address})'),
+                            child: Text(
+                              '${peer.name} (${peer.address})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),
@@ -1680,11 +1684,15 @@ class _P2PScreenState extends State<P2PScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<ContentPackManifest>(
                     initialValue: _selectedPack,
+                    isExpanded: true,
                     items: _installedPacks
                         .map(
                           (pack) => DropdownMenuItem<ContentPackManifest>(
                             value: pack,
-                            child: Text('${pack.title} (v${pack.version})'),
+                            child: Text(
+                              '${pack.title} (v${pack.version})',
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),
@@ -1723,11 +1731,15 @@ class _P2PScreenState extends State<P2PScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     initialValue: _selectedChapterId,
+                    isExpanded: true,
                     items: _chapters
                         .map(
                           (chapter) => DropdownMenuItem<String>(
                             value: chapter.id,
-                            child: Text(chapter.title),
+                            child: Text(
+                              chapter.title,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         )
                         .toList(),
