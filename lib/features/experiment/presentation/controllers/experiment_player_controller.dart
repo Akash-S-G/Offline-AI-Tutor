@@ -113,8 +113,7 @@ class ExperimentPlayerController extends ChangeNotifier {
       return;
     }
     print('[EXPERIMENT_UI] PLAYER_STARTED');
-    _world?.clock.start();
-    _emitLifecycleEvent(RuntimeEventType.sessionStarted, 'Simulation Started');
+    _world?.start();
     _state = ExperimentExecutionState.running;
     if (!_disposed) notifyListeners();
   }
@@ -122,8 +121,7 @@ class ExperimentPlayerController extends ChangeNotifier {
   Future<void> pause() async {
     if (_world == null) return;
     print('[EXPERIMENT_UI] PLAYER_PAUSED');
-    _world?.clock.pause();
-    _emitLifecycleEvent(RuntimeEventType.sessionPaused, 'Simulation Paused');
+    _world?.pause();
     _state = ExperimentExecutionState.paused;
     if (!_disposed) notifyListeners();
   }
@@ -131,8 +129,7 @@ class ExperimentPlayerController extends ChangeNotifier {
   Future<void> resume() async {
     if (_world == null) return;
     print('[EXPERIMENT_UI] PLAYER_RESUMED');
-    _world?.clock.start();
-    _emitLifecycleEvent(RuntimeEventType.sessionResumed, 'Simulation Resumed');
+    _world?.resume();
     _state = ExperimentExecutionState.running;
     if (!_disposed) notifyListeners();
   }
@@ -140,8 +137,7 @@ class ExperimentPlayerController extends ChangeNotifier {
   Future<void> stop() async {
     if (_world == null) return;
     print('[EXPERIMENT_UI] PLAYER_STOPPED');
-    _world?.clock.reset();
-    _emitLifecycleEvent(RuntimeEventType.sessionStopped, 'Simulation Stopped');
+    _world?.stop();
     _state = ExperimentExecutionState.completed;
     if (!_disposed) notifyListeners();
   }

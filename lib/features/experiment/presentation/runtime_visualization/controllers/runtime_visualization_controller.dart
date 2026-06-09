@@ -17,7 +17,7 @@ class RuntimeVisualizationController extends ChangeNotifier {
 
   void attachStream(Stream<RuntimeEvent> eventStream) {
     _subscription?.cancel();
-    
+
     // Process incoming events synchronously for logic, but batch UI updates
     _subscription = eventStream.listen((event) {
       _processEvent(event);
@@ -38,10 +38,14 @@ class RuntimeVisualizationController extends ChangeNotifier {
   void _processEvent(RuntimeEvent event) {
     // We modify mutable maps locally before creating a copy to save allocations
     final newVariables = Map<String, dynamic>.from(_state.variables);
-    final newObjectStates = Map<String, Map<String, dynamic>>.from(_state.objectStates);
-    final newMeasurements = Map<String, Map<String, dynamic>>.from(_state.measurements);
+    final newObjectStates = Map<String, Map<String, dynamic>>.from(
+      _state.objectStates,
+    );
+    final newMeasurements = Map<String, Map<String, dynamic>>.from(
+      _state.measurements,
+    );
     final newTimeline = List<RuntimeEvent>.from(_state.timeline);
-    
+
     int newMeasurementsReceived = _state.measurementsReceived;
     int newWarnings = _state.warnings;
     int newErrors = _state.errors;
@@ -51,11 +55,32 @@ class RuntimeVisualizationController extends ChangeNotifier {
     if (event.type == RuntimeEventType.measurementReceived) {
       newMeasurementsReceived++;
       if (event.metadata != null) {
-        final sensorType = event.metadata!['sensorType'] as String? ?? 'unknown';
+        final sensorType =
+            event.metadata!['sensorType'] as String? ?? 'unknown';
         final data = event.metadata!['data'] as Map<String, dynamic>? ?? {};
         newMeasurements[sensorType] = data;
       }
-    } else if (event.type == RuntimeEventType.custom && event.message.contains('Playground event')) {
+    } else if (event.message == 'VariableUpdated' ||
+        event.message == 'VariableChanged') {
+      final variableName =
+          event.metadata?['variableName']?.toString() ??
+          event.metadata?['name']?.toString() ??
+          event.metadata?['variableId']?.toString();
+      if (variableName != null) {
+        newVariables[variableName] = event.metadata?['newValue'];
+      }
+    } else if (event.message == 'ObjectUpdatedFromBinding') {
+      final objectId = event.metadata?['objectId']?.toString();
+      final property = event.metadata?['property']?.toString();
+      if (objectId != null && property != null) {
+        final current = Map<String, dynamic>.from(
+          newObjectStates[objectId] ?? const {},
+        );
+        current[property] = event.metadata?['newValue'];
+        newObjectStates[objectId] = current;
+      }
+    } else if (event.type == RuntimeEventType.custom &&
+        event.message.contains('Playground event')) {
       final pType = event.metadata?['playgroundEventType'];
       final payload = event.metadata?['payload'] as Map<String, dynamic>?;
 
@@ -76,7 +101,8 @@ class RuntimeVisualizationController extends ChangeNotifier {
       newErrors++;
     } else if (event.type == RuntimeEventType.sessionStarted) {
       _startTime = DateTime.now();
-    } else if (event.type == RuntimeEventType.sessionCompleted || event.type == RuntimeEventType.sessionStopped) {
+    } else if (event.type == RuntimeEventType.sessionCompleted ||
+        event.type == RuntimeEventType.sessionStopped) {
       _startTime = null; // Pause duration calculation
     }
 
@@ -102,7 +128,7 @@ class RuntimeVisualizationController extends ChangeNotifier {
   void _scheduleUpdate() {
     if (_needsUpdate) return;
     _needsUpdate = true;
-    
+
     // Batch UI updates to roughly 60fps (16ms)
     _updateTimer ??= Timer(const Duration(milliseconds: 16), () {
       if (_needsUpdate) {

@@ -191,12 +191,26 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
                 child: Text('Hide Object'),
               ),
               DropdownMenuItem(
+                value: 'show_object',
+                child: Text('Show Object'),
+              ),
+              DropdownMenuItem(
+                value: 'set_variable',
+                child: Text('Set Variable'),
+              ),
+              DropdownMenuItem(
+                value: 'toggle_variable',
+                child: Text('Toggle Variable'),
+              ),
+              DropdownMenuItem(
                 value: 'start_recording',
-                child: Text('Start Recording'),
+                enabled: false,
+                child: Text('Start Recording (Coming Soon)'),
               ),
               DropdownMenuItem(
                 value: 'stop_recording',
-                child: Text('Stop Recording'),
+                enabled: false,
+                child: Text('Stop Recording (Coming Soon)'),
               ),
             ],
             onChanged: (val) => setState(() => _selectedAction = val!),

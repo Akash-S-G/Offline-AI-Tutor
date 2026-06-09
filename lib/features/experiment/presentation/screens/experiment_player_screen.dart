@@ -8,9 +8,11 @@ import '../runtime_visualization/widgets/runtime_visualization_container.dart';
 import '../../domain/experiment_progress_repository.dart';
 import 'package:flame/game.dart';
 import '../../runtime/engine/experiment_flame_game.dart';
+import '../../runtime/graphs/line_graph_renderer.dart';
 import '../../runtime/runtime_serializer.dart';
 import '../../runtime/relationship_graph_model.dart';
 import '../../runtime/runtime_event.dart';
+import '../../runtime/models/runtime_variable.dart';
 import '../widgets/native_graph_view.dart';
 
 class ExperimentPlayerScreen extends StatefulWidget {
@@ -95,6 +97,7 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
               children: [
                 _buildRuntimeHealthCard(),
                 _buildLastErrorPanel(),
+                _buildActiveWarningsPanel(),
                 _buildRuntimeInspector(),
                 _buildRuleExecutionFeed(),
                 _buildEventMonitor(),
@@ -350,6 +353,41 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
     );
   }
 
+  Widget _buildActiveWarningsPanel() {
+    final warnings = _controller.events
+        .where((event) => event.type == RuntimeEventType.warning)
+        .take(5)
+        .toList();
+    if (warnings.isEmpty) return const SizedBox.shrink();
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      color: Colors.orange.shade50,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Active Warnings',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            ...warnings.map((warning) {
+              return ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.warning_amber, color: Colors.orange),
+                title: Text(warning.message),
+                subtitle: Text(_formatTime(warning.timestamp)),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildDiagnosticsPanel() {
     return ExpansionTile(
       title: const Text(
@@ -419,9 +457,30 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
   Widget _buildRuntimeInspector() {
     final world = _controller.world;
     final variables =
-        world?.variables.allVariables ?? const <String, dynamic>{};
+        world?.variables.allRuntimeVariables ??
+        const <String, RuntimeVariable>{};
     final objects = world?.objects.allObjects ?? const <Map<String, dynamic>>[];
+    final objectStates = world?.objects.allObjectStates ?? const [];
+    final objectLifecycleStatuses =
+        world?.objectLifecycle.getAllStatuses() ?? const [];
+    final interactiveObjectStates = objectStates
+        .where((state) {
+          return state.objectType == 'slider' ||
+              state.objectType == 'toggle' ||
+              state.objectType == 'button';
+        })
+        .toList(growable: false);
+    final bindings = world?.bindings.allBindings() ?? const [];
     final rules = world?.rules.allRules ?? const <Map<String, dynamic>>[];
+    final timerVariables = world?.variableExecutor.timerVariables ?? const [];
+    final computedVariables =
+        world?.variableExecutor.computedVariables ?? const [];
+    final measuredVariableIds =
+        world?.measurementStore.trackedVariableIds ?? const <String>[];
+    final graphStatuses = objectLifecycleStatuses
+        .where((status) => status.objectType == 'lineGraph')
+        .toList(growable: false);
+    final experimentState = world?.experimentState.state;
     final lastTick = world == null
         ? 'Waiting'
         : '${world.clock.elapsedTime.toStringAsFixed(2)}s';
@@ -452,10 +511,477 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                 _inspectorChip('Objects', '${objects.length}'),
                 _inspectorChip('Variables', '${variables.length}'),
                 _inspectorChip('Rules', '${rules.length}'),
+                _inspectorChip('Bindings', '${bindings.length}'),
                 _inspectorChip('Events', '${_controller.events.length}'),
                 _inspectorChip('Last Tick', lastTick),
+                if (world != null)
+                  _inspectorChip(
+                    'Vars Registered',
+                    '${world.analytics.variablesRegistered}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Vars Updated',
+                    '${world.analytics.variableUpdates}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Vars Removed',
+                    '${world.analytics.variablesRemoved}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Bindings Active',
+                    '${bindings.where((binding) => binding.active).length}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Bindings Failed',
+                    '${world.analytics.bindingsFailed}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Objects Updated',
+                    '${world.analytics.objectsUpdated}',
+                  ),
+                if (world != null)
+                  _inspectorChip('Schemas', '${world.analytics.schemasLoaded}'),
+                if (world != null)
+                  _inspectorChip(
+                    'Behaviors',
+                    '${world.analytics.behaviorsCreated}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Renderers',
+                    '${world.analytics.renderersCreated}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Obj Validation Failures',
+                    '${world.analytics.objectValidationFailures}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Slider Interactions',
+                    '${world.analytics.sliderInteractions}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Toggle Interactions',
+                    '${world.analytics.toggleInteractions}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Button Interactions',
+                    '${world.analytics.buttonInteractions}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Rules Evaluated',
+                    '${world.analytics.rulesEvaluated}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Rules Fired',
+                    '${world.analytics.rulesFired}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Actions',
+                    '${world.analytics.actionsExecuted}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Warnings',
+                    '${world.analytics.warningsGenerated}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Timer Ticks',
+                    '${world.analytics.timerTicks}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Countdowns',
+                    '${world.analytics.countdownsFinished}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Intervals',
+                    '${world.analytics.intervalEvents}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Computed',
+                    '${world.analytics.computedEvaluations}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Dependencies',
+                    '${world.analytics.dependencyResolutions}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Samples',
+                    '${world.analytics.measurementsCollected}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Discarded Samples',
+                    '${world.analytics.measurementsDiscarded}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Measured Vars',
+                    '${world.analytics.measurementVariablesTracked}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Graphs Rendered',
+                    '${world.analytics.graphsRendered}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Graph Updates',
+                    '${world.analytics.graphUpdates}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Graph Samples',
+                    '${world.analytics.graphSamplesProcessed}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Observations',
+                    '${world.analytics.observationsRecorded}',
+                  ),
+                if (world != null)
+                  _inspectorChip('Rows', '${world.analytics.observationRows}'),
+                if (world != null)
+                  _inspectorChip(
+                    'Exports',
+                    '${world.analytics.observationExports}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Experiments Started',
+                    '${world.analytics.experimentsStarted}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Experiments Done',
+                    '${world.analytics.experimentsCompleted}',
+                  ),
               ],
             ),
+            if (experimentState != null) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Experiment State',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text('Status: ${experimentState.status.name}'),
+                subtitle: Text(
+                  'Runtime: ${(experimentState.runtime.inMilliseconds / 1000).toStringAsFixed(1)}s | '
+                  'Measurements: ${experimentState.measurements} | '
+                  'Observations: ${experimentState.observations} | '
+                  'Warnings: ${experimentState.warnings} | '
+                  'Rules Fired: ${experimentState.rulesTriggered}',
+                ),
+              ),
+            ],
+            if (world != null) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Observations',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title: Text('Rows: ${world.observationStore.rowCount}'),
+                subtitle: Text(
+                  'Mode: ${world.observationScheduler.collectionMode.name} | '
+                  'Variables: ${world.observationScheduler.recordedVariableCount} | '
+                  'Last: ${_formatInspectorValue(world.observationStore.latestObservation()?.values)}',
+                ),
+              ),
+            ],
+            if (graphStatuses.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Graph Objects',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...graphStatuses.map((status) {
+                final object = world?.objects.get(status.objectId);
+                final properties = Map<String, dynamic>.from(
+                  object?['properties'] as Map? ?? const {},
+                );
+                final linkedVariableId =
+                    properties['linked_variable'] ??
+                    properties['linkedVariable'] ??
+                    properties['valueVariable'];
+                final renderer = world?.objectLifecycle.getRenderer(
+                  status.objectId,
+                );
+                final graphState = renderer is LineGraphRenderer
+                    ? renderer.graphState
+                    : null;
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(object?['name']?.toString() ?? status.objectId),
+                  subtitle: Text(
+                    'linked=${linkedVariableId ?? 'None'} | '
+                    'samples=${graphState?.sampleCount ?? 0} | '
+                    'min=${graphState == null ? 'None' : _formatInspectorValue(graphState.minY)} | '
+                    'max=${graphState == null ? 'None' : _formatInspectorValue(graphState.maxY)}',
+                  ),
+                );
+              }),
+            ],
+            if (measuredVariableIds.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Measurements',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...measuredVariableIds.map((variableId) {
+                final variable = world?.variables.getVariable(variableId);
+                final history =
+                    world?.measurementStore.getMeasurements(variableId) ??
+                    const [];
+                final latest = world?.measurementStore.getLatestMeasurement(
+                  variableId,
+                );
+                final oldest = history.isEmpty ? null : history.first;
+                final newest = history.isEmpty ? null : history.last;
+                final policy = world?.measurementCollector.policyFor(
+                  variableId,
+                );
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(variable?.name ?? variableId),
+                  subtitle: Text(
+                    'Samples: ${history.length} | '
+                    'Latest: ${_formatInspectorValue(latest?.value)} | '
+                    'Policy: ${policy?.name ?? 'unknown'} | '
+                    'Oldest: ${oldest == null ? 'None' : oldest.runtimeSeconds.toStringAsFixed(2)}s | '
+                    'Newest: ${newest == null ? 'None' : newest.runtimeSeconds.toStringAsFixed(2)}s',
+                  ),
+                );
+              }),
+            ],
+            if (timerVariables.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Timer Variables',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...timerVariables.map((variable) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(variable.name),
+                  subtitle: Text(
+                    'type=${variable.type} | '
+                    'value=${_formatInspectorValue(variable.value)} | '
+                    'updated=${_formatTime(variable.lastUpdated)}',
+                  ),
+                );
+              }),
+            ],
+            if (computedVariables.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Computed Variables',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...computedVariables.map((variable) {
+                final dependencies =
+                    world?.variableExecutor.dependenciesFor(variable.id) ??
+                    const <String>[];
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(variable.name),
+                  subtitle: Text(
+                    'type=${variable.type} | '
+                    'value=${_formatInspectorValue(variable.value)} | '
+                    'deps=${dependencies.isEmpty ? 'None' : dependencies.join(', ')} | '
+                    'updated=${_formatTime(variable.lastUpdated)}',
+                  ),
+                );
+              }),
+            ],
+            if (world?.rules.ruleStates.isNotEmpty == true) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Rule Inspector',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...world!.rules.ruleStates.map((state) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(state.rule.name),
+                  subtitle: Text(
+                    'last=${state.lastEvaluation == null ? 'Never' : _formatTime(state.lastEvaluation!)} | '
+                    'result=${state.lastResult == null
+                        ? 'None'
+                        : state.lastResult!
+                        ? 'PASSED'
+                        : 'FAILED'} | '
+                    'fireCount=${state.fireCount}',
+                  ),
+                );
+              }),
+            ],
+            if (interactiveObjectStates.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Interactive Objects',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...interactiveObjectStates.map((objectState) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${objectState.objectId} (${objectState.objectType})',
+                  ),
+                  subtitle: Text(
+                    'value=${objectState.state['value']} | '
+                    'enabled=${objectState.state['enabled']} | '
+                    'pressed=${objectState.state['pressed']} | '
+                    'pressCount=${objectState.state['pressCount']} | '
+                    'updated=${_formatTime(objectState.updatedAt)}',
+                  ),
+                );
+              }),
+              if (world?.analytics.lastInteractionTime != null)
+                Text(
+                  'Last interaction: '
+                  '${world!.analytics.lastInteractionSource ?? 'unknown'} '
+                  'at ${_formatTime(world.analytics.lastInteractionTime!)}',
+                ),
+            ],
+            if (objectLifecycleStatuses.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Rendered Objects',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...objectLifecycleStatuses
+                  .where((status) => status.rendererLoaded)
+                  .map((status) {
+                    final objectState = world?.objects.getObjectState(
+                      status.objectId,
+                    );
+                    final renderer = world?.objectLifecycle.getRenderer(
+                      status.objectId,
+                    );
+                    final lastRenderTime = renderer?.lastRenderTime;
+                    return ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text(status.objectId),
+                      subtitle: Text(
+                        'renderer=${renderer?.rendererType ?? 'Missing'} | '
+                        'visible=${objectState?.visible ?? false} | '
+                        'lastRender=${lastRenderTime == null ? 'Never' : _formatTime(lastRenderTime)}',
+                      ),
+                    );
+                  }),
+            ],
+            if (objectLifecycleStatuses.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Runtime Objects',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...objectLifecycleStatuses.map((status) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text('${status.objectId} (${status.objectType})'),
+                  subtitle: Text(
+                    'Schema ${status.schemaLoaded ? 'OK' : 'Missing'} | '
+                    'Behavior ${status.behaviorLoaded ? 'OK' : 'Missing'} | '
+                    'Renderer ${status.rendererLoaded ? 'OK' : 'Missing'} | '
+                    'Valid ${status.isValid ? 'OK' : 'Failed'}',
+                  ),
+                );
+              }),
+            ],
+            if (bindings.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Bindings',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...bindings.map((binding) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${binding.variableId} -> '
+                    '${binding.objectId}.${binding.objectProperty}',
+                  ),
+                  trailing: Text(binding.active ? 'ACTIVE' : 'FAILED'),
+                );
+              }),
+            ],
+            if (objectStates.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Object Inspector',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...objectStates.map((objectState) {
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        objectState.objectId,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('type: ${objectState.objectType}'),
+                      Text('visible: ${objectState.visible}'),
+                      Text('state: ${objectState.state}'),
+                    ],
+                  ),
+                );
+              }),
+            ],
             if (variables.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
@@ -463,17 +989,35 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: variables.entries.map((entry) {
-                  return Chip(
-                    label: Text(
-                      '${entry.key} = ${_formatInspectorValue(entry.value)}',
-                    ),
-                  );
-                }).toList(),
-              ),
+              ...variables.values.map((variable) {
+                return Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        variable.name,
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      Text('ID: ${variable.id}'),
+                      Text('type: ${variable.type}'),
+                      Text('value: ${_formatInspectorValue(variable.value)}'),
+                      Text('source: ${variable.source.name}'),
+                      Text('strategy: ${variable.updateStrategy.name}'),
+                      Text('updated: ${_formatTime(variable.lastUpdated)}'),
+                      Text('initialized: ${variable.isInitialized}'),
+                    ],
+                  ),
+                );
+              }),
             ],
           ],
         ),
@@ -612,6 +1156,10 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
 
   bool _isRuleEvent(RuntimeEvent event) {
     return event.message == 'RuleTriggered' ||
+        event.message == 'RuleEvaluated' ||
+        event.message == 'RulePassed' ||
+        event.message == 'RuleFailed' ||
+        event.message == 'RuleFired' ||
         event.metadata?['playgroundEventType'] == 'ruleExecuted';
   }
 
@@ -829,6 +1377,30 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
               label: const Text('RESUME'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
+                foregroundColor: Colors.white,
+              ),
+            ),
+
+          if (isRunning || isPaused)
+            ElevatedButton.icon(
+              onPressed: _controller.world == null
+                  ? null
+                  : () {
+                      final observation = _controller.world!
+                          .recordObservation();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Recorded observation ${observation.values.length} values',
+                          ),
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    },
+              icon: const Icon(Icons.playlist_add_check),
+              label: const Text('Record Observation'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal,
                 foregroundColor: Colors.white,
               ),
             ),
