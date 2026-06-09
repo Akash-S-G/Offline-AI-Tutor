@@ -30,20 +30,27 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
   }
 
   void _onControllerChanged() {
-    if (_engine.state != PlaygroundState.loaded && _engine.state != PlaygroundState.running) return;
-    
+    if (_engine.state != PlaygroundState.loaded &&
+        _engine.state != PlaygroundState.running) {
+      return;
+    }
+
     final state = widget.controller.state;
-    final newVarIds = state.variables.map((v) => v.name).toSet();
+    final newVarIds = state.variables.map((v) => v.id).toSet();
     final newObjIds = state.objects.map((o) => o.id).toSet();
     final newRuleIds = state.rules.map((r) => r.id).toSet();
 
     // Variables
     final varsToAdd = newVarIds.difference(_knownVariables);
     final varsToRemove = _knownVariables.difference(newVarIds);
-    for (final vId in varsToRemove) _engine.removeVariable(vId);
+    for (final vId in varsToRemove) {
+      _engine.removeVariable(vId);
+    }
     for (final vId in varsToAdd) {
-      final v = state.variables.firstWhere((x) => x.name == vId);
-      final model = ExecutionDefinitionMapper.mapVariable(jsonDecode(jsonEncode(v.toJson())));
+      final v = state.variables.firstWhere((x) => x.id == vId);
+      final model = ExecutionDefinitionMapper.mapVariable(
+        jsonDecode(jsonEncode(v.toJson())),
+      );
       _engine.addVariable(model);
     }
     _knownVariables = newVarIds;
@@ -51,10 +58,14 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
     // Objects
     final objsToAdd = newObjIds.difference(_knownObjects);
     final objsToRemove = _knownObjects.difference(newObjIds);
-    for (final oId in objsToRemove) _engine.removeObject(oId);
+    for (final oId in objsToRemove) {
+      _engine.removeObject(oId);
+    }
     for (final oId in objsToAdd) {
       final o = state.objects.firstWhere((x) => x.id == oId);
-      final model = ExecutionDefinitionMapper.mapObject(jsonDecode(jsonEncode(o.toJson())));
+      final model = ExecutionDefinitionMapper.mapObject(
+        jsonDecode(jsonEncode(o.toJson())),
+      );
       _engine.addObject(model);
     }
     _knownObjects = newObjIds;
@@ -62,17 +73,21 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
     // Rules
     final rulesToAdd = newRuleIds.difference(_knownRules);
     final rulesToRemove = _knownRules.difference(newRuleIds);
-    for (final rId in rulesToRemove) _engine.removeRule(rId);
+    for (final rId in rulesToRemove) {
+      _engine.removeRule(rId);
+    }
     for (final rId in rulesToAdd) {
       final r = state.rules.firstWhere((x) => x.id == rId);
-      final model = ExecutionDefinitionMapper.mapRule(jsonDecode(jsonEncode(r.toJson())));
+      final model = ExecutionDefinitionMapper.mapRule(
+        jsonDecode(jsonEncode(r.toJson())),
+      );
       _engine.addRule(model);
     }
     _knownRules = newRuleIds;
-    
+
     setState(() {
-       _objectCount = newObjIds.length;
-       _variableCount = newVarIds.length;
+      _objectCount = newObjIds.length;
+      _variableCount = newVarIds.length;
     });
   }
 
@@ -87,7 +102,8 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
     final isValid = widget.controller.validateManifest();
     if (!isValid) {
       setState(() {
-        _status = 'Validation Failed: ${widget.controller.validationResult?.errors.join(', ')}';
+        _status =
+            'Validation Failed: ${widget.controller.validationResult?.errors.join(', ')}';
       });
       return;
     }
@@ -96,14 +112,14 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
       final manifestJson = widget.controller.generateManifest();
       final decodedJson = jsonDecode(jsonEncode(manifestJson));
       final sceneModel = ExecutionDefinitionMapper.mapToScene(decodedJson);
-      
+
       _engine.loadSceneModel(sceneModel);
-      
+
       final state = widget.controller.state;
-      _knownVariables = state.variables.map((v) => v.name).toSet();
+      _knownVariables = state.variables.map((v) => v.id).toSet();
       _knownObjects = state.objects.map((o) => o.id).toSet();
       _knownRules = state.rules.map((r) => r.id).toSet();
-      
+
       setState(() {
         _status = 'Preview Engine Loaded Successfully.';
         _objectCount = sceneModel.objects.length;
@@ -118,16 +134,35 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final validation = widget.controller.currentValidation;
+    final state = widget.controller.state;
+    final isEmptyManifest =
+        state.variables.isEmpty && state.objects.isEmpty && state.rules.isEmpty;
+    final canLoad = !isEmptyManifest && validation.isValid;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ElevatedButton.icon(
-            onPressed: _runPreview,
+            onPressed: canLoad ? _runPreview : null,
             icon: const Icon(Icons.play_circle_fill),
             label: const Text('Validate & Load into Engine'),
           ),
+          if (isEmptyManifest) ...[
+            const SizedBox(height: 8),
+            const Text(
+              'Add at least one variable, object, or rule before loading the preview engine.',
+              style: TextStyle(color: Colors.red),
+            ),
+          ],
+          if (!validation.isValid) ...[
+            const SizedBox(height: 8),
+            ...validation.errors.map(
+              (error) => Text(error, style: const TextStyle(color: Colors.red)),
+            ),
+          ],
           const SizedBox(height: 16),
           Card(
             child: Padding(
@@ -135,7 +170,13 @@ class _RuntimePreviewPanelState extends State<RuntimePreviewPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Status: $_status', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.blueGrey)),
+                  Text(
+                    'Status: $_status',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.blueGrey,
+                    ),
+                  ),
                   const Divider(height: 24),
                   Wrap(
                     spacing: 16,

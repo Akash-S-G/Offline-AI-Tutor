@@ -46,13 +46,15 @@ class DesignWorkspacePanel extends StatelessWidget {
               padding: EdgeInsets.all(12.0),
               child: Text(
                 'Scene Canvas',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
               ),
             ),
             const Divider(height: 1, color: Color(0xFFE2E8F0)),
-            Expanded(
-              child: SceneEditor(controller: controller),
-            ),
+            Expanded(child: SceneEditor(controller: controller)),
           ],
         );
 
@@ -65,7 +67,11 @@ class DesignWorkspacePanel extends StatelessWidget {
                 padding: EdgeInsets.all(12.0),
                 child: Text(
                   'Properties Inspector',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
                 ),
               ),
               const Divider(height: 1, color: Color(0xFFE2E8F0)),
@@ -74,17 +80,27 @@ class DesignWorkspacePanel extends StatelessWidget {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: const [
-                      Icon(Icons.tune_rounded, size: 48, color: Color(0xFFCBD5E1)),
+                      Icon(
+                        Icons.tune_rounded,
+                        size: 48,
+                        color: Color(0xFFCBD5E1),
+                      ),
                       SizedBox(height: 16),
                       Text(
                         'No Selection',
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF64748B)),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF64748B),
+                        ),
                       ),
                       SizedBox(height: 8),
                       Text(
                         'Select an object or variable\nto view its properties.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF94A3B8),
+                        ),
                       ),
                     ],
                   ),
@@ -96,24 +112,28 @@ class DesignWorkspacePanel extends StatelessWidget {
 
         if (isMobile) {
           return DefaultTabController(
-            length: 3,
+            length: 4,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const TabBar(
+                  isScrollable: true,
                   labelColor: Color(0xFF1E293B),
                   unselectedLabelColor: Color(0xFF64748B),
                   tabs: [
-                    Tab(icon: Icon(Icons.category), text: 'Assets'),
-                    Tab(icon: Icon(Icons.brush), text: 'Canvas'),
+                    Tab(icon: Icon(Icons.brush), text: 'Scene'),
+                    Tab(icon: Icon(Icons.data_object), text: 'Variables'),
+                    Tab(icon: Icon(Icons.category), text: 'Objects'),
                     Tab(icon: Icon(Icons.tune), text: 'Props'),
                   ],
                 ),
                 Expanded(
                   child: TabBarView(
+                    physics: const NeverScrollableScrollPhysics(),
                     children: [
-                      leftPane,
                       centerPane,
+                      VariableEditor(controller: controller),
+                      ObjectEditor(controller: controller),
                       rightPane,
                     ],
                   ),

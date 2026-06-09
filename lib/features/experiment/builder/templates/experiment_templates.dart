@@ -7,7 +7,7 @@ class ExperimentTemplates {
       "difficulty": "Medium",
       "grade": "Grade 9",
       "subject": "Physics",
-      "estimatedTime": "15 mins"
+      "estimatedTime": "15 mins",
     },
     "scene": {
       "sceneId": "free_fall_1",
@@ -20,23 +20,23 @@ class ExperimentTemplates {
           "name": "accelerometer",
           "type": "accelerometer",
           "value": {"x": 0.0, "y": 0.0, "z": 0.0},
-          "description": "Device Acceleration"
+          "description": "Device Acceleration",
         },
         {
           "id": "var_timer_1",
           "name": "elapsedTime",
           "type": "elapsedTime",
           "value": 0.0,
-          "description": "Time since drop"
-        }
+          "description": "Time since drop",
+        },
       ],
       "objects": [
         {
           "objectId": "obj_graph_1",
           "name": "Acceleration Graph",
           "objectType": "lineGraph",
-          "properties": {"linked_variable": "var_accel_1"}
-        }
+          "properties": {"linked_variable": "var_accel_1"},
+        },
       ],
       "rules": [
         {
@@ -46,15 +46,13 @@ class ExperimentTemplates {
           "condition": {
             "variableId": "var_accel_1",
             "operator": "<",
-            "value": 2.0
+            "value": 2.0,
           },
-          "action": {
-            "type": "start_recording"
-          },
-          "description": "Starts recording when device is dropped"
-        }
-      ]
-    }
+          "action": {"type": "start_recording"},
+          "description": "Starts recording when device is dropped",
+        },
+      ],
+    },
   };
 
   static const Map<String, dynamic> heartRate = {
@@ -65,7 +63,7 @@ class ExperimentTemplates {
       "difficulty": "Easy",
       "grade": "Grade 8",
       "subject": "Biology",
-      "estimatedTime": "10 mins"
+      "estimatedTime": "10 mins",
     },
     "scene": {
       "sceneId": "heart_rate_1",
@@ -78,19 +76,32 @@ class ExperimentTemplates {
           "name": "pulse",
           "type": "numberInput",
           "value": 0.0,
-          "description": "Pulse input"
-        }
+          "description": "Pulse input",
+        },
       ],
       "objects": [
         {
           "objectId": "obj_gauge_1",
           "name": "BPM Gauge",
           "objectType": "gauge",
-          "properties": {"linked_variable": "var_pulse"}
-        }
+          "properties": {"linked_variable": "var_pulse"},
+        },
       ],
-      "rules": []
-    }
+      "rules": [
+        {
+          "ruleId": "rule_pulse_warning",
+          "name": "PulseWarning",
+          "trigger": "any",
+          "condition": {
+            "variableId": "var_pulse",
+            "operator": ">",
+            "value": 120,
+          },
+          "action": {"type": "show_warning"},
+          "description": "Shows a warning for a high pulse value",
+        },
+      ],
+    },
   };
 
   static const Map<String, dynamic> pendulum = {
@@ -101,7 +112,7 @@ class ExperimentTemplates {
       "difficulty": "Hard",
       "grade": "Grade 11",
       "subject": "Physics",
-      "estimatedTime": "30 mins"
+      "estimatedTime": "30 mins",
     },
     "scene": {
       "sceneId": "pendulum_1",
@@ -114,19 +125,32 @@ class ExperimentTemplates {
           "name": "angle",
           "type": "numberInput",
           "value": 45.0,
-          "description": "Initial Angle"
-        }
+          "description": "Initial Angle",
+        },
       ],
       "objects": [
         {
           "objectId": "obj_pendulum",
           "name": "Pendulum Bob",
           "objectType": "pendulumSimulation",
-          "properties": {"linked_variable": "var_angle"}
-        }
+          "properties": {"linked_variable": "var_angle"},
+        },
       ],
-      "rules": []
-    }
+      "rules": [
+        {
+          "ruleId": "rule_angle_warning",
+          "name": "LargeAngleWarning",
+          "trigger": "any",
+          "condition": {
+            "variableId": "var_angle",
+            "operator": ">",
+            "value": 60,
+          },
+          "action": {"type": "show_warning"},
+          "description": "Shows a warning when the pendulum angle is large",
+        },
+      ],
+    },
   };
 
   static const Map<String, dynamic> plantGrowth = {
@@ -137,12 +161,13 @@ class ExperimentTemplates {
       "difficulty": "Medium",
       "grade": "Grade 7",
       "subject": "Science",
-      "estimatedTime": "20 mins"
+      "estimatedTime": "20 mins",
     },
     "scene": {
       "sceneId": "plant_growth_1",
       "name": "Plant Growth",
-      "description": "Simulate plant growth based on sunlight and water variables.",
+      "description":
+          "Simulate plant growth based on sunlight and water variables.",
       "tags": ["biology", "plants", "simulation"],
       "variables": [
         {
@@ -150,26 +175,39 @@ class ExperimentTemplates {
           "name": "waterLevel",
           "type": "numberInput",
           "value": 50.0,
-          "description": "Water amount"
+          "description": "Water amount",
         },
         {
           "id": "var_sunlight",
           "name": "sunlight",
           "type": "numberInput",
           "value": 50.0,
-          "description": "Sunlight exposure"
-        }
+          "description": "Sunlight exposure",
+        },
       ],
       "objects": [
         {
           "objectId": "obj_plant",
           "name": "Plant Model",
           "objectType": "plantSimulation",
-          "properties": {"water_var": "var_water", "sun_var": "var_sunlight"}
-        }
+          "properties": {"water_var": "var_water", "sun_var": "var_sunlight"},
+        },
       ],
-      "rules": []
-    }
+      "rules": [
+        {
+          "ruleId": "rule_water_warning",
+          "name": "LowWaterWarning",
+          "trigger": "any",
+          "condition": {
+            "variableId": "var_water",
+            "operator": "<",
+            "value": 20,
+          },
+          "action": {"type": "show_warning"},
+          "description": "Shows a warning when water is low",
+        },
+      ],
+    },
   };
 
   static const Map<String, dynamic> waterCycle = {
@@ -180,7 +218,7 @@ class ExperimentTemplates {
       "difficulty": "Easy",
       "grade": "Grade 6",
       "subject": "Geography",
-      "estimatedTime": "15 mins"
+      "estimatedTime": "15 mins",
     },
     "scene": {
       "sceneId": "water_cycle_1",
@@ -193,19 +231,28 @@ class ExperimentTemplates {
           "name": "temperature",
           "type": "numberInput",
           "value": 25.0,
-          "description": "Atmospheric Temperature"
-        }
+          "description": "Atmospheric Temperature",
+        },
       ],
       "objects": [
         {
           "objectId": "obj_cycle",
           "name": "Cycle Diagram",
           "objectType": "interactiveDiagram",
-          "properties": {"temp_var": "var_temp"}
-        }
+          "properties": {"temp_var": "var_temp"},
+        },
       ],
-      "rules": []
-    }
+      "rules": [
+        {
+          "ruleId": "rule_temp_warning",
+          "name": "EvaporationWarning",
+          "trigger": "any",
+          "condition": {"variableId": "var_temp", "operator": ">", "value": 35},
+          "action": {"type": "show_warning"},
+          "description": "Shows a warning when temperature is high",
+        },
+      ],
+    },
   };
 
   static const List<Map<String, dynamic>> allTemplates = [

@@ -8,6 +8,7 @@ import '../models/builder_scene.dart';
 import '../validation/builder_validator.dart';
 import '../storage/builder_draft_manager.dart';
 import '../data/repositories/experiment_manifest_repository.dart';
+import 'package:uuid/uuid.dart';
 
 class ExperimentBuilderController extends ChangeNotifier {
   ExperimentBuilderState _state = ExperimentBuilderState.initial();
@@ -19,13 +20,15 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   BuilderValidationResult? _validationResult;
   BuilderValidationResult? get validationResult => _validationResult;
-  
+  BuilderValidationResult get currentValidation => _validator.validate(_state);
+
   ManifestValidationResponse? _apiValidationResult;
   ManifestValidationResponse? get apiValidationResult => _apiValidationResult;
 
   ManifestCompatibilityResponse? _compatibilityResult;
-  ManifestCompatibilityResponse? get compatibilityResult => _compatibilityResult;
-  
+  ManifestCompatibilityResponse? get compatibilityResult =>
+      _compatibilityResult;
+
   Map<String, dynamic>? _executionPackage;
   Map<String, dynamic>? get executionPackage => _executionPackage;
 
@@ -65,26 +68,38 @@ class ExperimentBuilderController extends ChangeNotifier {
           description: sceneData['description'] ?? '',
           tags: List<String>.from(sceneData['tags'] ?? []),
         ),
-        variables: (sceneData['variables'] as List<dynamic>? ?? []).map((v) => BuilderVariable(
-          id: v['id'] ?? v['name'] ?? '',
-          name: v['name'] ?? '',
-          type: v['type'] ?? 'number',
-          defaultValue: v['value'],
-          description: v['description'] ?? '',
-        )).toList(),
-        objects: (sceneData['objects'] as List<dynamic>? ?? []).map((o) => BuilderObject(
-          id: o['objectId'] ?? '',
-          name: o['name'] ?? '',
-          type: o['objectType'] ?? '',
-          properties: o['properties'] as Map<String, dynamic>? ?? {},
-        )).toList(),
-        rules: (sceneData['rules'] as List<dynamic>? ?? []).map((r) => BuilderRule(
-          id: r['ruleId'] ?? '',
-          name: r['name'] ?? '',
-          condition: r['condition'] as Map<String, dynamic>? ?? {},
-          action: r['action'] as Map<String, dynamic>? ?? {},
-          description: r['description'] ?? '',
-        )).toList(),
+        variables: (sceneData['variables'] as List<dynamic>? ?? [])
+            .map(
+              (v) => BuilderVariable(
+                id: v['id'] ?? v['name'] ?? '',
+                name: v['name'] ?? '',
+                type: v['type'] ?? 'number',
+                defaultValue: v['value'],
+                description: v['description'] ?? '',
+              ),
+            )
+            .toList(),
+        objects: (sceneData['objects'] as List<dynamic>? ?? [])
+            .map(
+              (o) => BuilderObject(
+                id: o['objectId'] ?? '',
+                name: o['name'] ?? '',
+                type: o['objectType'] ?? '',
+                properties: o['properties'] as Map<String, dynamic>? ?? {},
+              ),
+            )
+            .toList(),
+        rules: (sceneData['rules'] as List<dynamic>? ?? [])
+            .map(
+              (r) => BuilderRule(
+                id: r['ruleId'] ?? '',
+                name: r['name'] ?? '',
+                condition: r['condition'] as Map<String, dynamic>? ?? {},
+                action: r['action'] as Map<String, dynamic>? ?? {},
+                description: r['description'] ?? '',
+              ),
+            )
+            .toList(),
       );
       notifyListeners();
     } catch (e) {
@@ -99,7 +114,9 @@ class ExperimentBuilderController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _apiValidationResult = await _manifestRepository.validate(generateManifest());
+    _apiValidationResult = await _manifestRepository.validate(
+      generateManifest(),
+    );
     if (_apiValidationResult!.isValid) {
       print('[BUILDER] VALIDATION_SUCCESS');
     } else {
@@ -116,7 +133,9 @@ class ExperimentBuilderController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _compatibilityResult = await _manifestRepository.checkCompatibility(generateManifest());
+    _compatibilityResult = await _manifestRepository.checkCompatibility(
+      generateManifest(),
+    );
 
     if (_disposed) return;
     _isLoading = false;
@@ -125,7 +144,7 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   Future<void> migrateManifest() async {
     if (_compatibilityResult?.migrationRequired != true) return;
-    
+
     _isLoading = true;
     notifyListeners();
 
@@ -153,28 +172,26 @@ class ExperimentBuilderController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final capabilities = {
-        "accelerometer": true,
-        "gyroscope": true,
-        "gps": true,
-        "camera": true
-      };
-      
       final manifest = generateManifest();
-      
+
+      _validationResult = _validator.validate(_state);
+      if (!_validationResult!.isValid) {
+        throw Exception(
+          'Validation Failed: ${_validationResult!.errors.join(', ')}',
+        );
+      }
+
       // Pre-validation to simulate Validation Failed error if scene is totally empty
       if (_state.scene.name.isEmpty) {
         throw Exception('Validation Failed');
       }
-      
+
       // Generate execution package locally
       _executionPackage = {
+        ...manifest,
         'mode': 'simulation',
         'coveragePercentage': 100,
         'missingSensors': <String>[],
-        'variables': manifest['scene']['variables'],
-        'objects': manifest['scene']['objects'],
-        'rules': manifest['scene']['rules'],
       };
       print('[BUILDER] EXECUTION_PACKAGE_RECEIVED');
     } catch (e) {
@@ -186,7 +203,7 @@ class ExperimentBuilderController extends ChangeNotifier {
       } else if (msg.contains('revision')) {
         _error = 'Invalid Revision';
       } else if (msg.contains('validation')) {
-        _error = 'Validation Failed';
+        _error = e.toString().replaceFirst('Exception: ', '');
       } else {
         _error = e.toString();
       }
@@ -201,6 +218,50 @@ class ExperimentBuilderController extends ChangeNotifier {
   void updateScene(BuilderScene scene) {
     _state = _state.copyWith(scene: scene);
     print('[BUILDER] SCENE_UPDATED');
+    notifyListeners();
+  }
+
+  void createManualStarterScene() {
+    final id = const Uuid().v4();
+    final variable = BuilderVariable(
+      id: 'var_manual_$id',
+      name: 'manualValue',
+      type: 'numberInput',
+      defaultValue: 50.0,
+      description: 'A manually controlled value for testing the scene.',
+    );
+    final object = BuilderObject(
+      id: 'obj_manual_$id',
+      name: 'Manual Gauge',
+      type: 'gauge',
+      properties: {'linked_variable': variable.id},
+    );
+    final rule = BuilderRule(
+      id: 'rule_manual_$id',
+      name: 'ManualValueWarning',
+      condition: {'variableId': variable.id, 'operator': '>', 'value': 75},
+      action: {'type': 'show_warning'},
+      description: 'Shows a warning when the manual value is high.',
+    );
+
+    _state = _state.copyWith(
+      scene: _state.scene.copyWith(
+        name: _state.scene.name == 'Untitled Experiment'
+            ? 'Manual Runtime Test'
+            : _state.scene.name,
+        description: _state.scene.description.isEmpty
+            ? 'A hand-built experiment for validating variables, objects, rules, and runtime launch.'
+            : _state.scene.description,
+        tags: _state.scene.tags.isEmpty
+            ? ['manual', 'runtime-test']
+            : _state.scene.tags,
+      ),
+      variables: [..._state.variables, variable],
+      objects: [..._state.objects, object],
+      rules: [..._state.rules, rule],
+    );
+    _executionPackage = null;
+    print('[BUILDER] MANUAL_STARTER_SCENE_CREATED');
     notifyListeners();
   }
 
@@ -223,7 +284,18 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   void deleteVariable(String id) {
     final list = _state.variables.where((v) => v.id != id).toList();
-    _state = _state.copyWith(variables: list);
+    final objects = _state.objects
+        .where((object) => !_referencesId(object.properties, id))
+        .toList();
+    final rules = _state.rules
+        .where(
+          (rule) =>
+              !_referencesId(rule.condition, id) &&
+              !_referencesId(rule.action, id),
+        )
+        .toList();
+    _state = _state.copyWith(variables: list, objects: objects, rules: rules);
+    _executionPackage = null;
     print('[BUILDER] VARIABLE_DELETED');
     notifyListeners();
   }
@@ -247,7 +319,15 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   void deleteObject(String id) {
     final list = _state.objects.where((o) => o.id != id).toList();
-    _state = _state.copyWith(objects: list);
+    final rules = _state.rules
+        .where(
+          (rule) =>
+              !_referencesId(rule.condition, id) &&
+              !_referencesId(rule.action, id),
+        )
+        .toList();
+    _state = _state.copyWith(objects: list, rules: rules);
+    _executionPackage = null;
     print('[BUILDER] OBJECT_DELETED');
     notifyListeners();
   }
@@ -277,6 +357,7 @@ class ExperimentBuilderController extends ChangeNotifier {
   }
 
   Map<String, dynamic> generateManifest() {
+    _validationResult = _validator.validate(_state);
     print('[BUILDER] MANIFEST_GENERATED');
     return _state.generateManifestJson();
   }
@@ -290,5 +371,15 @@ class ExperimentBuilderController extends ChangeNotifier {
     }
     notifyListeners();
     return _validationResult!.isValid;
+  }
+
+  bool _referencesId(dynamic value, String id) {
+    if (value is Map) {
+      return value.values.any((entry) => _referencesId(entry, id));
+    }
+    if (value is Iterable) {
+      return value.any((entry) => _referencesId(entry, id));
+    }
+    return value == id;
   }
 }

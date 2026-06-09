@@ -20,7 +20,9 @@ class ExecutionDefinitionMapper {
 
   static List<PlaygroundObject> mapObjects(List<dynamic>? objectsJson) {
     if (objectsJson == null) return [];
-    return objectsJson.map((obj) => mapObject(obj as Map<String, dynamic>)).toList();
+    return objectsJson
+        .map((obj) => mapObject(obj as Map<String, dynamic>))
+        .toList();
   }
 
   static PlaygroundObject mapObject(Map<String, dynamic> map) {
@@ -36,11 +38,14 @@ class ExecutionDefinitionMapper {
 
   static List<PlaygroundVariable> mapVariables(List<dynamic>? variablesJson) {
     if (variablesJson == null) return [];
-    return variablesJson.map((varJson) => mapVariable(varJson as Map<String, dynamic>)).toList();
+    return variablesJson
+        .map((varJson) => mapVariable(varJson as Map<String, dynamic>))
+        .toList();
   }
 
   static PlaygroundVariable mapVariable(Map<String, dynamic> map) {
     return PlaygroundVariable(
+      id: map['id'] ?? map['name'] ?? '',
       name: map['name'] ?? '',
       type: map['type'] ?? 'number',
       value: map['value'],
@@ -52,7 +57,9 @@ class ExecutionDefinitionMapper {
 
   static List<PlaygroundRule> mapRules(List<dynamic>? rulesJson) {
     if (rulesJson == null) return [];
-    return rulesJson.map((ruleJson) => mapRule(ruleJson as Map<String, dynamic>)).toList();
+    return rulesJson
+        .map((ruleJson) => mapRule(ruleJson as Map<String, dynamic>))
+        .toList();
   }
 
   static PlaygroundRule mapRule(Map<String, dynamic> map) {

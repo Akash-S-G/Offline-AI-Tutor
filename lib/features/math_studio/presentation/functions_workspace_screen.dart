@@ -1,4 +1,5 @@
-import 'dart:math' as math;
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import 'package:math_expressions/math_expressions.dart' hide Stack;
 
@@ -16,8 +17,8 @@ class FunctionLabScreen extends StatefulWidget {
   final MathChallenge? challenge;
 
   const FunctionLabScreen({
-    super.key, 
-    this.initialFormula, 
+    super.key,
+    this.initialFormula,
     this.discoveryPrompt,
     this.challenge,
   });
@@ -29,23 +30,23 @@ class FunctionLabScreen extends StatefulWidget {
 class _FunctionLabScreenState extends State<FunctionLabScreen> {
   late final TextEditingController _formulaController;
   final TextEditingController _notesController = TextEditingController();
-  
+
   @override
   void initState() {
     super.initState();
-    _formulaController = TextEditingController(text: widget.initialFormula ?? 'a*x^2 + b*x + c');
+    _formulaController = TextEditingController(
+      text: widget.initialFormula ?? 'a*x^2 + b*x + c',
+    );
     _formulaController.addListener(_onFormulaChanged);
     _onFormulaChanged(); // initial detection
   }
-  
+
   // Auto-detected variables mapping to slider values
   final Map<String, double> _variables = {'a': 1.0, 'b': 0.0, 'c': 0.0};
-  
+
   double _xMin = -10;
   double _xMax = 10;
   String? _graphError;
-
-
 
   @override
   void dispose() {
@@ -56,14 +57,25 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
 
   void _onFormulaChanged() {
     final formula = _formulaController.text;
-    
+
     // Simple regex to find single letter variables, ignoring 'x' and ignoring math functions
     // e.g. ignoring sin, cos, tan, log, exp, sqrt, abs, pi, e
-    final ignoreWords = ['sin', 'cos', 'tan', 'log', 'exp', 'sqrt', 'abs', 'pi', 'e', 'x'];
-    
+    final ignoreWords = [
+      'sin',
+      'cos',
+      'tan',
+      'log',
+      'exp',
+      'sqrt',
+      'abs',
+      'pi',
+      'e',
+      'x',
+    ];
+
     final matches = RegExp(r'[a-zA-Z]+').allMatches(formula);
     final Set<String> foundVars = {};
-    
+
     for (final m in matches) {
       final word = m.group(0)!;
       if (!ignoreWords.contains(word)) {
@@ -97,61 +109,72 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
             icon: const Icon(Icons.save_rounded),
             onPressed: () async {
               final repo = await ExplorationRepository.create();
-              await repo.saveExploration(SavedExploration.create(
-                title: 'Function Snapshot: ${_formulaController.text}',
-                type: ExplorationType.functions,
-                data: {
-                  'formula': _formulaController.text,
-                  'variables': _variables,
-                  'notes': _notesController.text,
-                },
-              ));
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Workspace saved!')));
-              }
+              await repo.saveExploration(
+                SavedExploration.create(
+                  title: 'Function Snapshot: ${_formulaController.text}',
+                  type: ExplorationType.functions,
+                  data: {
+                    'formula': _formulaController.text,
+                    'variables': _variables,
+                    'notes': _notesController.text,
+                  },
+                ),
+              );
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Workspace saved!')));
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (widget.discoveryPrompt != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: const Color(0xFFD97706).withOpacity(0.1),
-              child: Row(
-                children: [
-                  const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFFB45309)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.discoveryPrompt!,
-                      style: const TextStyle(color: Color(0xFF78350F), fontWeight: FontWeight.w600),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            if (widget.discoveryPrompt != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                color: const Color(0xFFD97706).withValues(alpha: 0.1),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.lightbulb_outline_rounded,
+                      color: Color(0xFFB45309),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.discoveryPrompt!,
+                        style: const TextStyle(
+                          color: Color(0xFF78350F),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+            if (widget.challenge != null)
+              ChallengeCard(
+                challenge: widget.challenge!,
+                isCompleted: widget.challenge!.verifier(_variables),
+              ),
+            const ConceptCard(
+              title: 'Mathematical Functions',
+              description:
+                  'A function relates an input to an output. It is like a machine that has an input and an output, and the output is related somehow to the input.',
+              example:
+                  'The trajectory of a thrown ball is a parabola, modeled by a quadratic function taking time as input and height as output.',
+              icon: Icons.functions_rounded,
+              color: Color(0xFFD97706),
             ),
-          if (widget.challenge != null)
-            ChallengeCard(
-              challenge: widget.challenge!,
-              isCompleted: widget.challenge!.verifier(_variables),
-            ),
-          const ConceptCard(
-            title: 'Mathematical Functions',
-            description: 'A function relates an input to an output. It is like a machine that has an input and an output, and the output is related somehow to the input.',
-            example: 'The trajectory of a thrown ball is a parabola, modeled by a quadratic function taking time as input and height as output.',
-            icon: Icons.functions_rounded,
-            color: Color(0xFFD97706),
-          ),
-          _buildFormulaInput(),
-          if (_variables.isNotEmpty) _buildSliders(),
-          Expanded(
-            child: _buildGraphArea(),
-          ),
-          ObservationPanel(controller: _notesController),
-        ],
+            _buildFormulaInput(),
+            if (_variables.isNotEmpty) _buildSliders(),
+            SizedBox(height: 400, child: _buildGraphArea()),
+            ObservationPanel(controller: _notesController),
+          ],
+        ),
       ),
     );
   }
@@ -191,7 +214,10 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
             children: [
               Text(
                 '$varName = ${_variables[varName]!.toStringAsFixed(1)}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
               ),
               Expanded(
                 child: Slider(
@@ -221,7 +247,11 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: IDPColors.border),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: ClipRRect(
@@ -265,7 +295,10 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
                   ),
                   child: Text(
                     _graphError!,
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
@@ -323,8 +356,12 @@ class _GraphPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Draw Grid
-    final gridPaint = Paint()..color = const Color(0xFFE2E8F0)..strokeWidth = 1;
-    final axisPaint = Paint()..color = const Color(0xFF64748B)..strokeWidth = 2;
+    final gridPaint = Paint()
+      ..color = const Color(0xFFE2E8F0)
+      ..strokeWidth = 1;
+    final axisPaint = Paint()
+      ..color = const Color(0xFF64748B)
+      ..strokeWidth = 2;
 
     // Draw grid lines (10 segments)
     for (int i = 0; i <= 10; i++) {
@@ -351,9 +388,11 @@ class _GraphPainter extends CustomPainter {
       cm.bindVariableName(v.key, Number(v.value));
     }
 
+    double yRange = (xMax - xMin) * (size.height / size.width);
+    double yMinBound = -yRange / 2;
+    double yMaxBound = yRange / 2;
+
     List<double?> yValues = [];
-    double yMinBound = double.infinity;
-    double yMaxBound = double.negativeInfinity;
 
     for (int i = 0; i <= size.width.toInt(); i++) {
       double x = xMin + (i / size.width) * (xMax - xMin);
@@ -362,8 +401,6 @@ class _GraphPainter extends CustomPainter {
         double y = exp.evaluate(EvaluationType.REAL, cm);
         if (y.isFinite) {
           yValues.add(y);
-          if (y < yMinBound) yMinBound = y;
-          if (y > yMaxBound) yMaxBound = y;
         } else {
           yValues.add(null);
         }
@@ -372,26 +409,23 @@ class _GraphPainter extends CustomPainter {
       }
     }
 
-    if (yMinBound == double.infinity || yMaxBound == double.negativeInfinity) {
-      onError("Could not evaluate over this range");
-      return;
-    }
-
-    // Add padding to Y bounds
-    double padding = (yMaxBound - yMinBound) * 0.1;
-    if (padding == 0) padding = 1.0;
-    yMinBound -= padding;
-    yMaxBound += padding;
-
     // Draw X and Y Axes if visible
     if (0 >= xMin && 0 <= xMax) {
       double xAxisPos = ((0 - xMin) / (xMax - xMin)) * size.width;
-      canvas.drawLine(Offset(xAxisPos, 0), Offset(xAxisPos, size.height), axisPaint);
+      canvas.drawLine(
+        Offset(xAxisPos, 0),
+        Offset(xAxisPos, size.height),
+        axisPaint,
+      );
     }
     if (0 >= yMinBound && 0 <= yMaxBound) {
       double yRatio = (0 - yMinBound) / (yMaxBound - yMinBound);
       double yAxisPos = size.height - (yRatio * size.height);
-      canvas.drawLine(Offset(0, yAxisPos), Offset(size.width, yAxisPos), axisPaint);
+      canvas.drawLine(
+        Offset(0, yAxisPos),
+        Offset(size.width, yAxisPos),
+        axisPaint,
+      );
     }
 
     // Draw Function Path

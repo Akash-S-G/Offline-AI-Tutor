@@ -23,23 +23,29 @@ class ExperimentBuilderScreen extends StatefulWidget {
   const ExperimentBuilderScreen({super.key});
 
   @override
-  State<ExperimentBuilderScreen> createState() => _ExperimentBuilderScreenState();
+  State<ExperimentBuilderScreen> createState() =>
+      _ExperimentBuilderScreenState();
 }
 
-class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> with SingleTickerProviderStateMixin {
+class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
+    with SingleTickerProviderStateMixin {
   late final ExperimentBuilderController _controller;
   late final AiGeneratorController _aiController;
 
   @override
   void initState() {
     super.initState();
-    final config = BackendConfig.fromEnvironment() ?? BackendConfig(baseUrl: 'http://localhost', apiKey: 'dummy');
-    
+    final config =
+        BackendConfig.fromEnvironment() ??
+        BackendConfig(baseUrl: 'http://localhost', apiKey: 'dummy');
+
     // Core Builder Config
     final apiService = ExperimentManifestApiService(config);
     final repo = ExperimentManifestRepositoryImpl(apiService);
-    final draftManager = BuilderDraftManager(SharedPreferencesBuilderDraftRepository());
-    
+    final draftManager = BuilderDraftManager(
+      SharedPreferencesBuilderDraftRepository(),
+    );
+
     _controller = ExperimentBuilderController(
       draftManager: draftManager,
       manifestRepository: repo,
@@ -48,12 +54,11 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> with 
     // AI Generator Config
     final aiApiService = AiExperimentApiService(config);
     final aiRepo = AiExperimentRepositoryImpl(aiApiService);
-    
+
     _aiController = AiGeneratorController(
       aiRepository: aiRepo,
       manifestRepository: repo,
     );
-
   }
 
   @override
@@ -92,18 +97,35 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> with 
                   backgroundColor: const Color(0xFF0F172A),
                   selectedItemColor: const Color(0xFF3B82F6),
                   unselectedItemColor: const Color(0xFF64748B),
-                  currentIndex: BuilderWorkflowStep.values.indexOf(_currentStep),
+                  currentIndex: BuilderWorkflowStep.values.indexOf(
+                    _currentStep,
+                  ),
                   onTap: (index) {
                     setState(() {
                       _currentStep = BuilderWorkflowStep.values[index];
                     });
                   },
                   items: const [
-                    BottomNavigationBarItem(icon: Icon(Icons.add_circle_outline), label: 'Create'),
-                    BottomNavigationBarItem(icon: Icon(Icons.design_services), label: 'Design'),
-                    BottomNavigationBarItem(icon: Icon(Icons.account_tree), label: 'Logic'),
-                    BottomNavigationBarItem(icon: Icon(Icons.play_circle_outline), label: 'Preview'),
-                    BottomNavigationBarItem(icon: Icon(Icons.publish), label: 'Publish'),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.add_circle_outline),
+                      label: 'Create',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.design_services),
+                      label: 'Design',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.account_tree),
+                      label: 'Logic',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.play_circle_outline),
+                      label: 'Preview',
+                    ),
+                    BottomNavigationBarItem(
+                      icon: Icon(Icons.publish),
+                      label: 'Publish',
+                    ),
                   ],
                 ),
               ],
@@ -139,29 +161,7 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> with 
   Widget _buildWorkspaceForStep(BuilderWorkflowStep step) {
     switch (step) {
       case BuilderWorkflowStep.create:
-        return DefaultTabController(
-          length: 2,
-          child: Column(
-            children: [
-              const TabBar(
-                labelColor: Color(0xFF1E293B),
-                unselectedLabelColor: Color(0xFF64748B),
-                tabs: [
-                  Tab(text: 'AI Generator'),
-                  Tab(text: 'My Drafts'),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  children: [
-                    AiGeneratorTab(aiController: _aiController, builderController: _controller),
-                    BuilderDraftsScreen(draftManager: _controller.draftManager),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
+        return _buildCreateWorkspace();
       case BuilderWorkflowStep.design:
         return DesignWorkspacePanel(controller: _controller);
       case BuilderWorkflowStep.logic:
@@ -171,5 +171,128 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen> with 
       case BuilderWorkflowStep.publish:
         return PublishWorkspacePanel(controller: _controller);
     }
+  }
+
+  Widget _buildCreateWorkspace() {
+    return DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          const TabBar(
+            labelColor: Color(0xFF1E293B),
+            unselectedLabelColor: Color(0xFF64748B),
+            tabs: [
+              Tab(text: 'Manual'),
+              Tab(text: 'AI Generator'),
+              Tab(text: 'Drafts'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _ManualCreatePanel(controller: _controller),
+                AiGeneratorTab(
+                  aiController: _aiController,
+                  builderController: _controller,
+                ),
+                BuilderDraftsScreen(draftManager: _controller.draftManager),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ManualCreatePanel extends StatelessWidget {
+  final ExperimentBuilderController controller;
+
+  const _ManualCreatePanel({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final hasParts =
+            controller.state.variables.isNotEmpty ||
+            controller.state.objects.isNotEmpty ||
+            controller.state.rules.isNotEmpty;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                'Manual Experiment',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1E293B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Build an experiment by adding scene metadata, variables, visual objects, and rules. Scene name, description, and tags are metadata only; they do not create runtime behavior by themselves.',
+                style: TextStyle(color: Color(0xFF64748B)),
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton.icon(
+                onPressed: controller.createManualStarterScene,
+                icon: const Icon(Icons.build_circle_outlined),
+                label: Text(
+                  hasParts ? 'Add Starter Parts' : 'Create Starter Scene',
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F172A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
+              const SizedBox(height: 16),
+              _ManualChecklist(controller: controller),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _ManualChecklist extends StatelessWidget {
+  final ExperimentBuilderController controller;
+
+  const _ManualChecklist({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final scene = controller.state.scene;
+    final variables = controller.state.variables.length;
+    final objects = controller.state.objects.length;
+    final rules = controller.state.rules.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _row('Scene metadata', scene.name.trim().isNotEmpty),
+        _row('Variables', variables > 0, '$variables added'),
+        _row('Objects', objects > 0, '$objects added'),
+        _row('Rules', rules > 0, '$rules added'),
+      ],
+    );
+  }
+
+  Widget _row(String label, bool ok, [String? detail]) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        ok ? Icons.check_circle : Icons.radio_button_unchecked,
+        color: ok ? Colors.green : const Color(0xFF94A3B8),
+      ),
+      title: Text(label),
+      subtitle: detail == null ? null : Text(detail),
+    );
   }
 }

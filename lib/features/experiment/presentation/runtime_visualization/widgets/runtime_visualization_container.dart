@@ -18,25 +18,27 @@ class RuntimeVisualizationContainer extends StatelessWidget {
       listenable: controller,
       builder: (context, _) {
         final state = controller.state;
-        
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            RuntimeStatisticsPanel(
-              measurementsReceived: state.measurementsReceived,
-              warnings: state.warnings,
-              errors: state.errors,
-              eventsProcessed: state.eventsProcessed,
-              runtimeDuration: state.runtimeDuration,
-            ),
-            
-            MeasurementDashboard(measurements: state.measurements),
-            VariablePanel(variables: state.variables),
-            ObjectStatePanel(objectStates: state.objectStates),
-            
-            const Divider(),
-            RuntimeTimeline(timeline: state.timeline),
-          ],
+
+        return SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              RuntimeStatisticsPanel(
+                measurementsReceived: state.measurementsReceived,
+                warnings: state.warnings,
+                errors: state.errors,
+                eventsProcessed: state.eventsProcessed,
+                runtimeDuration: state.runtimeDuration,
+              ),
+
+              MeasurementDashboard(measurements: state.measurements),
+              VariablePanel(variables: state.variables),
+              ObjectStatePanel(objectStates: state.objectStates),
+
+              const Divider(),
+              RuntimeTimeline(timeline: state.timeline),
+            ],
+          ),
         );
       },
     );

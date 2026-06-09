@@ -26,6 +26,7 @@ class SceneLoader {
 
       final variables = (json['variables'] as List<dynamic>? ?? []).map((v) {
         return PlaygroundVariable(
+          id: v['id'] ?? v['name'],
           name: v['name'],
           type: v['type'],
           value: v['value'],

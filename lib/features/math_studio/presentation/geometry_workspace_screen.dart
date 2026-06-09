@@ -17,20 +17,22 @@ class GeometryWorkspaceScreen extends StatefulWidget {
   final MathChallenge? challenge;
 
   const GeometryWorkspaceScreen({
-    super.key, 
-    this.initialShape, 
+    super.key,
+    this.initialShape,
     this.discoveryPrompt,
     this.challenge,
   });
 
   @override
-  State<GeometryWorkspaceScreen> createState() => _GeometryWorkspaceScreenState();
+  State<GeometryWorkspaceScreen> createState() =>
+      _GeometryWorkspaceScreenState();
 }
 
 class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
   late GeometryShape _shape;
   final TextEditingController _notesController = TextEditingController();
-  
+  bool _showLiveStats = true;
+
   @override
   void initState() {
     super.initState();
@@ -41,7 +43,7 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
   // Storing points as Offset for easy dragging
   List<Offset> _points = [];
   int? _draggingIndex;
-  
+
   // Circle specifics
   Offset _circleCenter = const Offset(150, 150);
   double _circleRadius = 80;
@@ -111,7 +113,7 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
     if (_shape == GeometryShape.circle) {
       return math.pi * _circleRadius * _circleRadius;
     }
-    
+
     // Shoelace formula for polygon area
     if (_points.length < 3) return 0;
     double area = 0;
@@ -127,7 +129,7 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
     if (_shape == GeometryShape.circle) {
       return 2 * math.pi * _circleRadius;
     }
-    
+
     if (_points.length < 2) return 0;
     double perimeter = 0;
     for (int i = 0; i < _points.length; i++) {
@@ -139,11 +141,13 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
 
   void _onPanStart(DragStartDetails details) {
     final pos = details.localPosition;
-    
+
     if (_shape == GeometryShape.circle) {
       if (_calculateDistance(pos, _circleCenter) < 20) {
         _isDraggingCenter = true;
-      } else if ((_calculateDistance(pos, _circleCenter) - _circleRadius).abs() < 20) {
+      } else if ((_calculateDistance(pos, _circleCenter) - _circleRadius)
+              .abs() <
+          20) {
         _isDraggingRadius = true;
       }
       return;
@@ -163,19 +167,22 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
         if (_isDraggingCenter) {
           _circleCenter += details.delta;
         } else if (_isDraggingRadius) {
-          _circleRadius = _calculateDistance(_circleCenter, details.localPosition);
+          _circleRadius = _calculateDistance(
+            _circleCenter,
+            details.localPosition,
+          );
         }
         return;
       }
 
       if (_draggingIndex != null) {
         Offset newPos = _points[_draggingIndex!] + details.delta;
-        
+
         if (_shape == GeometryShape.rectangle) {
           // Keep it a rectangle by moving adjacent points
           int i = _draggingIndex!;
           _points[i] = newPos;
-          
+
           if (i == 0) {
             _points[1] = Offset(_points[1].dx, newPos.dy);
             _points[3] = Offset(newPos.dx, _points[3].dy);
@@ -215,92 +222,101 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
             icon: const Icon(Icons.save_rounded),
             onPressed: () async {
               final repo = await ExplorationRepository.create();
-              await repo.saveExploration(SavedExploration.create(
-                title: 'Geometry Snapshot: ${_shape.name}',
-                type: ExplorationType.geometry,
-                data: {
-                  'shape': _shape.name,
-                  'notes': _notesController.text,
-                },
-              ));
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Workspace saved!')));
-              }
+              await repo.saveExploration(
+                SavedExploration.create(
+                  title: 'Geometry Snapshot: ${_shape.name}',
+                  type: ExplorationType.geometry,
+                  data: {'shape': _shape.name, 'notes': _notesController.text},
+                ),
+              );
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(
+                context,
+              ).showSnackBar(const SnackBar(content: Text('Workspace saved!')));
             },
           ),
         ],
       ),
-      body: Column(
-        children: [
-          if (widget.discoveryPrompt != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              color: const Color(0xFF0D9488).withOpacity(0.1),
-              child: Row(
-                children: [
-                  const Icon(Icons.lightbulb_outline_rounded, color: Color(0xFF0F766E)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Text(
-                      widget.discoveryPrompt!,
-                      style: const TextStyle(color: Color(0xFF134E4A), fontWeight: FontWeight.w600),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            if (widget.discoveryPrompt != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.lightbulb_outline_rounded,
+                      color: Color(0xFF0F766E),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        widget.discoveryPrompt!,
+                        style: const TextStyle(
+                          color: Color(0xFF134E4A),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+            if (widget.challenge != null)
+              ChallengeCard(
+                challenge: widget.challenge!,
+                isCompleted: widget.challenge!.verifier({
+                  'area': _calculateArea(),
+                  'perimeter': _calculatePerimeter(),
+                }),
+              ),
+            ConceptCard(
+              title: _shape == GeometryShape.pythagorean
+                  ? 'Pythagorean Theorem'
+                  : 'Geometry Properties',
+              description: _shape == GeometryShape.pythagorean
+                  ? 'In a right-angled triangle, the square of the hypotenuse is equal to the sum of the squares of the other two sides.'
+                  : 'Geometry is the study of shapes, sizes, and properties of space.',
+              example: _shape == GeometryShape.pythagorean
+                  ? 'Used in construction to ensure walls are perfectly square (the 3-4-5 rule).'
+                  : 'Architects use geometry to design stable and aesthetically pleasing buildings.',
+              icon: Icons.architecture_rounded,
+              color: const Color(0xFF0D9488),
             ),
-          if (widget.challenge != null)
-            ChallengeCard(
-              challenge: widget.challenge!,
-              isCompleted: widget.challenge!.verifier({
-                'area': _calculateArea(),
-                'perimeter': _calculatePerimeter(),
-              }),
-            ),
-          ConceptCard(
-            title: _shape == GeometryShape.pythagorean ? 'Pythagorean Theorem' : 'Geometry Properties',
-            description: _shape == GeometryShape.pythagorean 
-                ? 'In a right-angled triangle, the square of the hypotenuse is equal to the sum of the squares of the other two sides.' 
-                : 'Geometry is the study of shapes, sizes, and properties of space.',
-            example: _shape == GeometryShape.pythagorean
-                ? 'Used in construction to ensure walls are perfectly square (the 3-4-5 rule).'
-                : 'Architects use geometry to design stable and aesthetically pleasing buildings.',
-            icon: Icons.architecture_rounded,
-            color: const Color(0xFF0D9488),
-          ),
-          _buildToolbar(),
-          Expanded(
-            child: Stack(
-              children: [
-                GestureDetector(
-                  onPanStart: _onPanStart,
-                  onPanUpdate: _onPanUpdate,
-                  onPanEnd: _onPanEnd,
-                  child: Container(
-                    color: Colors.white,
-                    width: double.infinity,
-                    height: double.infinity,
-                    child: CustomPaint(
-                      painter: _GeometryPainter(
-                        shape: _shape,
-                        points: _points,
-                        circleCenter: _circleCenter,
-                        circleRadius: _circleRadius,
+            if (_shape != GeometryShape.pythagorean &&
+                _shape != GeometryShape.angles)
+              _buildToolbar(),
+            SizedBox(
+              height: 450,
+              child: Stack(
+                children: [
+                  GestureDetector(
+                    onPanStart: _onPanStart,
+                    onPanUpdate: _onPanUpdate,
+                    onPanEnd: _onPanEnd,
+                    child: Container(
+                      color: Colors.white,
+                      width: double.infinity,
+                      height: double.infinity,
+                      child: CustomPaint(
+                        painter: _GeometryPainter(
+                          shape: _shape,
+                          points: _points,
+                          circleCenter: _circleCenter,
+                          circleRadius: _circleRadius,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: 20,
-                  right: 20,
-                  child: _buildLiveStats(),
-                ),
-              ],
+                  Positioned(top: 20, right: 20, child: _buildLiveStats()),
+                ],
+              ),
             ),
-          ),
-          ObservationPanel(controller: _notesController),
-        ],
+            ObservationPanel(controller: _notesController),
+          ],
+        ),
       ),
     );
   }
@@ -326,14 +342,18 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFF0D9488).withOpacity(0.1) : Colors.transparent,
+                color: isSelected
+                    ? const Color(0xFF0D9488).withValues(alpha: 0.1)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
                 s.name.toUpperCase(),
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: isSelected ? const Color(0xFF0D9488) : IDPColors.textSecondary,
+                  color: isSelected
+                      ? const Color(0xFF0D9488)
+                      : IDPColors.textSecondary,
                 ),
               ),
             ),
@@ -344,14 +364,23 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
   }
 
   Widget _buildLiveStats() {
+    if (!_showLiveStats) {
+      return FloatingActionButton.small(
+        onPressed: () => setState(() => _showLiveStats = true),
+        backgroundColor: Colors.white,
+        foregroundColor: const Color(0xFF0D9488),
+        child: const Icon(Icons.calculate),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.9),
+        color: Colors.white.withValues(alpha: 0.9),
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -361,23 +390,46 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text(
-            'Live Calculations',
-            style: TextStyle(fontWeight: FontWeight.bold, color: IDPColors.textPrimary),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Live Calculations',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: IDPColors.textPrimary,
+                ),
+              ),
+              const SizedBox(width: 16),
+              GestureDetector(
+                onTap: () => setState(() => _showLiveStats = false),
+                child: const Icon(Icons.close, size: 16, color: Colors.grey),
+              ),
+            ],
           ),
           const SizedBox(height: 8),
           Text(
             'Area: ${_calculateArea().toStringAsFixed(1)} px²',
-            style: const TextStyle(color: Color(0xFF0D9488), fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Color(0xFF0D9488),
+              fontWeight: FontWeight.w600,
+            ),
           ),
           Text(
             'Perimeter: ${_calculatePerimeter().toStringAsFixed(1)} px',
-            style: const TextStyle(color: Color(0xFF0D9488), fontWeight: FontWeight.w600),
+            style: const TextStyle(
+              color: Color(0xFF0D9488),
+              fontWeight: FontWeight.w600,
+            ),
           ),
           if (_shape == GeometryShape.triangle) ...[
             const SizedBox(height: 8),
-            const Text('Drag corners to edit.', style: TextStyle(fontSize: 12, color: Colors.grey)),
-          ]
+            const Text(
+              'Drag corners to edit.',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
+          ],
         ],
       ),
     );
@@ -400,7 +452,7 @@ class _GeometryPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final fillPaint = Paint()
-      ..color = const Color(0xFF0D9488).withOpacity(0.1)
+      ..color = const Color(0xFF0D9488).withValues(alpha: 0.1)
       ..style = PaintingStyle.fill;
 
     final strokePaint = Paint()
@@ -416,10 +468,18 @@ class _GeometryPainter extends CustomPainter {
       canvas.drawCircle(circleCenter, circleRadius, fillPaint);
       canvas.drawCircle(circleCenter, circleRadius, strokePaint);
       canvas.drawCircle(circleCenter, 6, pointPaint); // Center handle
-      canvas.drawCircle(circleCenter + Offset(circleRadius, 0), 6, pointPaint); // Radius handle
+      canvas.drawCircle(
+        circleCenter + Offset(circleRadius, 0),
+        6,
+        pointPaint,
+      ); // Radius handle
     } else if (shape == GeometryShape.pythagorean) {
       if (points.length >= 3) {
-        final path = Path()..moveTo(points[0].dx, points[0].dy)..lineTo(points[1].dx, points[1].dy)..lineTo(points[2].dx, points[2].dy)..close();
+        final path = Path()
+          ..moveTo(points[0].dx, points[0].dy)
+          ..lineTo(points[1].dx, points[1].dy)
+          ..lineTo(points[2].dx, points[2].dy)
+          ..close();
         canvas.drawPath(path, fillPaint);
         canvas.drawPath(path, strokePaint);
 
@@ -431,9 +491,25 @@ class _GeometryPainter extends CustomPainter {
           final dy = p2.dy - p1.dy;
           final p3 = Offset(p2.dx + dy, p2.dy - dx);
           final p4 = Offset(p1.dx + dy, p1.dy - dx);
-          final squarePath = Path()..moveTo(p1.dx, p1.dy)..lineTo(p2.dx, p2.dy)..lineTo(p3.dx, p3.dy)..lineTo(p4.dx, p4.dy)..close();
-          canvas.drawPath(squarePath, Paint()..color = Colors.orange.withOpacity(0.3)..style = PaintingStyle.fill);
-          canvas.drawPath(squarePath, Paint()..color = Colors.orange..style = PaintingStyle.stroke..strokeWidth = 2);
+          final squarePath = Path()
+            ..moveTo(p1.dx, p1.dy)
+            ..lineTo(p2.dx, p2.dy)
+            ..lineTo(p3.dx, p3.dy)
+            ..lineTo(p4.dx, p4.dy)
+            ..close();
+          canvas.drawPath(
+            squarePath,
+            Paint()
+              ..color = Colors.orange.withValues(alpha: 0.3)
+              ..style = PaintingStyle.fill,
+          );
+          canvas.drawPath(
+            squarePath,
+            Paint()
+              ..color = Colors.orange
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 2,
+          );
         }
       }
       for (var p in points) {

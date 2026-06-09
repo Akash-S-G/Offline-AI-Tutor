@@ -54,46 +54,57 @@ class SimulationPlaygroundEngine {
       _currentScene = scene;
       _state = PlaygroundState.loaded;
       print('[PLAYGROUND] SCENE_LOADED sceneId=${_currentScene?.sceneId}');
-      
-      _eventBus.publish(PlaygroundEvent(
-        eventId: _uuid.v4(),
-        eventType: PlaygroundEventType.sceneLoaded,
-        timestamp: DateTime.now(),
-        payload: {'sceneId': _currentScene?.sceneId},
-      ));
+
+      _eventBus.publish(
+        PlaygroundEvent(
+          eventId: _uuid.v4(),
+          eventType: PlaygroundEventType.sceneLoaded,
+          timestamp: DateTime.now(),
+          payload: {'sceneId': _currentScene?.sceneId},
+        ),
+      );
 
       // Emit object creation events
       for (final obj in _currentScene?.objects ?? <PlaygroundObject>[]) {
         print('[PLAYGROUND] OBJECT_CREATED objectId=${obj.objectId}');
-        _eventBus.publish(PlaygroundEvent(
-          eventId: _uuid.v4(),
-          eventType: PlaygroundEventType.objectCreated,
-          timestamp: DateTime.now(),
-          payload: {'objectId': obj.objectId, 'objectType': obj.objectType},
-        ));
+        _eventBus.publish(
+          PlaygroundEvent(
+            eventId: _uuid.v4(),
+            eventType: PlaygroundEventType.objectCreated,
+            timestamp: DateTime.now(),
+            payload: {'objectId': obj.objectId, 'objectType': obj.objectType},
+          ),
+        );
       }
     } catch (e) {
       print('[PLAYGROUND] LOAD_ERROR error=$e');
     }
   }
 
-  void updateVariable(String name, dynamic value) {
+  void updateVariable(String nameOrId, dynamic value) {
     if (_currentScene == null) return;
-    
+
     for (final variable in _currentScene!.variables) {
-      if (variable.name == name) {
+      if (variable.name == nameOrId || variable.id == nameOrId) {
         variable.value = value;
-        print('[PLAYGROUND] VARIABLE_CHANGED name=$name value=$value');
-        
-        _eventBus.publish(PlaygroundEvent(
-          eventId: _uuid.v4(),
-          eventType: PlaygroundEventType.variableChanged,
-          timestamp: DateTime.now(),
-          payload: {'name': name, 'value': value},
-        ));
-        
+        print(
+          '[PLAYGROUND] VARIABLE_CHANGED name=${variable.name} value=$value',
+        );
+
+        _eventBus.publish(
+          PlaygroundEvent(
+            eventId: _uuid.v4(),
+            eventType: PlaygroundEventType.variableChanged,
+            timestamp: DateTime.now(),
+            payload: {'id': variable.id, 'name': variable.name, 'value': value},
+          ),
+        );
+
         // Example check for rule triggers would go here
-        _evaluateRules(PlaygroundEventType.variableChanged, {'name': name});
+        _evaluateRules(PlaygroundEventType.variableChanged, {
+          'id': variable.id,
+          'name': variable.name,
+        });
         break;
       }
     }
@@ -105,34 +116,41 @@ class SimulationPlaygroundEngine {
     for (final obj in _currentScene!.objects) {
       if (obj.objectId == objectId) {
         obj.state.addAll(newState);
-        
-        _eventBus.publish(PlaygroundEvent(
-          eventId: _uuid.v4(),
-          eventType: PlaygroundEventType.objectUpdated,
-          timestamp: DateTime.now(),
-          payload: {'objectId': objectId, 'state': obj.state},
-        ));
+
+        _eventBus.publish(
+          PlaygroundEvent(
+            eventId: _uuid.v4(),
+            eventType: PlaygroundEventType.objectUpdated,
+            timestamp: DateTime.now(),
+            payload: {'objectId': objectId, 'state': obj.state},
+          ),
+        );
         break;
       }
     }
   }
 
-  void _evaluateRules(PlaygroundEventType eventType, Map<String, dynamic> payload) {
+  void _evaluateRules(
+    PlaygroundEventType eventType,
+    Map<String, dynamic> payload,
+  ) {
     if (_currentScene == null) return;
-    
+
     // Abstract rule engine simulation
     for (final rule in _currentScene!.rules) {
       if (!rule.enabled) continue;
-      
+
       // We don't execute physics, but we record the rule execution as metadata
       if (rule.trigger == eventType.name || rule.trigger == 'any') {
         print('[PLAYGROUND] RULE_EXECUTED ruleId=${rule.ruleId}');
-        _eventBus.publish(PlaygroundEvent(
-          eventId: _uuid.v4(),
-          eventType: PlaygroundEventType.ruleExecuted,
-          timestamp: DateTime.now(),
-          payload: {'ruleId': rule.ruleId},
-        ));
+        _eventBus.publish(
+          PlaygroundEvent(
+            eventId: _uuid.v4(),
+            eventType: PlaygroundEventType.ruleExecuted,
+            timestamp: DateTime.now(),
+            payload: {'ruleId': rule.ruleId},
+          ),
+        );
       }
     }
   }
@@ -163,10 +181,12 @@ class SimulationPlaygroundEngine {
     print('[PLAYGROUND] VARIABLE_ADDED name=${variable.name}');
   }
 
-  void removeVariable(String name) {
+  void removeVariable(String nameOrId) {
     if (_currentScene == null) return;
-    _currentScene!.variables.removeWhere((v) => v.name == name);
-    print('[PLAYGROUND] VARIABLE_REMOVED name=$name');
+    _currentScene!.variables.removeWhere(
+      (v) => v.name == nameOrId || v.id == nameOrId,
+    );
+    print('[PLAYGROUND] VARIABLE_REMOVED idOrName=$nameOrId');
   }
 
   void addObject(PlaygroundObject object) {

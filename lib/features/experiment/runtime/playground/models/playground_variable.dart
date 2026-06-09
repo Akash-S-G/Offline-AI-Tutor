@@ -1,4 +1,5 @@
 class PlaygroundVariable {
+  final String id;
   final String name;
   final String type;
   dynamic value;
@@ -7,6 +8,7 @@ class PlaygroundVariable {
   final String? unit;
 
   PlaygroundVariable({
+    required this.id,
     required this.name,
     required this.type,
     required this.value,
