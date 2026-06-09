@@ -17,7 +17,7 @@ import '../../settings/presentation/model_selection_screen.dart';
 import '../../settings/presentation/manage_content_screen.dart';
 import '../../onboarding/presentation/grade_selection_screen.dart';
 import 'my_learning_screen.dart';
-import 'math_simulator_screen.dart';
+import '../../math_studio/presentation/math_studio_home_screen.dart';
 import 'quiz_assessment_screen.dart';
 
 import '../../experiment/builder/screens/experiment_builder_screen.dart';
@@ -476,12 +476,12 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             const SizedBox(height: 12),
             _LearningCard(
               icon: Icons.calculate_rounded,
-              title: 'Math Simulator',
-              description: '2D formula and geometry simulation',
+              title: 'Math Studio',
+              description: 'Interactive mathematical exploration',
               color: const Color(0xFF2563EB),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => const MathSimulatorScreen(),
+                  builder: (_) => const MathStudioHomeScreen(),
                 ),
               ),
             ),

@@ -161,19 +161,21 @@ class ExperimentBuilderController extends ChangeNotifier {
       };
       
       final manifest = generateManifest();
-      if (draftManager.currentDraftId != null) {
-        manifest['metadata'] = {
-          'manifest_id': draftManager.currentDraftId,
-          'revision': 1,
-        };
-      }
       
       // Pre-validation to simulate Validation Failed error if scene is totally empty
       if (_state.scene.name.isEmpty) {
         throw Exception('Validation Failed');
       }
       
-      _executionPackage = await _manifestRepository.getExecutionPackage(manifest, capabilities);
+      // Generate execution package locally
+      _executionPackage = {
+        'mode': 'simulation',
+        'coveragePercentage': 100,
+        'missingSensors': <String>[],
+        'variables': manifest['scene']['variables'],
+        'objects': manifest['scene']['objects'],
+        'rules': manifest['scene']['rules'],
+      };
       print('[BUILDER] EXECUTION_PACKAGE_RECEIVED');
     } catch (e) {
       final msg = e.toString().toLowerCase();

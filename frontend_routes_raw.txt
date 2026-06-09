@@ -1,0 +1,25 @@
+lib/features/educational/presentation/chapter_screen.dart:          Navigator.push(
+lib/features/educational/presentation/curriculum_home_screen.dart:          Navigator.push(
+lib/features/educational/presentation/subject_screen.dart:          Navigator.push(
+lib/features/educational/presentation/grade_screen.dart:        Navigator.push(
+lib/features/home/presentation/pdf_chapter_reader_screen.dart:    Navigator.push(
+lib/features/home/presentation/pdf_chapter_reader_screen.dart:    Navigator.push(
+lib/features/experiment/builder/widgets/builder_execution_preview_panel.dart:                              Navigator.push(
+lib/features/experiment/presentation/screens/experiment_details_screen.dart:                  Navigator.push(
+lib/features/experiment/presentation/screens/experiment_catalog_screen.dart:                    Navigator.push(
+lib/features/math_studio/presentation/saved_explorations_screen.dart:              Navigator.push(context, MaterialPageRoute(builder: (_) => target));
+lib/features/math_studio/presentation/math_studio_home_screen.dart:                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ExplorationCatalogScreen()));
+lib/features/math_studio/presentation/math_studio_home_screen.dart:                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AlgebraWorkspaceScreen()));
+lib/features/math_studio/presentation/math_studio_home_screen.dart:                    Navigator.push(context, MaterialPageRoute(builder: (_) => const GeometryWorkspaceScreen()));
+lib/features/math_studio/presentation/math_studio_home_screen.dart:                    Navigator.push(context, MaterialPageRoute(builder: (_) => const FunctionLabScreen()));
+lib/features/math_studio/presentation/math_studio_home_screen.dart:                    Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsLabScreen()));
+lib/features/math_studio/presentation/math_studio_home_screen.dart:                    Navigator.push(context, MaterialPageRoute(builder: (_) => const FormulaPlaygroundScreen()));
+lib/features/math_studio/presentation/math_studio_home_screen.dart:                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SavedExplorationsScreen()));
+lib/features/math_studio/presentation/exploration_catalog_screen.dart:                Navigator.push(context, MaterialPageRoute(builder: (_) => const FunctionLabScreen(
+lib/features/math_studio/presentation/exploration_catalog_screen.dart:                Navigator.push(context, MaterialPageRoute(builder: (_) => const FunctionLabScreen(
+lib/features/math_studio/presentation/exploration_catalog_screen.dart:                Navigator.push(context, MaterialPageRoute(builder: (_) => const GeometryWorkspaceScreen(
+lib/features/math_studio/presentation/exploration_catalog_screen.dart:                Navigator.push(context, MaterialPageRoute(builder: (_) => const GeometryWorkspaceScreen(
+lib/features/math_studio/presentation/exploration_catalog_screen.dart:                Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsLabScreen()));
+lib/features/math_studio/presentation/exploration_catalog_screen.dart:                Navigator.push(context, MaterialPageRoute(builder: (_) => FunctionLabScreen(
+lib/features/math_studio/presentation/exploration_catalog_screen.dart:                Navigator.push(context, MaterialPageRoute(builder: (_) => GeometryWorkspaceScreen(
+lib/features/math_studio/presentation/exploration_catalog_screen.dart:                Navigator.push(context, MaterialPageRoute(builder: (_) => StatisticsLabScreen(

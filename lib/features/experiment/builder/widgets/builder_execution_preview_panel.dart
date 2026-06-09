@@ -98,7 +98,7 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
                               Navigator.push(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => ExperimentPlayerScreen(manifest: manifest),
+                                  builder: (_) => ExperimentPlayerScreen(manifest: manifest, executionPayload: pkg as Map<String,dynamic>?),
                                 ),
                               );
                             },

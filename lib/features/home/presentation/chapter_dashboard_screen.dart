@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../course/domain/curriculum_models.dart';
 import '../../course/domain/course_tree.dart';
 import '../../chat/presentation/chapter_chat_screen.dart';
-import 'chapter_reader_screen.dart';
+import 'pdf_chapter_reader_screen.dart';
 import 'quiz_player_screen.dart';
 import 'chapter_summary_screen.dart';
 import 'widgets/chapter_experiments_section.dart';
@@ -152,7 +152,7 @@ class _ChapterDashboardScreenState extends State<ChapterDashboardScreen> {
                 if (mounted) {
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (_) => ChapterReaderScreen(chapter: widget.chapter),
+                      builder: (_) => PdfChapterReaderScreen(chapter: widget.chapter),
                     ),
                   ).then((_) => _loadAnalytics());
                 }

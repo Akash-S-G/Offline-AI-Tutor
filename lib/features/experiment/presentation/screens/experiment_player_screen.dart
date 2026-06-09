@@ -4,16 +4,24 @@ import '../../domain/models/experiment_models.dart';
 import '../../application/orchestrator/experiment_execution_state.dart';
 import '../controllers/experiment_player_controller.dart';
 import '../widgets/experiment_status_banner.dart';
-import '../widgets/measurement_counter_card.dart';
-import '../widgets/execution_mode_chip.dart';
 import '../runtime_visualization/controllers/runtime_visualization_controller.dart';
 import '../runtime_visualization/widgets/runtime_visualization_container.dart';
 import '../../domain/experiment_progress_repository.dart';
+import 'package:flame/game.dart';
+import '../../runtime/engine/experiment_flame_game.dart';
+import '../../runtime/runtime_serializer.dart';
+import '../../runtime/relationship_graph_model.dart';
+import '../widgets/native_graph_view.dart';
 
 class ExperimentPlayerScreen extends StatefulWidget {
   final ExperimentManifest manifest;
+  final Map<String, dynamic>? executionPayload;
 
-  const ExperimentPlayerScreen({super.key, required this.manifest});
+  const ExperimentPlayerScreen({
+    super.key, 
+    required this.manifest,
+    this.executionPayload,
+  });
 
   @override
   State<ExperimentPlayerScreen> createState() => _ExperimentPlayerScreenState();
@@ -28,7 +36,6 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
   void initState() {
     super.initState();
     _controller.addListener(_onStateChanged);
-    _visualizationController.attachStream(_controller.eventStream);
     _initOrchestrator();
     _initProgressTracking();
   }
@@ -42,7 +49,10 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
   }
 
   Future<void> _initOrchestrator() async {
-    await _controller.prepare(widget.manifest);
+    await _controller.prepare(widget.manifest, payload: widget.executionPayload);
+    if (_controller.world != null) {
+      _visualizationController.attachStream(_controller.world!.eventBus.stream);
+    }
   }
 
   @override
@@ -58,20 +68,11 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.manifest.title),
-        actions: [
-          if (_controller.executionResult != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: ExecutionModeChip(mode: _controller.executionResult!.executionMode),
-            ),
-        ],
+        actions: const [],
       ),
       body: Column(
         children: [
           ExperimentStatusBanner(state: _controller.state),
-          
-          if (_controller.metrics != null)
-            MeasurementCounterCard(metrics: _controller.metrics!),
 
           if (_controller.state == ExperimentExecutionState.failed)
             _buildErrorState(),
@@ -84,7 +85,39 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
           const Divider(),
           
           Expanded(
-            child: RuntimeVisualizationContainer(controller: _visualizationController),
+            flex: 2,
+            child: _controller.world != null 
+              ? GameWidget(game: ExperimentFlameGame(_controller.world!))
+              : const Center(child: Text('Loading Simulation Canvas...')),
+          ),
+          
+          Expanded(
+            flex: 1,
+            child: Row(
+              children: [
+                Expanded(child: RuntimeVisualizationContainer(controller: _visualizationController)),
+                if (_controller.world != null)
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(border: Border(left: BorderSide(color: Colors.grey.shade300))),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const Padding(
+                            padding: EdgeInsets.all(8.0),
+                            child: Text('Relationship Graph', style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                          Expanded(
+                            child: NativeGraphView(
+                              model: RelationshipGraphModel.fromManifest(_controller.rawManifestData),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ],
       ),
@@ -127,8 +160,8 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
 
   Widget _buildDiagnosticsPanel() {
     return ExpansionTile(
-      title: const Text('Runtime Diagnostics', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-      iconColor: Colors.grey,
+      title: const Text('Developer Diagnostics', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+      iconColor: Colors.blueAccent,
       collapsedIconColor: Colors.grey,
       children: [
         Container(
@@ -141,11 +174,27 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('State: ${_controller.state.name.toUpperCase()}'),
-                Text('Manifest: ${widget.manifest.id}'),
-                Text('Events Logged: ${_controller.events.length}'),
-                if (_controller.metrics != null) ...[
-                  Text('FPS: ${_controller.metrics!.averageFps.toStringAsFixed(1)}'),
-                  Text('Tick Rate: ${_controller.metrics!.ticksPerSecond.toStringAsFixed(1)}'),
+                Text('Manifest ID: ${widget.manifest.id}'),
+                if (_controller.world != null) ...[
+                  Text('Profile: ${_controller.world!.profile.name.toUpperCase()}'),
+                  Text('Variables: ${_controller.world!.variables.allVariables.length}'),
+                  Text('Objects: ${_controller.world!.objects.allObjects.length}'),
+                  Text('Events Logged: ${_controller.events.length}'),
+                  Text('Rule Executions: ${_controller.world!.analytics.ruleExecutions}'),
+                  Text('Variable Updates: ${_controller.world!.analytics.variableUpdates}'),
+                  Text('Time Simulated: ${_controller.world!.clock.elapsedTime.toStringAsFixed(2)}s'),
+                  const SizedBox(height: 8),
+                  ElevatedButton(
+                    onPressed: () {
+                      // Trigger snapshot print
+                      final snapshot = RuntimeSerializer.serialize(_controller.world!);
+                      print('--- RUNTIME SNAPSHOT ---');
+                      print(snapshot);
+                      print('------------------------');
+                    },
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white10),
+                    child: const Text('Print Memory Snapshot', style: TextStyle(color: Colors.white, fontSize: 10)),
+                  ),
                 ],
               ],
             ),

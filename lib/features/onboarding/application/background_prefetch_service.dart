@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -67,6 +68,11 @@ void callbackDispatcher() {
 
 class BackgroundPrefetchService {
   static Future<void> initialize() async {
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
+      AppEnvironment.log('SYNC', '[Prefetch] Workmanager not supported on this platform. Skipping initialization.');
+      return;
+    }
+
     await Workmanager().initialize(
       callbackDispatcher,
       isInDebugMode: AppEnvironment.debugMode,
@@ -74,6 +80,10 @@ class BackgroundPrefetchService {
   }
 
   static void schedulePrefetch() {
+    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
+      return;
+    }
+
     Workmanager().registerPeriodicTask(
       'offline_tutor_prefetch',
       prefetchTaskName,
