@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/experiment_builder_controller.dart';
 import '../models/builder_variable.dart';
+import 'variable_runtime_config_editors.dart';
 import '../wizards/variable_wizard_dialog.dart';
 
 class VariableEditor extends StatelessWidget {
@@ -45,7 +46,9 @@ class VariableEditor extends StatelessWidget {
                       final newVar = await showDialog<BuilderVariable>(
                         context: context,
                         barrierDismissible: false,
-                        builder: (context) => const VariableWizardDialog(),
+                        builder: (context) => VariableWizardDialog(
+                          availableVariables: controller.state.variables,
+                        ),
                       );
 
                       if (newVar != null) {
@@ -89,7 +92,7 @@ class VariableEditor extends StatelessWidget {
                               ),
                             ),
                             subtitle: Text(
-                              'Type: ${v.type} | Default: ${v.defaultValue}',
+                              'Type: ${v.type} | Config: ${v.runtimeConfig.length}',
                             ),
                             trailing: PopupMenuButton<String>(
                               onSelected: (action) {
@@ -137,7 +140,7 @@ class VariableEditor extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: Text(variable.name),
         content: SelectableText(
-          'ID: ${variable.id}\nType: ${variable.type}\nDefault: ${variable.defaultValue}\nDescription: ${variable.description}',
+          'ID: ${variable.id}\nType: ${variable.type}\nDefault: ${variable.defaultValue}\nDescription: ${variable.description}\nRuntime Config: ${variable.runtimeConfig}',
         ),
         actions: [
           TextButton(
@@ -160,58 +163,117 @@ class VariableEditor extends StatelessWidget {
       text: '${variable.defaultValue ?? ''}',
     );
     final descController = TextEditingController(text: variable.description);
+    var runtimeConfig = Map<String, dynamic>.from(variable.runtimeConfig);
 
     showDialog<void>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Edit Variable'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              TextField(
-                controller: typeController,
-                decoration: const InputDecoration(labelText: 'Type'),
-              ),
-              TextField(
-                controller: defaultController,
-                decoration: const InputDecoration(labelText: 'Default Value'),
-              ),
-              TextField(
-                controller: descController,
-                decoration: const InputDecoration(labelText: 'Description'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              controller.editVariable(
-                variable.copyWith(
-                  name: nameController.text.trim(),
-                  type: typeController.text.trim(),
-                  defaultValue:
-                      num.tryParse(defaultController.text) ??
-                      defaultController.text,
-                  description: descController.text.trim(),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Edit Variable'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Name'),
                 ),
-              );
-              Navigator.pop(context);
-            },
-            child: const Text('Save'),
+                TextField(
+                  controller: typeController,
+                  decoration: const InputDecoration(labelText: 'Type'),
+                ),
+                TextField(
+                  controller: defaultController,
+                  decoration: const InputDecoration(labelText: 'Default Value'),
+                ),
+                TextField(
+                  controller: descController,
+                  decoration: const InputDecoration(labelText: 'Description'),
+                ),
+                const SizedBox(height: 16),
+                RuntimeVariableConfigEditor(
+                  variableType: typeController.text.trim(),
+                  variables: controller.state.variables,
+                  currentVariableId: variable.id,
+                  config: runtimeConfig,
+                  onChanged: (config) => setDialogState(() {
+                    runtimeConfig = config;
+                  }),
+                ),
+                DependencyTreePreview(
+                  formulaName: typeController.text.trim(),
+                  dependencyIds: _dependencyIdsFor(
+                    typeController.text.trim(),
+                    runtimeConfig,
+                  ),
+                  variables: controller.state.variables,
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                controller.editVariable(
+                  variable.copyWith(
+                    name: nameController.text.trim(),
+                    type: typeController.text.trim(),
+                    defaultValue:
+                        num.tryParse(defaultController.text) ??
+                        defaultController.text,
+                    description: descController.text.trim(),
+                    runtimeConfig: runtimeConfig,
+                  ),
+                );
+                Navigator.pop(context);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  List<String> _dependencyIdsFor(String type, Map<String, dynamic> config) {
+    switch (type) {
+      case 'average':
+      case 'minimum':
+      case 'maximum':
+        final dependencies = config['dependencies'];
+        if (dependencies is List) {
+          return dependencies
+              .map((entry) => entry.toString())
+              .toList(growable: false);
+        }
+        return const [];
+      case 'distance':
+        return _ids(config, ['speedVariable', 'timeVariable']);
+      case 'velocity':
+        return _ids(config, ['distanceVariable', 'timeVariable']);
+      case 'acceleration':
+        return _ids(config, ['velocityVariable', 'timeVariable']);
+      case 'force':
+        return _ids(config, ['massVariable', 'accelerationVariable']);
+      case 'power':
+        return _ids(config, ['forceVariable', 'velocityVariable']);
+      case 'energy':
+        return _ids(config, ['powerVariable', 'timeVariable']);
+      default:
+        return const [];
+    }
+  }
+
+  List<String> _ids(Map<String, dynamic> config, List<String> keys) {
+    return keys
+        .map((key) => config[key]?.toString())
+        .whereType<String>()
+        .where((id) => id.isNotEmpty)
+        .toList(growable: false);
   }
 
   Widget _buildEmptyState() {

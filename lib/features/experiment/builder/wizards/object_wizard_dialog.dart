@@ -3,6 +3,7 @@ import 'package:uuid/uuid.dart';
 import '../domain/object_registry.dart';
 import '../models/builder_object.dart';
 import '../models/builder_variable.dart';
+import '../widgets/object_runtime_config_editors.dart';
 
 class ObjectWizardDialog extends StatefulWidget {
   final List<BuilderVariable> availableVariables;
@@ -19,13 +20,30 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
 
   final _nameController = TextEditingController();
   BuilderVariable? _linkedVariable;
+  Map<String, dynamic> _runtimeConfig = const {};
 
   bool get _canProceed {
     if (_currentStep == 0) return _selectedType != null;
     if (_currentStep == 1) {
-      return _nameController.text.trim().isNotEmpty && _linkedVariable != null;
+      return _nameController.text.trim().isNotEmpty && _configIsValid;
     }
     return false;
+  }
+
+  bool get _configIsValid {
+    final type = _selectedType?.type.name;
+    switch (type) {
+      case 'scatterPlot':
+        final x = _runtimeConfig['xVariable']?.toString();
+        final y = _runtimeConfig['yVariable']?.toString();
+        return x != null && x.isNotEmpty && y != null && y.isNotEmpty && x != y;
+      case 'table':
+        return true;
+      case 'lineGraph':
+        return _runtimeConfig['variableId']?.toString().isNotEmpty == true;
+      default:
+        return _linkedVariable != null;
+    }
   }
 
   @override
@@ -36,12 +54,14 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
 
   void _createObject() {
     if (!_canProceed) return;
+    final properties = _propertiesForSelectedType();
 
     final newObj = BuilderObject(
       id: const Uuid().v4(),
       name: _nameController.text.trim(),
       type: _selectedType!.type.name,
-      properties: {'linked_variable': _linkedVariable!.id},
+      properties: properties,
+      runtimeConfig: _runtimeConfig,
     );
 
     Navigator.of(context).pop(newObj);
@@ -81,6 +101,7 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
                 '_',
               );
               _linkedVariable = _getCompatibleVariables(def).firstOrNull;
+              _runtimeConfig = _defaultConfigFor(def, _linkedVariable);
             });
           },
           child: Column(
@@ -175,9 +196,42 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
           onChanged: (val) {
             setState(() {
               _linkedVariable = val;
+              if (_selectedType?.type.name == 'lineGraph') {
+                _runtimeConfig = {
+                  ..._runtimeConfig,
+                  'variableId': val?.id,
+                  'yAxis': val?.name ?? _runtimeConfig['yAxis'] ?? '',
+                };
+              }
             });
           },
         ),
+        const SizedBox(height: 16),
+        RuntimeObjectConfigEditor(
+          objectType: _selectedType?.type.name ?? '',
+          variables: compatibleVars,
+          config: _runtimeConfig,
+          onChanged: (config) {
+            setState(() {
+              _runtimeConfig = config;
+              if (_selectedType?.type.name == 'lineGraph') {
+                final variableId = config['variableId']?.toString();
+                _linkedVariable = compatibleVars
+                    .where((variable) => variable.id == variableId)
+                    .firstOrNull;
+              }
+            });
+          },
+        ),
+        if (_selectedType?.type.name == 'scatterPlot' &&
+            !_scatterSelectionValid)
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Choose different X and Y variables for the scatter plot.',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
         if (compatibleVars.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 8.0),
@@ -188,6 +242,70 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
           ),
       ],
     );
+  }
+
+  bool get _scatterSelectionValid {
+    final x = _runtimeConfig['xVariable']?.toString();
+    final y = _runtimeConfig['yVariable']?.toString();
+    return x != null && x.isNotEmpty && y != null && y.isNotEmpty && x != y;
+  }
+
+  Map<String, dynamic> _propertiesForSelectedType() {
+    final type = _selectedType!.type.name;
+    switch (type) {
+      case 'scatterPlot':
+        return {
+          'xVariable': _runtimeConfig['xVariable'],
+          'yVariable': _runtimeConfig['yVariable'],
+        };
+      case 'lineGraph':
+        return {'linked_variable': _runtimeConfig['variableId']};
+      case 'table':
+        return const {};
+      default:
+        return {
+          if (_linkedVariable != null) 'linked_variable': _linkedVariable!.id,
+        };
+    }
+  }
+
+  Map<String, dynamic> _defaultConfigFor(
+    ObjectDefinition definition,
+    BuilderVariable? linkedVariable,
+  ) {
+    final variableId = linkedVariable?.id;
+    switch (definition.type.name) {
+      case 'numericDisplay':
+        return {
+          'label': linkedVariable?.name ?? 'Value',
+          'unit': '',
+          'precision': 1,
+        };
+      case 'gauge':
+        return {'min': 0, 'max': 100, 'unit': '', 'warningThreshold': 80};
+      case 'progressBar':
+        return {'min': 0, 'max': 100};
+      case 'lineGraph':
+        return {
+          'variableId': variableId,
+          'historyWindow': 100,
+          'xAxis': 'Time',
+          'yAxis': linkedVariable?.name ?? '',
+        };
+      case 'scatterPlot':
+        return {
+          'xVariable': widget.availableVariables.isNotEmpty
+              ? widget.availableVariables.first.id
+              : null,
+          'yVariable': widget.availableVariables.length > 1
+              ? widget.availableVariables[1].id
+              : null,
+        };
+      case 'table':
+        return {'maxRows': 100, 'autoRecord': true};
+      default:
+        return const {};
+    }
   }
 
   @override

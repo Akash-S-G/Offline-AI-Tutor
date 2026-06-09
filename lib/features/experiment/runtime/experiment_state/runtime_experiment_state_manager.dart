@@ -102,7 +102,8 @@ class RuntimeExperimentStateManager {
     } else if (event.message == 'RuleTriggered' ||
         event.message == 'RuleFired') {
       _increment(rulesTriggered: 1);
-    } else if (event.message == 'GraphUpdated') {
+    } else if (event.message == 'GraphUpdated' ||
+        event.message == 'ScatterPlotUpdated') {
       _increment(graphUpdates: 1);
     } else if (event.type == RuntimeEventType.measurementReceived ||
         event.message == 'SensorMeasurementReceived') {

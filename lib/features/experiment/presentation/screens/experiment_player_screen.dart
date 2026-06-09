@@ -13,6 +13,7 @@ import '../../runtime/runtime_serializer.dart';
 import '../../runtime/relationship_graph_model.dart';
 import '../../runtime/runtime_event.dart';
 import '../../runtime/models/runtime_variable.dart';
+import '../../runtime/scatter/scatter_plot_renderer.dart';
 import '../widgets/native_graph_view.dart';
 
 class ExperimentPlayerScreen extends StatefulWidget {
@@ -480,6 +481,9 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
     final graphStatuses = objectLifecycleStatuses
         .where((status) => status.objectType == 'lineGraph')
         .toList(growable: false);
+    final scatterStatuses = objectLifecycleStatuses
+        .where((status) => status.objectType == 'scatterPlot')
+        .toList(growable: false);
     final experimentState = world?.experimentState.state;
     final lastTick = world == null
         ? 'Waiting'
@@ -653,6 +657,21 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                   ),
                 if (world != null)
                   _inspectorChip(
+                    'Scatter Rendered',
+                    '${world.analytics.scatterPlotsRendered}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Scatter Updates',
+                    '${world.analytics.scatterPlotUpdates}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Scatter Points',
+                    '${world.analytics.scatterPointsProcessed}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
                     'Observations',
                     '${world.analytics.observationsRecorded}',
                   ),
@@ -713,6 +732,40 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                 ),
               ),
             ],
+            if (world != null && objects.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Object Runtime Config',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...objects.map((object) {
+                final properties = Map<String, dynamic>.from(
+                  object['properties'] as Map? ?? const {},
+                );
+                final runtimeConfig = Map<String, dynamic>.from(
+                  object['runtimeConfig'] as Map? ??
+                      properties['runtimeConfig'] as Map? ??
+                      const {},
+                );
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    object['name']?.toString() ??
+                        object['objectId']?.toString() ??
+                        'Object',
+                  ),
+                  subtitle: Text(
+                    runtimeConfig.isEmpty
+                        ? 'No runtime config'
+                        : runtimeConfig.entries
+                              .map((entry) => '${entry.key}: ${entry.value}')
+                              .join(' | '),
+                  ),
+                );
+              }),
+            ],
             if (graphStatuses.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
@@ -744,6 +797,38 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                     'samples=${graphState?.sampleCount ?? 0} | '
                     'min=${graphState == null ? 'None' : _formatInspectorValue(graphState.minY)} | '
                     'max=${graphState == null ? 'None' : _formatInspectorValue(graphState.maxY)}',
+                  ),
+                );
+              }),
+            ],
+            if (scatterStatuses.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Scatter Plots',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...scatterStatuses.map((status) {
+                final object = world?.objects.get(status.objectId);
+                final properties = Map<String, dynamic>.from(
+                  object?['properties'] as Map? ?? const {},
+                );
+                final renderer = world?.objectLifecycle.getRenderer(
+                  status.objectId,
+                );
+                final scatterState = renderer is ScatterPlotRenderer
+                    ? renderer.scatterState
+                    : null;
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(object?['name']?.toString() ?? status.objectId),
+                  subtitle: Text(
+                    'x=${properties['xVariable'] ?? properties['x_variable'] ?? 'None'} | '
+                    'y=${properties['yVariable'] ?? properties['y_variable'] ?? 'None'} | '
+                    'points=${scatterState?.pointCount ?? 0} | '
+                    'xRange=${scatterState == null ? 'None' : '${_formatInspectorValue(scatterState.minX)}..${_formatInspectorValue(scatterState.maxX)}'} | '
+                    'yRange=${scatterState == null ? 'None' : '${_formatInspectorValue(scatterState.minY)}..${_formatInspectorValue(scatterState.maxY)}'}',
                   ),
                 );
               }),
@@ -818,8 +903,9 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                   contentPadding: EdgeInsets.zero,
                   title: Text(variable.name),
                   subtitle: Text(
-                    'type=${variable.type} | '
-                    'value=${_formatInspectorValue(variable.value)} | '
+                    'Formula: ${_formulaForVariable(variable.type)} | '
+                    'Dependencies: ${dependencies.length} | '
+                    'Current Value: ${_formatInspectorValue(variable.value)} | '
                     'deps=${dependencies.isEmpty ? 'None' : dependencies.join(', ')} | '
                     'updated=${_formatTime(variable.lastUpdated)}',
                   ),
@@ -1303,6 +1389,31 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
   String _formatInspectorValue(dynamic value) {
     if (value is double) return value.toStringAsFixed(2);
     return value.toString();
+  }
+
+  String _formulaForVariable(String type) {
+    switch (type) {
+      case 'average':
+        return 'mean(dependencies)';
+      case 'minimum':
+        return 'min(dependencies)';
+      case 'maximum':
+        return 'max(dependencies)';
+      case 'distance':
+        return 'speed x time';
+      case 'velocity':
+        return 'distance / time';
+      case 'acceleration':
+        return 'velocity / time';
+      case 'force':
+        return 'mass x acceleration';
+      case 'power':
+        return 'force x velocity';
+      case 'energy':
+        return 'power x time';
+      default:
+        return type;
+    }
   }
 
   Widget _buildControls() {

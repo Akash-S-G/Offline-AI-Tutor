@@ -70,23 +70,14 @@ class ExperimentBuilderController extends ChangeNotifier {
         ),
         variables: (sceneData['variables'] as List<dynamic>? ?? [])
             .map(
-              (v) => BuilderVariable(
-                id: v['id'] ?? v['name'] ?? '',
-                name: v['name'] ?? '',
-                type: v['type'] ?? 'number',
-                defaultValue: v['value'],
-                description: v['description'] ?? '',
-              ),
+              (v) =>
+                  BuilderVariable.fromJson(Map<String, dynamic>.from(v as Map)),
             )
             .toList(),
         objects: (sceneData['objects'] as List<dynamic>? ?? [])
             .map(
-              (o) => BuilderObject(
-                id: o['objectId'] ?? '',
-                name: o['name'] ?? '',
-                type: o['objectType'] ?? '',
-                properties: o['properties'] as Map<String, dynamic>? ?? {},
-              ),
+              (o) =>
+                  BuilderObject.fromJson(Map<String, dynamic>.from(o as Map)),
             )
             .toList(),
         rules: (sceneData['rules'] as List<dynamic>? ?? [])
@@ -229,12 +220,14 @@ class ExperimentBuilderController extends ChangeNotifier {
       type: 'numberInput',
       defaultValue: 50.0,
       description: 'A manually controlled value for testing the scene.',
+      runtimeConfig: const {},
     );
     final object = BuilderObject(
       id: 'obj_manual_$id',
       name: 'Manual Gauge',
       type: 'gauge',
       properties: {'linked_variable': variable.id},
+      runtimeConfig: {'min': 0, 'max': 100, 'unit': '', 'warningThreshold': 75},
     );
     final rule = BuilderRule(
       id: 'rule_manual_$id',
@@ -286,6 +279,7 @@ class ExperimentBuilderController extends ChangeNotifier {
     final list = _state.variables.where((v) => v.id != id).toList();
     final objects = _state.objects
         .where((object) => !_referencesId(object.properties, id))
+        .where((object) => !_referencesId(object.runtimeConfig, id))
         .toList();
     final rules = _state.rules
         .where(

@@ -1,6 +1,7 @@
 import 'button_renderer.dart';
 import '../../graphs/line_graph_renderer.dart';
 import '../../observations/table_renderer.dart';
+import '../../scatter/scatter_plot_renderer.dart';
 import 'gauge_renderer.dart';
 import 'numeric_display_renderer.dart';
 import 'progress_bar_renderer.dart';
@@ -38,6 +39,7 @@ class RuntimeObjectRendererRegistry {
     registerRenderer('gauge', GaugeRenderer.new);
     registerRenderer('progressBar', ProgressBarRenderer.new);
     registerRenderer('lineGraph', LineGraphRenderer.new);
+    registerRenderer('scatterPlot', ScatterPlotRenderer.new);
     registerRenderer('table', TableRenderer.new);
     registerRenderer('button', ButtonRenderer.new);
     registerRenderer('slider', SliderRenderer.new);

@@ -5,19 +5,22 @@ import 'runtime_object_factory.dart';
 
 class RuntimeLoader {
   static RuntimeWorld loadFromManifest(Map<String, dynamic> manifest) {
+    final normalizedManifest = _normalizeManifest(manifest);
+
     // 0. Register defaults
     RuntimeObjectFactory.registerDefaults();
 
     // 1. Validation
-    RuntimeValidator.validate(manifest);
+    RuntimeValidator.validate(normalizedManifest);
 
     // 2. Profile & Metadata Extraction
-    final profile = RuntimeProfileManager.determineProfile(manifest);
+    final profile = RuntimeProfileManager.determineProfile(normalizedManifest);
     final manifestMetadata =
-        manifest['metadata'] as Map<String, dynamic>? ?? {};
+        normalizedManifest['metadata'] as Map<String, dynamic>? ?? {};
 
     // 3. Scene Extraction
-    final sceneData = manifest['scene'] as Map<String, dynamic>? ?? {};
+    final sceneData =
+        normalizedManifest['scene'] as Map<String, dynamic>? ?? {};
     final metadata = {
       ...manifestMetadata,
       if (sceneData['sceneId'] != null) 'sceneId': sceneData['sceneId'],
@@ -42,5 +45,29 @@ class RuntimeLoader {
     );
 
     return world;
+  }
+
+  static Map<String, dynamic> _normalizeManifest(
+    Map<String, dynamic> manifest,
+  ) {
+    if (manifest['scene'] is Map<String, dynamic>) return manifest;
+    final hasSceneFields =
+        manifest.containsKey('variables') ||
+        manifest.containsKey('objects') ||
+        manifest.containsKey('rules');
+    if (!hasSceneFields) return manifest;
+    return {
+      'metadata': manifest['metadata'] as Map<String, dynamic>? ?? const {},
+      'scene': {
+        if (manifest['sceneId'] != null) 'sceneId': manifest['sceneId'],
+        if (manifest['name'] != null) 'name': manifest['name'],
+        if (manifest['description'] != null)
+          'description': manifest['description'],
+        if (manifest['tags'] != null) 'tags': manifest['tags'],
+        'variables': manifest['variables'] ?? const [],
+        'objects': manifest['objects'] ?? const [],
+        'rules': manifest['rules'] ?? const [],
+      },
+    };
   }
 }

@@ -104,8 +104,8 @@ class RuntimeVariableDependencyGraph {
         return _specific(metadata, ['massVariable', 'massId']) +
             _specific(metadata, ['accelerationVariable', 'accelerationId']);
       case 'power':
-        return _specific(metadata, ['workVariable', 'workId']) +
-            _specific(metadata, ['timeVariable', 'timeId']);
+        return _specific(metadata, ['forceVariable', 'forceId']) +
+            _specific(metadata, ['velocityVariable', 'velocityId']);
       case 'energy':
         return _specific(metadata, ['powerVariable', 'powerId']) +
             _specific(metadata, ['timeVariable', 'timeId']);

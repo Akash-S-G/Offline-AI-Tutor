@@ -4,6 +4,7 @@ import 'numeric_display_behavior.dart';
 import 'progress_bar_behavior.dart';
 import 'runtime_object_behavior.dart';
 import 'slider_behavior.dart';
+import '../../scatter/scatter_plot_behavior.dart';
 import 'text_display_behavior.dart';
 import 'toggle_behavior.dart';
 
@@ -38,5 +39,6 @@ class RuntimeObjectBehaviorRegistry {
     registerBehavior('button', ButtonBehavior.new);
     registerBehavior('slider', SliderBehavior.new);
     registerBehavior('toggle', ToggleBehavior.new);
+    registerBehavior('scatterPlot', ScatterPlotBehavior.new);
   }
 }

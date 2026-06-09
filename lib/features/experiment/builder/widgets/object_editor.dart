@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../controllers/experiment_builder_controller.dart';
 import '../models/builder_object.dart';
 import '../models/builder_variable.dart';
+import 'object_runtime_config_editors.dart';
 import '../wizards/object_wizard_dialog.dart';
 
 class ObjectEditor extends StatelessWidget {
@@ -92,7 +93,7 @@ class ObjectEditor extends StatelessWidget {
                               ),
                             ),
                             subtitle: Text(
-                              'Type: ${o.type} | Props: ${o.properties.length}',
+                              'Type: ${o.type} | Config: ${o.runtimeConfig.length}',
                             ),
                             trailing: PopupMenuButton<String>(
                               onSelected: (action) {
@@ -136,7 +137,7 @@ class ObjectEditor extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: Text(object.name),
         content: SelectableText(
-          'ID: ${object.id}\nType: ${object.type}\nProperties: ${object.properties}',
+          'ID: ${object.id}\nType: ${object.type}\nProperties: ${object.properties}\nRuntime Config: ${object.runtimeConfig}',
         ),
         actions: [
           TextButton(
@@ -157,6 +158,7 @@ class ObjectEditor extends StatelessWidget {
     final typeController = TextEditingController(text: object.type);
     BuilderVariable? linkedVariable;
     final linkedId = object.properties['linked_variable'];
+    var runtimeConfig = Map<String, dynamic>.from(object.runtimeConfig);
     for (final variable in controller.state.variables) {
       if (variable.id == linkedId) {
         linkedVariable = variable;
@@ -197,6 +199,28 @@ class ObjectEditor extends StatelessWidget {
                       .toList(),
                   onChanged: (value) => setDialogState(() {
                     linkedVariable = value;
+                    if (typeController.text.trim() == 'lineGraph') {
+                      runtimeConfig = {
+                        ...runtimeConfig,
+                        'variableId': value?.id,
+                        'yAxis': value?.name ?? runtimeConfig['yAxis'] ?? '',
+                      };
+                    }
+                  }),
+                ),
+                const SizedBox(height: 16),
+                RuntimeObjectConfigEditor(
+                  objectType: typeController.text.trim(),
+                  variables: controller.state.variables,
+                  config: runtimeConfig,
+                  onChanged: (config) => setDialogState(() {
+                    runtimeConfig = config;
+                    if (typeController.text.trim() == 'lineGraph') {
+                      final variableId = config['variableId']?.toString();
+                      linkedVariable = controller.state.variables
+                          .where((variable) => variable.id == variableId)
+                          .firstOrNull;
+                    }
                   }),
                 ),
               ],
@@ -215,11 +239,18 @@ class ObjectEditor extends StatelessWidget {
                 } else {
                   properties.remove('linked_variable');
                 }
+                properties.addAll(
+                  _runtimePropertiesFor(
+                    typeController.text.trim(),
+                    runtimeConfig,
+                  ),
+                );
                 controller.editObject(
                   object.copyWith(
                     name: nameController.text.trim(),
                     type: typeController.text.trim(),
                     properties: properties,
+                    runtimeConfig: runtimeConfig,
                   ),
                 );
                 Navigator.pop(context);
@@ -230,6 +261,25 @@ class ObjectEditor extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Map<String, dynamic> _runtimePropertiesFor(
+    String objectType,
+    Map<String, dynamic> runtimeConfig,
+  ) {
+    switch (objectType) {
+      case 'scatterPlot':
+        return {
+          'xVariable': runtimeConfig['xVariable'],
+          'yVariable': runtimeConfig['yVariable'],
+        };
+      case 'lineGraph':
+        return {'linked_variable': runtimeConfig['variableId']};
+      case 'table':
+        return const {};
+      default:
+        return const {};
+    }
   }
 
   Widget _buildEmptyState() {

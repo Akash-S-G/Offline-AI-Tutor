@@ -125,7 +125,7 @@ class RuntimeVariableExecutor {
       case 'force':
         return _at(values, 0) * _at(values, 1);
       case 'power':
-        return _divide(_at(values, 0), _at(values, 1));
+        return _at(values, 0) * _at(values, 1);
       case 'energy':
         return _at(values, 0) * _at(values, 1);
       default:

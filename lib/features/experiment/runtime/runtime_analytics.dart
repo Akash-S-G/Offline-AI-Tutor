@@ -35,6 +35,9 @@ class RuntimeAnalytics {
   int _graphsRendered = 0;
   int _graphUpdates = 0;
   int _graphSamplesProcessed = 0;
+  int _scatterPlotsRendered = 0;
+  int _scatterPlotUpdates = 0;
+  int _scatterPointsProcessed = 0;
   int _observationsRecorded = 0;
   int _observationRows = 0;
   int _observationExports = 0;
@@ -81,6 +84,9 @@ class RuntimeAnalytics {
   int get graphsRendered => _graphsRendered;
   int get graphUpdates => _graphUpdates;
   int get graphSamplesProcessed => _graphSamplesProcessed;
+  int get scatterPlotsRendered => _scatterPlotsRendered;
+  int get scatterPlotUpdates => _scatterPlotUpdates;
+  int get scatterPointsProcessed => _scatterPointsProcessed;
   int get observationsRecorded => _observationsRecorded;
   int get observationRows => _observationRows;
   int get observationExports => _observationExports;
@@ -174,6 +180,14 @@ class RuntimeAnalytics {
         if (sampleCount is num) {
           _graphSamplesProcessed += sampleCount.toInt();
         }
+      } else if (event.message == 'ScatterPlotRendered') {
+        _scatterPlotsRendered++;
+      } else if (event.message == 'ScatterPlotUpdated') {
+        _scatterPlotUpdates++;
+        final pointCount = event.metadata?['pointCount'];
+        if (pointCount is num) {
+          _scatterPointsProcessed += pointCount.toInt();
+        }
       } else if (event.message == 'ObservationRecorded') {
         _observationsRecorded++;
         _observationRows++;
@@ -246,6 +260,9 @@ class RuntimeAnalytics {
       'graphsRendered': _graphsRendered,
       'graphUpdates': _graphUpdates,
       'graphSamplesProcessed': _graphSamplesProcessed,
+      'scatterPlotsRendered': _scatterPlotsRendered,
+      'scatterPlotUpdates': _scatterPlotUpdates,
+      'scatterPointsProcessed': _scatterPointsProcessed,
       'observationsRecorded': _observationsRecorded,
       'observationRows': _observationRows,
       'observationExports': _observationExports,

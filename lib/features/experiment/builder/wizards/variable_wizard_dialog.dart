@@ -4,9 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../domain/variable_registry.dart';
 import '../models/builder_variable.dart';
+import '../widgets/variable_runtime_config_editors.dart';
 
 class VariableWizardDialog extends StatefulWidget {
-  const VariableWizardDialog({super.key});
+  final List<BuilderVariable> availableVariables;
+
+  const VariableWizardDialog({super.key, this.availableVariables = const []});
 
   @override
   State<VariableWizardDialog> createState() => _VariableWizardDialogState();
@@ -19,12 +22,42 @@ class _VariableWizardDialogState extends State<VariableWizardDialog> {
 
   final _nameController = TextEditingController();
   final _descController = TextEditingController();
+  Map<String, dynamic> _runtimeConfig = const {};
 
   bool get _canProceed {
     if (_currentStep == 0) return _selectedCategory != null;
     if (_currentStep == 1) return _selectedType != null;
-    if (_currentStep == 2) return _nameController.text.trim().isNotEmpty;
+    if (_currentStep == 2) {
+      return _nameController.text.trim().isNotEmpty && _configIsValid;
+    }
     return false;
+  }
+
+  bool get _configIsValid {
+    switch (_selectedType?.type.name) {
+      case 'countdown':
+        return _number('startValue') > 0;
+      case 'interval':
+        return _number('intervalSeconds') > 0;
+      case 'average':
+      case 'minimum':
+      case 'maximum':
+        return _dependencies.length >= 2;
+      case 'distance':
+        return _has('speedVariable') && _has('timeVariable');
+      case 'velocity':
+        return _has('distanceVariable') && _has('timeVariable');
+      case 'acceleration':
+        return _has('velocityVariable') && _has('timeVariable');
+      case 'force':
+        return _has('massVariable') && _has('accelerationVariable');
+      case 'power':
+        return _has('forceVariable') && _has('velocityVariable');
+      case 'energy':
+        return _has('powerVariable') && _has('timeVariable');
+      default:
+        return true;
+    }
   }
 
   @override
@@ -41,8 +74,9 @@ class _VariableWizardDialogState extends State<VariableWizardDialog> {
       id: const Uuid().v4(),
       name: _nameController.text.trim(),
       type: _selectedType!.type.name,
-      defaultValue: _selectedType!.defaultValue,
+      defaultValue: _defaultValueForSelectedType(),
       description: _descController.text.trim(),
+      runtimeConfig: _runtimeConfig,
     );
 
     Navigator.of(context).pop(newVar);
@@ -117,6 +151,7 @@ class _VariableWizardDialogState extends State<VariableWizardDialog> {
                 '_',
               );
               _descController.text = def.description;
+              _runtimeConfig = _defaultConfigFor(def);
             });
           },
         );
@@ -163,8 +198,89 @@ class _VariableWizardDialogState extends State<VariableWizardDialog> {
           ),
           maxLines: 2,
         ),
+        const SizedBox(height: 16),
+        RuntimeVariableConfigEditor(
+          variableType: _selectedType?.type.name ?? '',
+          variables: widget.availableVariables,
+          config: _runtimeConfig,
+          onChanged: (config) => setState(() {
+            _runtimeConfig = config;
+          }),
+        ),
+        if (!_configIsValid)
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Complete the runtime configuration before creating this variable.',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
       ],
     );
+  }
+
+  dynamic _defaultValueForSelectedType() {
+    switch (_selectedType?.type.name) {
+      case 'elapsedTime':
+        return _runtimeConfig['startValue'] ?? 0;
+      case 'countdown':
+        return _runtimeConfig['startValue'] ?? 60;
+      default:
+        return _selectedType!.defaultValue;
+    }
+  }
+
+  Map<String, dynamic> _defaultConfigFor(VariableDefinition definition) {
+    final first = widget.availableVariables.isNotEmpty
+        ? widget.availableVariables.first.id
+        : null;
+    final second = widget.availableVariables.length > 1
+        ? widget.availableVariables[1].id
+        : null;
+    switch (definition.type.name) {
+      case 'elapsedTime':
+        return {'startValue': 0};
+      case 'countdown':
+        return {'startValue': 60, 'autoStart': true};
+      case 'interval':
+        return {'intervalSeconds': 1};
+      case 'average':
+      case 'minimum':
+      case 'maximum':
+        return {
+          'dependencies': [?first, ?second],
+        };
+      case 'distance':
+        return {'speedVariable': first, 'timeVariable': second};
+      case 'velocity':
+        return {'distanceVariable': first, 'timeVariable': second};
+      case 'acceleration':
+        return {'velocityVariable': first, 'timeVariable': second};
+      case 'force':
+        return {'massVariable': first, 'accelerationVariable': second};
+      case 'power':
+        return {'forceVariable': first, 'velocityVariable': second};
+      case 'energy':
+        return {'powerVariable': first, 'timeVariable': second};
+      default:
+        return const {};
+    }
+  }
+
+  double _number(String key) {
+    final value = _runtimeConfig[key];
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0;
+  }
+
+  bool _has(String key) => _runtimeConfig[key]?.toString().isNotEmpty == true;
+
+  List<String> get _dependencies {
+    final value = _runtimeConfig['dependencies'];
+    if (value is List) {
+      return value.map((entry) => entry.toString()).toList(growable: false);
+    }
+    return const [];
   }
 
   @override

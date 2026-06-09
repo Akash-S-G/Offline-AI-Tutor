@@ -65,6 +65,20 @@ class RuntimeObjectSchemaRegistry {
         optionalFields: ['value', 'sampleCount', 'minY', 'maxY'],
       ),
     );
+    registerSchema(
+      const RuntimeObjectSchema(
+        objectType: 'scatterPlot',
+        defaultState: {
+          'pointCount': 0,
+          'minX': 0,
+          'maxX': 0,
+          'minY': 0,
+          'maxY': 0,
+        },
+        requiredFields: [],
+        optionalFields: ['pointCount', 'minX', 'maxX', 'minY', 'maxY'],
+      ),
+    );
     registerSchema(TableObjectSchema.schema);
     registerSchema(
       const RuntimeObjectSchema(

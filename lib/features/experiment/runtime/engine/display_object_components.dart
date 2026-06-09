@@ -10,6 +10,8 @@ import '../observations/table_behavior.dart';
 import '../observations/table_renderer.dart';
 import '../runtime_event.dart';
 import '../runtime_world.dart';
+import '../scatter/scatter_plot_behavior.dart';
+import '../scatter/scatter_plot_renderer.dart';
 
 class RuntimeDisplayObjectComponent extends PositionComponent {
   final Map<String, dynamic> objectData;
@@ -33,6 +35,7 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
     if (state == null) return;
     _applyLayout(state.layout);
     _syncGraphState();
+    _syncScatterState(state.state);
     _syncTableState(state.state);
     runtimeWorld.objectLifecycle.getRenderer(objectId)?.update(state);
   }
@@ -45,6 +48,11 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
     renderer?.render(canvas, ui.Size(size.x, size.y));
     if (renderer is LineGraphRenderer) {
       _emitGraphEvent('GraphRendered', renderer.graphState.sampleCount);
+    } else if (renderer is ScatterPlotRenderer) {
+      _emitScatterEvent(
+        'ScatterPlotRendered',
+        renderer.scatterState.pointCount,
+      );
     } else if (renderer is TableRenderer) {
       _emitTableEvent('TableRendered', renderer.tableState.rowCount);
     }
@@ -85,6 +93,45 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
     _emitGraphEvent('GraphUpdated', graphState.sampleCount);
   }
 
+  void _syncScatterState(Map<String, dynamic> currentState) {
+    if (objectData['objectType']?.toString() != 'scatterPlot') return;
+    final renderer = runtimeWorld.objectLifecycle.getRenderer(objectId);
+    if (renderer is! ScatterPlotRenderer) return;
+    final variables = _scatterVariableIds();
+    final scatterState = ScatterPlotBehavior(
+      measurementStore: runtimeWorld.measurementStore,
+    ).buildState(xVariableId: variables.$1, yVariableId: variables.$2);
+    renderer.updateScatterState(scatterState);
+    if (currentState['pointCount'] != scatterState.pointCount) {
+      runtimeWorld.objects.updateObjectState(
+        objectId,
+        'pointCount',
+        scatterState.pointCount,
+      );
+      runtimeWorld.objects.updateObjectState(
+        objectId,
+        'minX',
+        scatterState.minX,
+      );
+      runtimeWorld.objects.updateObjectState(
+        objectId,
+        'maxX',
+        scatterState.maxX,
+      );
+      runtimeWorld.objects.updateObjectState(
+        objectId,
+        'minY',
+        scatterState.minY,
+      );
+      runtimeWorld.objects.updateObjectState(
+        objectId,
+        'maxY',
+        scatterState.maxY,
+      );
+    }
+    _emitScatterEvent('ScatterPlotUpdated', scatterState.pointCount);
+  }
+
   void _syncTableState(Map<String, dynamic> currentState) {
     if (objectData['objectType']?.toString() != 'table') return;
     final renderer = runtimeWorld.objectLifecycle.getRenderer(objectId);
@@ -113,11 +160,34 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
     final value =
         properties['linked_variable'] ??
         properties['linkedVariable'] ??
+        properties['variableId'] ??
         properties['valueVariable'] ??
         objectData['linked_variable'] ??
         objectData['linkedVariable'] ??
+        objectData['variableId'] ??
         objectData['valueVariable'];
     return value?.toString();
+  }
+
+  (String?, String?) _scatterVariableIds() {
+    final properties = Map<String, dynamic>.from(
+      objectData['properties'] as Map? ?? const {},
+    );
+    final xValue =
+        properties['xVariable'] ??
+        properties['x_variable'] ??
+        properties['xVariableId'] ??
+        objectData['xVariable'] ??
+        objectData['x_variable'] ??
+        objectData['xVariableId'];
+    final yValue =
+        properties['yVariable'] ??
+        properties['y_variable'] ??
+        properties['yVariableId'] ??
+        objectData['yVariable'] ??
+        objectData['y_variable'] ??
+        objectData['yVariableId'];
+    return (xValue?.toString(), yValue?.toString());
   }
 
   void _emitGraphEvent(String message, int sampleCount) {
@@ -148,6 +218,25 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
           'objectId': objectId,
           'objectType': 'table',
           'rowCount': rowCount,
+        },
+      ),
+    );
+  }
+
+  void _emitScatterEvent(String message, int pointCount) {
+    final variables = _scatterVariableIds();
+    runtimeWorld.eventBus.emit(
+      RuntimeEvent(
+        id: '${message}_${DateTime.now().microsecondsSinceEpoch}',
+        timestamp: DateTime.now(),
+        type: RuntimeEventType.custom,
+        message: message,
+        metadata: {
+          'objectId': objectId,
+          'objectType': 'scatterPlot',
+          'xVariableId': variables.$1,
+          'yVariableId': variables.$2,
+          'pointCount': pointCount,
         },
       ),
     );

@@ -95,6 +95,18 @@ class RuntimeObjectFactory {
 
     register(
       ObjectCapabilityDefinition(
+        type: 'scatterPlot',
+        description:
+            'Live scatter plot that renders relationships between two variables.',
+        supportedProperties: ['xVariable', 'yVariable'],
+        supportedActions: ['show_object', 'hide_object'],
+        supportedEvents: [],
+        builder: (data, world) => RuntimeDisplayObjectComponent(data, world),
+      ),
+    );
+
+    register(
+      ObjectCapabilityDefinition(
         type: 'table',
         description: 'Observation table that renders recorded lab rows.',
         supportedProperties: ['columns', 'rows'],
