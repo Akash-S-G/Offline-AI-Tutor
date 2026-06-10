@@ -25,6 +25,7 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
   RuleDefinition? _selectedType;
 
   final _nameController = TextEditingController();
+  String _trigger = 'variableChanged';
   Map<String, dynamic> _condition = const {};
   List<Map<String, dynamic>> _actions = const [
     {'type': 'show_warning', 'message': ''},
@@ -50,15 +51,18 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
     if (!_canProceed) return;
 
     final condition = Map<String, dynamic>.from(_condition);
-    final action = _actions.isEmpty ? <String, dynamic>{} : _actions.first;
-
     final newRule = BuilderRule(
       id: const Uuid().v4(),
       name: _nameController.text.trim(),
       condition: condition,
-      action: action,
+      actions: _actions,
+      trigger: _trigger,
       description: _selectedType!.description,
-      runtimeConfig: {'condition': condition, 'actions': _actions},
+      runtimeConfig: {
+        'trigger': _trigger,
+        'condition': condition,
+        'actions': _actions,
+      },
     );
 
     Navigator.of(context).pop(newRule);
@@ -111,6 +115,11 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
       children: [
         _templatePicker(),
         const SizedBox(height: 16),
+        RuleTriggerDropdown(
+          trigger: _trigger,
+          onChanged: (trigger) => setState(() => _trigger = trigger),
+        ),
+        const SizedBox(height: 16),
         ConditionBuilderEditor(
           variables: widget.availableVariables,
           condition: _condition,
@@ -148,6 +157,7 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
         if (template == null) return;
         setState(() {
           _nameController.text = template.name;
+          _trigger = 'thresholdCrossed';
           _condition = Map<String, dynamic>.from(template.condition);
           _actions = template.actions
               .map((action) => Map<String, dynamic>.from(action))
@@ -170,6 +180,7 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
             'value': 100,
           },
     );
+    _trigger = 'variableChanged';
     _actions =
         template?.actions
             .map((action) => Map<String, dynamic>.from(action))

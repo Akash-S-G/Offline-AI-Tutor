@@ -14,6 +14,10 @@ import '../../runtime/relationship_graph_model.dart';
 import '../../runtime/runtime_event.dart';
 import '../../runtime/models/runtime_variable.dart';
 import '../../runtime/scatter/scatter_plot_renderer.dart';
+import '../../runtime/scientific/bar_chart_renderer.dart';
+import '../../runtime/scientific/oscilloscope_renderer.dart';
+import '../../runtime/scientific/spectrum_analyzer_renderer.dart';
+import '../../runtime/scientific/vector_visualizer_renderer.dart';
 import '../widgets/native_graph_view.dart';
 
 class ExperimentPlayerScreen extends StatefulWidget {
@@ -485,6 +489,14 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
         .where((status) => status.objectType == 'scatterPlot')
         .toList(growable: false);
     final sensorStates = world?.sensors.sensorStates ?? const [];
+    final scientificStatuses = objectLifecycleStatuses
+        .where((status) {
+          return status.objectType == 'vectorVisualizer' ||
+              status.objectType == 'oscilloscope' ||
+              status.objectType == 'spectrumAnalyzer' ||
+              status.objectType == 'barChart';
+        })
+        .toList(growable: false);
     final experimentState = world?.experimentState.state;
     final lastTick = world == null
         ? 'Waiting'
@@ -698,6 +710,48 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                   ),
                 if (world != null)
                   _inspectorChip(
+                    'Vector Updates',
+                    '${world.analytics.vectorUpdates}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Waveforms',
+                    '${world.analytics.waveformUpdates}',
+                  ),
+                if (world != null)
+                  _inspectorChip('FFTs', '${world.analytics.fftComputations}'),
+                if (world != null)
+                  _inspectorChip(
+                    'Bar Updates',
+                    '${world.analytics.barChartUpdates}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Scientific Renders',
+                    '${world.analytics.scientificRenderCount}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Builder Rules',
+                    '${world.analytics.builderRulesLoaded}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Rule Validated',
+                    '${world.analytics.builderRulesValidated}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Rule Failures',
+                    '${world.analytics.builderRuleValidationFailures}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Builder Actions',
+                    '${world.analytics.builderActionsConfigured}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
                     'Observations',
                     '${world.analytics.observationsRecorded}',
                   ),
@@ -883,6 +937,39 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                 );
               }),
             ],
+            if (scientificStatuses.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Scientific Objects',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...scientificStatuses.map((status) {
+                final object = world?.objects.get(status.objectId);
+                final renderer = world?.objectLifecycle.getRenderer(
+                  status.objectId,
+                );
+                var detail = 'Renderer pending';
+                if (renderer is VectorVisualizerRenderer) {
+                  detail =
+                      'Magnitude: ${_formatInspectorValue(renderer.vectorState.magnitude)}';
+                } else if (renderer is OscilloscopeRenderer) {
+                  detail = 'Samples: ${renderer.oscilloscopeState.sampleCount}';
+                } else if (renderer is SpectrumAnalyzerRenderer) {
+                  detail =
+                      'Bins: ${renderer.spectrumState.binCount} | '
+                      'Peak: ${_formatInspectorValue(renderer.spectrumState.peakFrequency)} Hz';
+                } else if (renderer is BarChartRenderer) {
+                  detail = 'Bars: ${renderer.barChartState.barCount}';
+                }
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(object?['name']?.toString() ?? status.objectId),
+                  subtitle: Text('${status.objectType} | $detail'),
+                );
+              }),
+            ],
             if (measuredVariableIds.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
@@ -965,11 +1052,12 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
             if (world?.rules.ruleStates.isNotEmpty == true) ...[
               const SizedBox(height: 16),
               const Text(
-                'Rule Definitions',
+                'Rule Runtime',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              ...world!.rules.allRules.map((rule) {
+              ...world!.rules.ruleStates.map((state) {
+                final rule = state.rule.toJson();
                 final condition = Map<String, dynamic>.from(
                   rule['condition'] as Map? ?? const {},
                 );
@@ -987,26 +1075,13 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                 return ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
-                  title: Text(rule['name']?.toString() ?? 'Rule'),
-                  subtitle: Text(
-                    'Condition: ${condition['variableId']} ${condition['operator']} ${condition['value']} | '
-                    'Actions: ${actions.map((action) => _formatRuleDefinitionAction(action)).join(', ')}',
-                  ),
-                );
-              }),
-              const SizedBox(height: 16),
-              const Text(
-                'Rule Inspector',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 8),
-              ...world.rules.ruleStates.map((state) {
-                return ListTile(
-                  dense: true,
-                  contentPadding: EdgeInsets.zero,
                   title: Text(state.rule.name),
                   subtitle: Text(
-                    'last=${state.lastEvaluation == null ? 'Never' : _formatTime(state.lastEvaluation!)} | '
+                    'Trigger: ${rule['trigger'] ?? state.rule.trigger.name} | '
+                    'Condition: ${condition['variableId']} ${condition['operator']} ${condition['value']} | '
+                    'Actions: ${actions.map((action) => _formatRuleDefinitionAction(action)).join(', ')} | '
+                    'Fired: ${state.fireCount} times | '
+                    'Last Fired: ${state.lastEvaluation == null ? 'Never' : _formatTime(state.lastEvaluation!)} | '
                     'result=${state.lastResult == null
                         ? 'None'
                         : state.lastResult!

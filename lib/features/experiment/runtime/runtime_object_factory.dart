@@ -118,6 +118,69 @@ class RuntimeObjectFactory {
 
     register(
       ObjectCapabilityDefinition(
+        type: 'vectorVisualizer',
+        description:
+            'Scientific vector visualizer for components and magnitude.',
+        supportedProperties: [
+          'linked_variable',
+          'xVariable',
+          'yVariable',
+          'zVariable',
+          'unit',
+        ],
+        supportedActions: ['show_object', 'hide_object'],
+        supportedEvents: [],
+        builder: (data, world) => RuntimeDisplayObjectComponent(data, world),
+      ),
+    );
+
+    register(
+      ObjectCapabilityDefinition(
+        type: 'oscilloscope',
+        description:
+            'Scientific waveform visualizer for numeric measurement history.',
+        supportedProperties: [
+          'linked_variable',
+          'sourceVariable',
+          'field',
+          'sampleRate',
+        ],
+        supportedActions: ['show_object', 'hide_object'],
+        supportedEvents: [],
+        builder: (data, world) => RuntimeDisplayObjectComponent(data, world),
+      ),
+    );
+
+    register(
+      ObjectCapabilityDefinition(
+        type: 'spectrumAnalyzer',
+        description: 'Frequency-domain visualization from waveform samples.',
+        supportedProperties: [
+          'linked_variable',
+          'sourceVariable',
+          'field',
+          'sampleRate',
+          'bins',
+        ],
+        supportedActions: ['show_object', 'hide_object'],
+        supportedEvents: [],
+        builder: (data, world) => RuntimeDisplayObjectComponent(data, world),
+      ),
+    );
+
+    register(
+      ObjectCapabilityDefinition(
+        type: 'barChart',
+        description: 'Categorical bar chart from multiple runtime variables.',
+        supportedProperties: ['variables', 'variableIds', 'bars'],
+        supportedActions: ['show_object', 'hide_object'],
+        supportedEvents: [],
+        builder: (data, world) => RuntimeDisplayObjectComponent(data, world),
+      ),
+    );
+
+    register(
+      ObjectCapabilityDefinition(
         type: 'button',
         description:
             'Interactive button that writes press state to a variable.',

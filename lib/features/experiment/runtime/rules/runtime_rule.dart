@@ -70,6 +70,10 @@ class RuntimeRule {
     switch (trigger) {
       case 'variableChanged':
       case 'variable_changed':
+      case 'thresholdCrossed':
+      case 'toggleChanged':
+      case 'intervalTriggered':
+      case 'countdownFinished':
         return RuntimeRuleTrigger.variableChanged;
       case 'continuous':
         return RuntimeRuleTrigger.continuous;
@@ -78,8 +82,12 @@ class RuntimeRule {
       case 'objectInteraction':
       case 'buttonEvent':
       case 'sliderEvent':
+      case 'buttonPressed':
         return RuntimeRuleTrigger.objectInteraction;
       case 'manual':
+      case 'experimentStarted':
+      case 'experimentPaused':
+      case 'experimentCompleted':
         return RuntimeRuleTrigger.manual;
       case 'any':
       case null:

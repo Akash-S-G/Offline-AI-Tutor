@@ -5,6 +5,10 @@ import 'progress_bar_behavior.dart';
 import 'runtime_object_behavior.dart';
 import 'slider_behavior.dart';
 import '../../scatter/scatter_plot_behavior.dart';
+import '../../scientific/bar_chart_behavior.dart';
+import '../../scientific/oscilloscope_behavior.dart';
+import '../../scientific/spectrum_analyzer_behavior.dart';
+import '../../scientific/vector_visualizer_behavior.dart';
 import 'text_display_behavior.dart';
 import 'toggle_behavior.dart';
 
@@ -40,5 +44,9 @@ class RuntimeObjectBehaviorRegistry {
     registerBehavior('slider', SliderBehavior.new);
     registerBehavior('toggle', ToggleBehavior.new);
     registerBehavior('scatterPlot', ScatterPlotBehavior.new);
+    registerBehavior('vectorVisualizer', VectorVisualizerBehavior.new);
+    registerBehavior('oscilloscope', OscilloscopeBehavior.new);
+    registerBehavior('spectrumAnalyzer', SpectrumAnalyzerBehavior.new);
+    registerBehavior('barChart', BarChartBehavior.new);
   }
 }

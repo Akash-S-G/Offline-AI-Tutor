@@ -5,6 +5,7 @@ import '../models/builder_variable.dart';
 import '../models/builder_object.dart';
 import '../models/builder_rule.dart';
 import '../models/builder_scene.dart';
+import '../models/builder_analytics.dart';
 import '../validation/builder_validator.dart';
 import '../storage/builder_draft_manager.dart';
 import '../data/repositories/experiment_manifest_repository.dart';
@@ -32,6 +33,13 @@ class ExperimentBuilderController extends ChangeNotifier {
   Map<String, dynamic>? _executionPackage;
   Map<String, dynamic>? get executionPackage => _executionPackage;
 
+  BuilderAnalytics _analytics = const BuilderAnalytics();
+  BuilderAnalytics get analytics => _analytics;
+
+  TemplateImportReport? _lastTemplateImportReport;
+  TemplateImportReport? get lastTemplateImportReport =>
+      _lastTemplateImportReport;
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
   bool _disposed = false;
@@ -54,6 +62,7 @@ class ExperimentBuilderController extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    draftManager.stopAutoSave();
     draftManager.removeListener(_onDraftManagerUpdated);
     super.dispose();
   }
@@ -90,6 +99,26 @@ class ExperimentBuilderController extends ChangeNotifier {
     } catch (e) {
       print('Error loading manifest: $e');
     }
+  }
+
+  void importTemplate(Map<String, dynamic> template) {
+    loadFromManifest(template);
+    final sceneData = template['scene'] as Map<String, dynamic>? ?? {};
+    _lastTemplateImportReport = TemplateImportReport(
+      templateName: sceneData['name']?.toString() ?? 'Template',
+      variables: _state.variables.length,
+      objects: _state.objects.length,
+      rules: _state.rules.length,
+    );
+    _analytics = _analytics.copyWith(
+      templatesImported: _analytics.templatesImported + 1,
+      builderEntitiesCreated:
+          _analytics.builderEntitiesCreated +
+          _state.variables.length +
+          _state.objects.length +
+          _state.rules.length,
+    );
+    notifyListeners();
   }
 
   // --- API Integrations ---
@@ -152,6 +181,9 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   Future<void> fetchExecutionPackage() async {
     print('[BUILDER] EXECUTION_PACKAGE_REQUEST');
+    _analytics = _analytics.copyWith(
+      builderLaunchAttempts: _analytics.builderLaunchAttempts + 1,
+    );
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -161,6 +193,10 @@ class ExperimentBuilderController extends ChangeNotifier {
 
       _validationResult = _validator.validate(_state);
       if (!_validationResult!.isValid) {
+        _analytics = _analytics.copyWith(
+          validationErrors:
+              _analytics.validationErrors + _validationResult!.errors.length,
+        );
         throw Exception(
           'Validation Failed: ${_validationResult!.errors.join(', ')}',
         );
@@ -227,9 +263,13 @@ class ExperimentBuilderController extends ChangeNotifier {
       id: 'rule_manual_$id',
       name: 'ManualValueWarning',
       condition: {'variableId': variable.id, 'operator': '>', 'value': 75},
-      action: {'type': 'show_warning'},
+      trigger: 'thresholdCrossed',
+      actions: [
+        {'type': 'show_warning', 'message': 'Manual value is high'},
+      ],
       description: 'Shows a warning when the manual value is high.',
       runtimeConfig: {
+        'trigger': 'thresholdCrossed',
         'condition': {'variableId': variable.id, 'operator': '>', 'value': 75},
         'actions': [
           {'type': 'show_warning', 'message': 'Manual value is high'},
@@ -260,6 +300,9 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   void addVariable(BuilderVariable variable) {
     _state = _state.copyWith(variables: [..._state.variables, variable]);
+    _analytics = _analytics.copyWith(
+      builderEntitiesCreated: _analytics.builderEntitiesCreated + 1,
+    );
     print('[BUILDER] VARIABLE_CREATED');
     notifyListeners();
   }
@@ -285,7 +328,7 @@ class ExperimentBuilderController extends ChangeNotifier {
         .where(
           (rule) =>
               !_referencesId(rule.condition, id) &&
-              !_referencesId(rule.action, id),
+              !_referencesId(rule.actions, id),
         )
         .toList();
     _state = _state.copyWith(variables: list, objects: objects, rules: rules);
@@ -296,6 +339,9 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   void addObject(BuilderObject object) {
     _state = _state.copyWith(objects: [..._state.objects, object]);
+    _analytics = _analytics.copyWith(
+      builderEntitiesCreated: _analytics.builderEntitiesCreated + 1,
+    );
     print('[BUILDER] OBJECT_CREATED');
     notifyListeners();
   }
@@ -317,7 +363,7 @@ class ExperimentBuilderController extends ChangeNotifier {
         .where(
           (rule) =>
               !_referencesId(rule.condition, id) &&
-              !_referencesId(rule.action, id),
+              !_referencesId(rule.actions, id),
         )
         .toList();
     _state = _state.copyWith(objects: list, rules: rules);
@@ -328,6 +374,9 @@ class ExperimentBuilderController extends ChangeNotifier {
 
   void addRule(BuilderRule rule) {
     _state = _state.copyWith(rules: [..._state.rules, rule]);
+    _analytics = _analytics.copyWith(
+      builderEntitiesCreated: _analytics.builderEntitiesCreated + 1,
+    );
     print('[BUILDER] RULE_CREATED');
     notifyListeners();
   }
@@ -361,6 +410,10 @@ class ExperimentBuilderController extends ChangeNotifier {
     if (_validationResult!.isValid) {
       print('[BUILDER] VALIDATION_SUCCESS');
     } else {
+      _analytics = _analytics.copyWith(
+        validationErrors:
+            _analytics.validationErrors + _validationResult!.errors.length,
+      );
       print('[BUILDER] VALIDATION_FAILED');
     }
     notifyListeners();

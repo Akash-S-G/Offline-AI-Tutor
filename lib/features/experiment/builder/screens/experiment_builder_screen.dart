@@ -7,12 +7,16 @@ import '../widgets/design_workspace_panel.dart';
 import '../widgets/preview_workspace_panel.dart';
 import '../widgets/publish_workspace_panel.dart';
 import '../widgets/builder_workflow_sidebar.dart';
+import '../widgets/experiment_summary_card.dart';
+import '../widgets/launch_readiness_card.dart';
 
 import '../storage/builder_draft_manager.dart';
 import '../storage/builder_draft_repository.dart';
 import '../data/repositories/experiment_manifest_repository.dart';
 import '../data/api/experiment_manifest_api_service.dart';
 import '../../../network/domain/backend_config.dart';
+import '../templates/experiment_templates.dart';
+import '../models/builder_analytics.dart';
 
 import '../ai/controllers/ai_generator_controller.dart';
 import '../ai/repositories/ai_experiment_repository.dart';
@@ -89,7 +93,9 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
                 Expanded(
                   child: Container(
                     color: Colors.white,
-                    child: _buildWorkspaceForStep(_currentStep),
+                    child: _buildWorkspaceChrome(
+                      _buildWorkspaceForStep(_currentStep),
+                    ),
                   ),
                 ),
                 BottomNavigationBar(
@@ -148,7 +154,9 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
               Expanded(
                 child: Container(
                   color: Colors.white,
-                  child: _buildWorkspaceForStep(_currentStep),
+                  child: _buildWorkspaceChrome(
+                    _buildWorkspaceForStep(_currentStep),
+                  ),
                 ),
               ),
             ],
@@ -171,6 +179,25 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
       case BuilderWorkflowStep.publish:
         return PublishWorkspacePanel(controller: _controller);
     }
+  }
+
+  Widget _buildWorkspaceChrome(Widget child) {
+    return ListenableBuilder(
+      listenable: _controller,
+      builder: (context, _) {
+        return Column(
+          children: [
+            ExperimentSummaryCard(state: _controller.state),
+            LaunchReadinessCard(validation: _controller.currentValidation),
+            if (_controller.lastTemplateImportReport != null)
+              _TemplateImportReportBanner(
+                report: _controller.lastTemplateImportReport!,
+              ),
+            Expanded(child: child),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildCreateWorkspace() {
@@ -251,12 +278,72 @@ class _ManualCreatePanel extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
+              const SizedBox(height: 12),
+              PopupMenuButton<Map<String, dynamic>>(
+                onSelected: controller.importTemplate,
+                itemBuilder: (context) => ExperimentTemplates.allTemplates.map((
+                  template,
+                ) {
+                  final scene =
+                      template['scene'] as Map<String, dynamic>? ?? const {};
+                  return PopupMenuItem(
+                    value: template,
+                    child: Text(scene['name']?.toString() ?? 'Template'),
+                  );
+                }).toList(),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.file_download_outlined),
+                      SizedBox(width: 8),
+                      Text('Import Template'),
+                    ],
+                  ),
+                ),
+              ),
               const SizedBox(height: 16),
               _ManualChecklist(controller: controller),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _TemplateImportReportBanner extends StatelessWidget {
+  final TemplateImportReport report;
+
+  const _TemplateImportReportBanner({required this.report});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
+      ),
+      child: Text(
+        'Template Imported: ${report.templateName} | '
+        'Variables: ${report.variables} | '
+        'Objects: ${report.objects} | '
+        'Rules: ${report.rules}',
+        style: const TextStyle(
+          color: Color(0xFF1E40AF),
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }

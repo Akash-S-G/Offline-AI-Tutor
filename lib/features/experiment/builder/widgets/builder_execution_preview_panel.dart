@@ -3,6 +3,8 @@ import '../controllers/experiment_builder_controller.dart';
 import '../models/builder_object.dart';
 import '../models/builder_rule.dart';
 import '../models/builder_variable.dart';
+import '../domain/rule_action_registry.dart';
+import 'rule_dependency_graph.dart';
 
 import '../../../shared/presentation/widgets/error_state_card.dart';
 import '../../domain/models/experiment_models.dart';
@@ -46,6 +48,8 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               _buildManifestInspector(validation, isEmptyManifest),
+              const SizedBox(height: 16),
+              _runtimeValidationSummary(),
               const SizedBox(height: 16),
               if (controller.isLoading)
                 const Center(child: CircularProgressIndicator()),
@@ -177,6 +181,92 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
     );
   }
 
+  Widget _runtimeValidationSummary() {
+    final state = controller.state;
+    final validation = controller.currentValidation;
+    final variableRefs = <String>{};
+    for (final object in state.objects) {
+      variableRefs.addAll(_variableRefsIn(object.properties));
+      variableRefs.addAll(_variableRefsIn(object.runtimeConfig));
+    }
+    for (final rule in state.rules) {
+      variableRefs.addAll(_variableRefsIn(rule.condition));
+      variableRefs.addAll(_variableRefsIn(rule.actions));
+    }
+    final validVariableIds = state.variables.map((v) => v.id).toSet();
+    final validBindings = variableRefs.where(validVariableIds.contains).length;
+    final allBindingsValid = variableRefs.every(validVariableIds.contains);
+
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Runtime Validation Summary',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            _summaryRow('Variables', state.variables.length, true),
+            _summaryRow('Objects', state.objects.length, true),
+            _summaryRow('Rules', state.rules.length, true),
+            _summaryRow('Bindings', validBindings, allBindingsValid),
+            _summaryRow(
+              'Runtime Config',
+              validation.errors.length,
+              validation.isValid,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _summaryRow(String label, int count, bool valid) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(
+            valid ? Icons.check_circle : Icons.cancel,
+            color: valid ? Colors.green : Colors.red,
+            size: 18,
+          ),
+          const SizedBox(width: 8),
+          Text('$label: ${valid ? '✓' : '✗'} $count Valid'),
+        ],
+      ),
+    );
+  }
+
+  Set<String> _variableRefsIn(dynamic value) {
+    final refs = <String>{};
+    void scan(dynamic node) {
+      if (node is Map) {
+        for (final entry in node.entries) {
+          final key = entry.key.toString();
+          final entryValue = entry.value;
+          if (entryValue is String &&
+              (key.contains('Variable') ||
+                  key == 'variableId' ||
+                  key == 'linked_variable') &&
+              entryValue.startsWith('var_')) {
+            refs.add(entryValue);
+          }
+          scan(entryValue);
+        }
+      } else if (node is Iterable) {
+        for (final item in node) {
+          scan(item);
+        }
+      }
+    }
+
+    scan(value);
+    return refs;
+  }
+
   Widget _buildManifestInspector(dynamic validation, bool isEmptyManifest) {
     final state = controller.state;
     return Card(
@@ -249,6 +339,7 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
     };
     final rows = state.rules.expand((rule) {
       return [
+        _ruleTriggerValidation(rule),
         _ruleConditionValidation(rule, variableIds),
         ..._actionsForRule(rule).map(
           (action) => _ruleActionValidation(
@@ -270,7 +361,7 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
         const SizedBox(height: 6),
         if (rows.isEmpty)
           const Text('No rules', style: TextStyle(color: Colors.grey))
-        else
+        else ...[
           ...rows.map((result) {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -292,7 +383,49 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
               ],
             );
           }),
+          const SizedBox(height: 12),
+          ...state.rules.map((rule) => _ruleRuntimeSummary(rule)),
+          const SizedBox(height: 12),
+          RuleDependencyGraph(variables: state.variables, rules: state.rules),
+        ],
       ],
+    );
+  }
+
+  (bool, String) _ruleTriggerValidation(BuilderRule rule) {
+    if (!RuleActionRegistry.triggers.contains(rule.trigger)) {
+      return (false, '${rule.name} has unknown trigger ${rule.trigger}');
+    }
+    return (true, '${rule.name} trigger ${rule.trigger}');
+  }
+
+  Widget _ruleRuntimeSummary(BuilderRule rule) {
+    final condition =
+        '${rule.condition['variableId'] ?? 'Missing'} '
+        '${rule.condition['operator'] ?? '?'} '
+        '${rule.condition['value'] ?? 'Missing'}';
+    final actions = rule.actions.isEmpty
+        ? 'No actions'
+        : rule.actions
+              .map((action) {
+                final type = action['type']?.toString() ?? 'action';
+                final target =
+                    action['objectId']?.toString() ??
+                    action['variableId']?.toString() ??
+                    action['targetVariable']?.toString() ??
+                    action['message']?.toString() ??
+                    '';
+                return target.isEmpty ? type : '$type ($target)';
+              })
+              .join(', ');
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Text(
+        '${rule.name}\n'
+        'Trigger: ${rule.trigger}\n'
+        'Condition: $condition\n'
+        'Actions: $actions',
+      ),
     );
   }
 
@@ -335,12 +468,20 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
               )
             : (false, 'Missing object ${objectId ?? ''}');
       case 'set_variable':
-        final variableId = action['variableId']?.toString();
-        return variableId != null && variablesById.containsKey(variableId)
-            ? (true, 'Set variable action valid')
-            : (false, 'Missing variable ${variableId ?? ''}');
+        final variableId =
+            action['variableId']?.toString() ??
+            action['targetVariable']?.toString();
+        if (variableId == null || !variablesById.containsKey(variableId)) {
+          return (false, 'Missing variable ${variableId ?? ''}');
+        }
+        if (!action.containsKey('value')) {
+          return (false, 'Set variable value missing');
+        }
+        return (true, 'Set variable action valid');
       case 'toggle_variable':
-        final variableId = action['variableId']?.toString();
+        final variableId =
+            action['variableId']?.toString() ??
+            action['targetVariable']?.toString();
         final variable = variableId == null ? null : variablesById[variableId];
         if (variable == null) {
           return (false, 'Missing variable ${variableId ?? ''}');
@@ -354,13 +495,7 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
   }
 
   List<Map<String, dynamic>> _actionsForRule(BuilderRule rule) {
-    final rawActions = rule.runtimeConfig['actions'];
-    if (rawActions is List) {
-      return rawActions
-          .map((entry) => Map<String, dynamic>.from(entry as Map))
-          .toList(growable: false);
-    }
-    return rule.action.isEmpty ? const [] : [rule.action];
+    return rule.actions;
   }
 
   Widget _variableRuntimeValidationSection() {

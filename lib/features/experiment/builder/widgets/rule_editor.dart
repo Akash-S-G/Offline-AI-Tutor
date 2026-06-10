@@ -1,20 +1,33 @@
 import 'package:flutter/material.dart';
 import '../controllers/experiment_builder_controller.dart';
 import '../models/builder_rule.dart';
+import 'builder_search_bar.dart';
+import 'empty_state_card.dart';
 import 'rule_runtime_config_editors.dart';
 import '../wizards/rule_wizard_dialog.dart';
 
-class RuleEditor extends StatelessWidget {
+class RuleEditor extends StatefulWidget {
   final ExperimentBuilderController controller;
 
   const RuleEditor({super.key, required this.controller});
 
   @override
+  State<RuleEditor> createState() => _RuleEditorState();
+}
+
+class _RuleEditorState extends State<RuleEditor> {
+  String _query = '';
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: widget.controller,
       builder: (context, _) {
-        final rules = controller.state.rules;
+        final rules = BuilderSearchBar.filter(
+          widget.controller.state.rules,
+          _query,
+          (rule) => [rule.name, rule.id, rule.trigger, rule.type],
+        );
         final compact = MediaQuery.sizeOf(context).width < 380;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -23,9 +36,9 @@ class RuleEditor extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Logic & Rules',
+                      'Rules (${widget.controller.state.rules.length})',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -47,23 +60,29 @@ class RuleEditor extends StatelessWidget {
                         context: context,
                         barrierDismissible: false,
                         builder: (context) => RuleWizardDialog(
-                          availableVariables: controller.state.variables,
-                          availableObjects: controller.state.objects,
+                          availableVariables: widget.controller.state.variables,
+                          availableObjects: widget.controller.state.objects,
                         ),
                       );
 
                       if (newRule != null) {
-                        controller.addRule(newRule);
+                        widget.controller.addRule(newRule);
                       }
                     },
                   ),
                 ],
               ),
             ),
+            BuilderSearchBar(
+              hintText: 'Search Rules',
+              onChanged: (value) => setState(() => _query = value),
+            ),
             const Divider(height: 1),
             Expanded(
-              child: rules.isEmpty
-                  ? _buildEmptyState()
+              child: widget.controller.state.rules.isEmpty
+                  ? _buildEmptyState(context)
+                  : rules.isEmpty
+                  ? const Center(child: Text('No matching rules'))
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       primary: true,
@@ -81,59 +100,23 @@ class RuleEditor extends StatelessWidget {
     );
   }
 
-  Widget _buildEmptyState() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          Icon(
-            Icons.account_tree_rounded,
-            size: 64,
-            color: Colors.grey.shade300,
+  Widget _buildEmptyState(BuildContext context) {
+    return EmptyStateCard(
+      icon: Icons.account_tree_rounded,
+      title: 'No Rules Yet',
+      message: 'Rules define the interactive logic of your experiment.',
+      primaryLabel: 'Create Rule',
+      onPrimary: () async {
+        final newRule = await showDialog<BuilderRule>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => RuleWizardDialog(
+            availableVariables: widget.controller.state.variables,
+            availableObjects: widget.controller.state.objects,
           ),
-          const SizedBox(height: 16),
-          const Text(
-            'Create your first rule',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Rules define the interactive logic of your experiment.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Color(0xFF64748B)),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Example:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'IF Temperature > 100\nTHEN Start Boiling Animation',
-                  style: TextStyle(color: Color(0xFF1E293B)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+        if (newRule != null && mounted) widget.controller.addRule(newRule);
+      },
     );
   }
 
@@ -141,6 +124,7 @@ class RuleEditor extends StatelessWidget {
     final conditionVar = rule.condition['variableId'] ?? 'Unknown';
     final conditionOp = rule.condition['operator'] ?? '==';
     final conditionVal = rule.condition['value'] ?? 'Unknown';
+    final trigger = rule.trigger;
 
     final actions = _actionsFor(rule);
 
@@ -192,7 +176,7 @@ class RuleEditor extends StatelessWidget {
                     } else if (action == 'edit') {
                       _showEditRuleDialog(context, rule);
                     } else if (action == 'delete') {
-                      controller.deleteRule(rule.id);
+                      widget.controller.deleteRule(rule.id);
                     }
                   },
                   itemBuilder: (context) => const [
@@ -209,6 +193,31 @@ class RuleEditor extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 84,
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Center(
+                        child: Text(
+                          trigger,
+                          style: const TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -294,7 +303,7 @@ class RuleEditor extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: Text(rule.name),
         content: SelectableText(
-          'ID: ${rule.id}\nCondition: ${rule.condition}\nActions: ${_actionsFor(rule)}\nRuntime Config: ${rule.runtimeConfig}\nDescription: ${rule.description}',
+          'ID: ${rule.id}\nTrigger: ${rule.trigger}\nCondition: ${rule.condition}\nActions: ${rule.actions}\nRuntime Config: ${rule.runtimeConfig}\nDescription: ${rule.description}',
         ),
         actions: [
           TextButton(
@@ -308,6 +317,7 @@ class RuleEditor extends StatelessWidget {
 
   void _showEditRuleDialog(BuildContext context, BuilderRule rule) {
     final nameController = TextEditingController(text: rule.name);
+    var trigger = rule.trigger;
     var condition = Map<String, dynamic>.from(rule.condition);
     var actions = _actionsFor(rule);
 
@@ -325,15 +335,20 @@ class RuleEditor extends StatelessWidget {
                   decoration: const InputDecoration(labelText: 'Name'),
                 ),
                 const SizedBox(height: 12),
+                RuleTriggerDropdown(
+                  trigger: trigger,
+                  onChanged: (next) => setDialogState(() => trigger = next),
+                ),
+                const SizedBox(height: 12),
                 ConditionBuilderEditor(
-                  variables: controller.state.variables,
+                  variables: widget.controller.state.variables,
                   condition: condition,
                   onChanged: (next) => setDialogState(() => condition = next),
                 ),
                 const SizedBox(height: 16),
                 ActionBuilderEditor(
-                  variables: controller.state.variables,
-                  objects: controller.state.objects,
+                  variables: widget.controller.state.variables,
+                  objects: widget.controller.state.objects,
                   actions: actions,
                   onChanged: (next) => setDialogState(() => actions = next),
                 ),
@@ -347,12 +362,17 @@ class RuleEditor extends StatelessWidget {
             ),
             ElevatedButton(
               onPressed: () {
-                controller.editRule(
+                widget.controller.editRule(
                   rule.copyWith(
                     name: nameController.text.trim(),
+                    trigger: trigger,
                     condition: condition,
-                    action: actions.isEmpty ? const {} : actions.first,
-                    runtimeConfig: {'condition': condition, 'actions': actions},
+                    actions: actions,
+                    runtimeConfig: {
+                      'trigger': trigger,
+                      'condition': condition,
+                      'actions': actions,
+                    },
                   ),
                 );
                 Navigator.pop(context);
@@ -366,12 +386,6 @@ class RuleEditor extends StatelessWidget {
   }
 
   List<Map<String, dynamic>> _actionsFor(BuilderRule rule) {
-    final raw = rule.runtimeConfig['actions'];
-    if (raw is List) {
-      return raw
-          .map((entry) => Map<String, dynamic>.from(entry as Map))
-          .toList(growable: false);
-    }
-    return rule.action.isEmpty ? const [] : [rule.action];
+    return rule.actions;
   }
 }

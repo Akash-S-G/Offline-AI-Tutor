@@ -82,6 +82,75 @@ class RuntimeObjectSchemaRegistry {
     registerSchema(TableObjectSchema.schema);
     registerSchema(
       const RuntimeObjectSchema(
+        objectType: 'vectorVisualizer',
+        defaultState: {
+          'x': 0,
+          'y': 0,
+          'z': 0,
+          'magnitude': 0,
+          'direction': 0,
+          'unit': '',
+        },
+        requiredFields: [],
+        optionalFields: ['x', 'y', 'z', 'magnitude', 'direction', 'unit'],
+      ),
+    );
+    registerSchema(
+      const RuntimeObjectSchema(
+        objectType: 'oscilloscope',
+        defaultState: {
+          'samples': [],
+          'sampleRate': 60,
+          'amplitudeScale': 1,
+          'timeWindow': 0,
+          'sampleCount': 0,
+        },
+        requiredFields: [],
+        optionalFields: [
+          'samples',
+          'sampleRate',
+          'amplitudeScale',
+          'timeWindow',
+          'sampleCount',
+        ],
+      ),
+    );
+    registerSchema(
+      const RuntimeObjectSchema(
+        objectType: 'spectrumAnalyzer',
+        defaultState: {
+          'bins': [],
+          'amplitudes': [],
+          'frequencies': [],
+          'peakFrequency': 0,
+          'binCount': 0,
+        },
+        requiredFields: [],
+        optionalFields: [
+          'bins',
+          'amplitudes',
+          'frequencies',
+          'peakFrequency',
+          'binCount',
+        ],
+      ),
+    );
+    registerSchema(
+      const RuntimeObjectSchema(
+        objectType: 'barChart',
+        defaultState: {
+          'labels': [],
+          'values': [],
+          'min': 0,
+          'max': 0,
+          'barCount': 0,
+        },
+        requiredFields: [],
+        optionalFields: ['labels', 'values', 'min', 'max', 'barCount'],
+      ),
+    );
+    registerSchema(
+      const RuntimeObjectSchema(
         objectType: 'button',
         defaultState: {
           'pressed': false,

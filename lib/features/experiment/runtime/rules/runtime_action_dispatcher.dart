@@ -89,7 +89,9 @@ class RuntimeActionDispatcher {
   }
 
   bool _setVariable(RuntimeRule rule, RuntimeRuleAction action) {
-    final variableId = action.payload['variableId']?.toString();
+    final variableId =
+        action.payload['variableId']?.toString() ??
+        action.payload['targetVariable']?.toString();
     if (variableId == null || variableId.isEmpty) return false;
     variables.updateVariable(
       variableId,
@@ -101,7 +103,9 @@ class RuntimeActionDispatcher {
   }
 
   bool _toggleVariable(RuntimeRule rule, RuntimeRuleAction action) {
-    final variableId = action.payload['variableId']?.toString();
+    final variableId =
+        action.payload['variableId']?.toString() ??
+        action.payload['targetVariable']?.toString();
     if (variableId == null || variableId.isEmpty) return false;
     final current = variables.getValue(variableId);
     if (current is! bool) return false;

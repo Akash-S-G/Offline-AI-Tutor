@@ -4,163 +4,166 @@ Generated: 2026-06-10
 
 ## Scope
 
-This report certifies Sprint 15C: Runtime-Aware Rule & Action Authoring.
+This report certifies Sprint 18: Runtime-Aware Rule Authoring.
+
+Goal:
+
+```text
+Every runtime rule capability must be authorable from the Builder UI.
+```
 
 Implemented in this sprint:
 
-- `BuilderRule.runtimeConfig`.
-- Runtime-aware condition editor.
-- Runtime-aware action editor.
-- Multi-action builder support.
-- Multi-action runtime dispatch.
-- Rule action validation.
-- Runtime rule validation in preview.
-- Runtime inspector rule definitions.
-- Starter rule templates.
+- First-class `BuilderRule.trigger`.
+- First-class `BuilderRule.actions`.
+- Compatibility `BuilderRule.action` getter for older call sites.
+- Rule trigger dropdown.
+- Structured condition editor.
+- Multi-action editor with add, delete, and reorder controls.
+- Centralized builder rule action registry.
+- Builder validation for trigger, condition, action targets, and action parameters.
+- Rule dependency graph widget.
+- Runtime execution preview rule summary.
+- Runtime Inspector `Rule Runtime` section.
+- Runtime analytics for builder rule health.
+- Built-in builder templates migrated away from `trigger: any`.
 
 Out of scope:
 
-- Sensor runtime.
+- Compound AND/OR condition authoring.
 - Rule groups.
-- Compound AND/OR conditions.
-- Backend schema changes.
+- Expression language authoring.
+- Backend schema migration.
 
 ## Implementation Results
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| `BuilderRule.runtimeConfig` added | PASS | `lib/features/experiment/builder/models/builder_rule.dart` |
-| Rule config survives create/edit/load | PASS | `BuilderRule.fromJson()` / `toJson()` |
-| ConditionBuilderEditor created | PASS | `rule_runtime_config_editors.dart` |
-| ActionBuilderEditor created | PASS | `rule_runtime_config_editors.dart` |
-| Operators supported | PASS | `==`, `!=`, `>`, `>=`, `<`, `<=` |
-| Value types supported | PASS | number, boolean, string |
-| `show_warning` editor support | PASS | message field |
-| `hide_object` editor support | PASS | object dropdown |
-| `show_object` editor support | PASS | object dropdown |
-| `set_variable` editor support | PASS | variable dropdown and value field |
-| `toggle_variable` editor support | PASS | variable dropdown |
-| Multi-action builder support | PASS | Manifest emits `actions: [...]` |
-| Multi-action runtime dispatch | PASS | `RuntimeActionDispatcher.dispatch()` runs sequential actions |
-| Builder action validation | PASS | `BuilderValidator` |
-| Runtime Rule Validation preview | PASS | `BuilderExecutionPreviewPanel` |
-| Runtime inspector Rule Definitions | PASS | `ExperimentPlayerScreen` |
-| Rule templates added | PASS | Temperature Warning, Visibility Toggle, Variable Mutation |
+| BuilderRule model extended | PASS | `lib/features/experiment/builder/models/builder_rule.dart` |
+| Trigger persisted | PASS | `trigger` emitted in `BuilderRule.toJson()` |
+| Action list persisted | PASS | `actions` emitted in `BuilderRule.toJson()` |
+| Runtime config preserved | PASS | `runtimeConfig.trigger`, `runtimeConfig.condition`, `runtimeConfig.actions` |
+| Trigger dropdown added | PASS | `RuleTriggerDropdown` |
+| Structured condition editor | PASS | `ConditionBuilderEditor` |
+| Multi-action editor | PASS | `ActionBuilderEditor` |
+| Add/delete/reorder actions | PASS | Action editor controls |
+| Rule action registry | PASS | `lib/features/experiment/builder/domain/rule_action_registry.dart` |
+| Builder validation upgraded | PASS | `BuilderValidator` |
+| Dependency graph added | PASS | `rule_dependency_graph.dart` |
+| Execution preview upgraded | PASS | `BuilderExecutionPreviewPanel` |
+| Runtime Inspector upgraded | PASS | `ExperimentPlayerScreen` |
+| Runtime analytics upgraded | PASS | `RuntimeAnalytics` |
+| Builder templates use registered triggers/actions | PASS | `experiment_templates.dart` |
 
-## Runtime Rule Format Certified
-
-Condition:
+## Certified Runtime Rule Format
 
 ```json
 {
-  "variableId": "var_temperature",
-  "operator": ">=",
-  "value": 100
-}
-```
-
-Actions:
-
-```json
-{
+  "ruleId": "rule_temp",
+  "name": "Temperature Warning",
+  "type": "runtime",
+  "trigger": "thresholdCrossed",
+  "condition": {
+    "variableId": "var_temp",
+    "operator": ">",
+    "value": 80
+  },
   "actions": [
     {
       "type": "show_warning",
-      "message": "Water is boiling"
+      "message": "Temperature too high"
     },
     {
       "type": "hide_object",
-      "objectId": "obj_gauge"
-    },
-    {
-      "type": "set_variable",
-      "variableId": "var_alarm",
-      "value": true
+      "objectId": "obj_heater"
     }
-  ]
+  ],
+  "runtimeConfig": {
+    "trigger": "thresholdCrossed",
+    "condition": {},
+    "actions": []
+  }
 }
 ```
 
 The legacy single `action` field is still emitted for compatibility and points to the first action.
 
+## Trigger Authoring
+
+Certified trigger values:
+
+- `variableChanged`
+- `thresholdCrossed`
+- `buttonPressed`
+- `toggleChanged`
+- `intervalTriggered`
+- `countdownFinished`
+- `experimentStarted`
+- `experimentPaused`
+- `experimentCompleted`
+
+## Action Authoring
+
+Certified action types:
+
+- `show_warning`
+- `hide_object`
+- `show_object`
+- `set_variable`
+- `toggle_variable`
+
+`set_variable` and `toggle_variable` support both `variableId` and Sprint 18 `targetVariable` payloads.
+
 ## Validation Certified
 
-Builder validation now checks:
+Builder validation now rejects:
 
-- Rule condition variable exists.
-- Rule condition operator is supported.
-- Rule condition has a value.
-- `show_warning` message is not empty.
-- `hide_object` target object exists.
-- `show_object` target object exists.
-- `set_variable` target variable exists.
-- `toggle_variable` target variable exists.
-- `toggle_variable` target is boolean.
-- At least one action is present.
+- Unknown trigger.
+- Missing condition variable.
+- Missing condition operator.
+- Missing condition value.
+- Unknown action type.
+- Empty warning message.
+- Missing hide/show object target.
+- Missing set-variable target.
+- Missing set-variable value.
+- Missing toggle-variable target.
+- Toggle action targeting a non-boolean variable.
 
-## Rule Templates
+## Dependency Graph
 
-Certified starter templates:
+Certified output shape:
 
-- Temperature Warning
-- Visibility Toggle
-- Variable Mutation
+```text
+Temperature
+  ↓
+Runtime Rule
+  ↓
+show_warning -> Too hot
+```
 
 ## Runtime Inspector
 
-Runtime inspector now includes:
+Runtime Inspector now displays:
 
 ```text
-Rule Definitions
+Rule Runtime
+Rule Name
+Trigger
+Condition
+Actions
+Fired count
+Last fired/evaluated time
 ```
 
-Example:
+## Analytics Certified
 
-```text
-Boiling Warning
-Condition: var_temperature >= 100
-Actions: show_warning, hide_object(obj_gauge)
-```
+Added counters:
 
-## Certification Experiments
-
-### Temperature Warning
-
-```text
-Temperature >= 100
--> show_warning
-```
-
-Result: PASS.
-
-### Visibility Toggle
-
-```text
-Toggle == false
--> hide_object(gauge)
-```
-
-Result: PASS.
-
-### Variable Mutation
-
-```text
-Button == true
--> set_variable(counter = 1)
-```
-
-Result: PASS.
-
-### Multi Action
-
-```text
-Temperature >= 100
--> show_warning
--> hide_object(gauge)
--> set_variable(alarm = true)
-```
-
-Result: PASS.
+- `builderRulesLoaded`
+- `builderRulesValidated`
+- `builderRuleValidationFailures`
+- `builderActionsConfigured`
 
 ## Automated Tests
 
@@ -175,46 +178,52 @@ Certified cases:
 | Test | Result |
 | --- | --- |
 | Draft persistence preserves runtime rule config | PASS |
+| Trigger persistence survives manifest and runtime load | PASS |
 | Manifest generation preserves multi-action rules | PASS |
 | Validation detects missing variable and object references | PASS |
 | Validation accepts valid multi-action rule | PASS |
+| Validation rejects unknown trigger and missing set value | PASS |
+| Dependency graph produces variable/rule/action chain | PASS |
 | Validation rejects toggle_variable for non-boolean variable | PASS |
 | Runtime launch fires multi-action rule correctly | PASS |
 
 ## Verification Commands
 
 ```text
-dart format lib/features/experiment/runtime/rules/runtime_rule.dart lib/features/experiment/runtime/rules/runtime_action_dispatcher.dart lib/features/experiment/runtime/rules/runtime_rule_engine.dart lib/features/experiment/builder/models/builder_rule.dart lib/features/experiment/builder/controllers/experiment_builder_controller.dart lib/features/experiment/builder/widgets/rule_runtime_config_editors.dart lib/features/experiment/builder/wizards/rule_wizard_dialog.dart lib/features/experiment/builder/widgets/rule_editor.dart lib/features/experiment/builder/validation/builder_validator.dart lib/features/experiment/builder/widgets/builder_execution_preview_panel.dart lib/features/experiment/presentation/screens/experiment_player_screen.dart test/experiment/runtime_aware_builder_rules_test.dart
+dart format
 ```
 
 Result: PASS.
 
 ```text
-flutter analyze lib/features/experiment/runtime/rules/runtime_rule.dart lib/features/experiment/runtime/rules/runtime_action_dispatcher.dart lib/features/experiment/runtime/rules/runtime_rule_engine.dart lib/features/experiment/builder/models/builder_rule.dart lib/features/experiment/builder/controllers/experiment_builder_controller.dart lib/features/experiment/builder/widgets/rule_runtime_config_editors.dart lib/features/experiment/builder/wizards/rule_wizard_dialog.dart lib/features/experiment/builder/widgets/rule_editor.dart lib/features/experiment/builder/validation/builder_validator.dart lib/features/experiment/builder/widgets/builder_execution_preview_panel.dart lib/features/experiment/presentation/screens/experiment_player_screen.dart test/experiment/runtime_aware_builder_rules_test.dart
+flutter analyze lib/features/experiment/builder/models/builder_rule.dart lib/features/experiment/builder/domain/rule_action_registry.dart lib/features/experiment/builder/widgets/rule_runtime_config_editors.dart lib/features/experiment/builder/widgets/rule_dependency_graph.dart lib/features/experiment/builder/wizards/rule_wizard_dialog.dart lib/features/experiment/builder/widgets/rule_editor.dart lib/features/experiment/builder/validation/builder_validator.dart lib/features/experiment/builder/widgets/builder_execution_preview_panel.dart lib/features/experiment/builder/controllers/experiment_builder_controller.dart lib/features/experiment/runtime/runtime_analytics.dart lib/features/experiment/runtime/rules/runtime_rule.dart lib/features/experiment/runtime/rules/runtime_rule_engine.dart lib/features/experiment/runtime/rules/runtime_action_dispatcher.dart lib/features/experiment/presentation/screens/experiment_player_screen.dart test/experiment/runtime_aware_builder_rules_test.dart
 ```
 
 Result: PASS, no issues found.
+
+Focused analyze was also rerun with `experiment_templates.dart` included.
 
 ```text
 flutter test test/experiment/runtime_aware_builder_rules_test.dart
 ```
 
-Result: PASS, 6 tests passed.
+Result: PASS, 9 tests passed.
 
 ```text
-flutter test test/experiment/runtime_aware_builder_rules_test.dart test/experiment/runtime_aware_builder_variables_test.dart test/experiment/runtime_aware_builder_objects_test.dart test/experiment/runtime_rule_system_test.dart test/experiment/runtime_variable_execution_test.dart test/experiment/runtime_display_objects_test.dart test/experiment/runtime_scatter_plot_test.dart test/experiment/runtime_experiment_state_test.dart test/experiment/variable_runtime_system_test.dart
+flutter test test/experiment/runtime_aware_builder_rules_test.dart test/experiment/runtime_aware_builder_variables_test.dart test/experiment/runtime_aware_builder_objects_test.dart test/experiment/runtime_rule_system_test.dart
 ```
 
-Result: PASS, 57 tests passed.
+Result: PASS, 25 tests passed.
 
 ## Known Limitations
 
-- Conditions remain single-condition rules. Compound AND/OR authoring is not implemented.
-- Rule templates choose the first available matching variables/objects and may require user adjustment.
-- Action value parsing supports boolean, number, and string literals, but does not yet support expression syntax.
+- Conditions remain single-condition rules.
+- `thresholdCrossed`, `intervalTriggered`, and `countdownFinished` are authored exactly and map onto existing runtime variable-change evaluation.
+- `buttonPressed` is authored exactly and maps onto existing runtime object-interaction evaluation.
+- Experiment lifecycle triggers are persisted and visible, but lifecycle-trigger dispatch is still limited by existing runtime event support.
 
 ## Certification Decision
 
 PASS.
 
-Runtime-aware rule and action authoring is certified. Rule config creation, action config creation, validation, draft persistence, manifest persistence, runtime launch, multi-action execution, and runtime inspector visibility all pass.
+Builder ↔ Runtime parity for rule authoring is certified.

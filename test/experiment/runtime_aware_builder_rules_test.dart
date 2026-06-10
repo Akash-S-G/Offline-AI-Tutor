@@ -6,6 +6,7 @@ import 'package:offline_tutor_app/features/experiment/builder/models/builder_var
 import 'package:offline_tutor_app/features/experiment/builder/models/experiment_builder_state.dart';
 import 'package:offline_tutor_app/features/experiment/builder/storage/builder_draft.dart';
 import 'package:offline_tutor_app/features/experiment/builder/validation/builder_validator.dart';
+import 'package:offline_tutor_app/features/experiment/builder/widgets/rule_dependency_graph.dart';
 import 'package:offline_tutor_app/features/experiment/runtime/runtime_event.dart';
 import 'package:offline_tutor_app/features/experiment/runtime/runtime_loader.dart';
 
@@ -42,8 +43,41 @@ void main() {
       );
 
       expect(rule.runtimeConfig['condition']['variableId'], 'var_temp');
+      expect(rule.trigger, 'thresholdCrossed');
       expect(rule.runtimeConfig['actions'], hasLength(1));
       expect(rule.runtimeConfig['actions'][0]['type'], 'show_warning');
+    });
+
+    test('trigger persistence survives manifest and runtime load', () {
+      final state = _state(
+        variables: [_variable('var_pressed', 'Pressed', false)],
+        rules: [
+          _rule(
+            trigger: 'buttonPressed',
+            condition: {
+              'variableId': 'var_pressed',
+              'operator': '==',
+              'value': true,
+            },
+            actions: [
+              {'type': 'show_warning', 'message': 'Button pressed'},
+            ],
+          ),
+        ],
+      );
+      final manifestRule = Map<String, dynamic>.from(
+        (state.generateManifestJson()['scene']['rules'] as List<dynamic>).single
+            as Map,
+      );
+
+      expect(manifestRule['trigger'], 'buttonPressed');
+      expect(manifestRule['runtimeConfig']['trigger'], 'buttonPressed');
+
+      final world = RuntimeLoader.loadFromManifest(
+        state.generateManifestJson(),
+      );
+      expect(world.rules.allRules.single['trigger'], 'buttonPressed');
+      world.dispose();
     });
 
     test('manifest generation preserves multi-action rules', () {
@@ -79,6 +113,7 @@ void main() {
       );
 
       expect(manifestRule['action']['type'], 'show_warning');
+      expect(manifestRule['trigger'], 'thresholdCrossed');
       expect(manifestRule['actions'], hasLength(3));
       expect(manifestRule['runtimeConfig']['actions'], hasLength(3));
     });
@@ -137,6 +172,53 @@ void main() {
       );
 
       expect(result.isValid, isTrue);
+    });
+
+    test('validation rejects unknown trigger and missing set value', () {
+      final result = BuilderValidator().validate(
+        _state(
+          variables: [_variable('var_temp', 'Temperature', 25)],
+          rules: [
+            _rule(
+              trigger: 'any',
+              condition: {
+                'variableId': 'var_temp',
+                'operator': '>=',
+                'value': 100,
+              },
+              actions: [
+                {'type': 'set_variable', 'targetVariable': 'var_temp'},
+              ],
+            ),
+          ],
+        ),
+      );
+
+      expect(result.isValid, isFalse);
+      expect(result.errors.join('\n'), contains('unknown trigger'));
+      expect(result.errors.join('\n'), contains('value is required'));
+    });
+
+    test('dependency graph produces variable rule action chain', () {
+      final variables = [_variable('var_temp', 'Temperature', 25)];
+      final rules = [
+        _rule(
+          condition: {'variableId': 'var_temp', 'operator': '>', 'value': 80},
+          actions: [
+            {'type': 'show_warning', 'message': 'Too hot'},
+          ],
+        ),
+      ];
+
+      final rows = RuleDependencyGraph.buildRows(
+        variables: variables,
+        rules: rules,
+      );
+
+      expect(rows, hasLength(1));
+      expect(rows.single.variable, 'Temperature');
+      expect(rows.single.rule, 'Runtime Rule');
+      expect(rows.single.action, 'show_warning -> Too hot');
     });
 
     test('validation rejects toggle_variable for non-boolean variable', () {
@@ -206,6 +288,9 @@ void main() {
       expect(world.variables.getValue('var_alarm'), isTrue);
       expect(world.analytics.rulesFired, 1);
       expect(world.analytics.actionsExecuted, 3);
+      expect(world.analytics.builderRulesLoaded, 1);
+      expect(world.analytics.builderRulesValidated, 1);
+      expect(world.analytics.builderActionsConfigured, 3);
 
       await subscription.cancel();
       world.dispose();
@@ -246,15 +331,21 @@ BuilderObject _object(String id, String name, String type) {
 }
 
 BuilderRule _rule({
+  String trigger = 'thresholdCrossed',
   required Map<String, dynamic> condition,
   required List<Map<String, dynamic>> actions,
 }) {
   return BuilderRule(
     id: 'rule_runtime',
     name: 'Runtime Rule',
+    trigger: trigger,
     condition: condition,
-    action: actions.first,
+    actions: actions,
     description: 'Runtime-aware rule.',
-    runtimeConfig: {'condition': condition, 'actions': actions},
+    runtimeConfig: {
+      'trigger': trigger,
+      'condition': condition,
+      'actions': actions,
+    },
   );
 }

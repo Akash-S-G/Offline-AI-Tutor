@@ -2,6 +2,7 @@ import '../models/builder_object.dart';
 import '../models/builder_rule.dart';
 import '../models/builder_variable.dart';
 import '../models/experiment_builder_state.dart';
+import '../domain/rule_action_registry.dart';
 import '../../runtime/sensors/models/runtime_sensor_type.dart';
 import '../../runtime/sensors/sensor_registry.dart';
 
@@ -293,6 +294,9 @@ class BuilderValidator {
       for (final variable in variables) variable.id: variable,
     };
     final condition = rule.condition;
+    if (!RuleActionRegistry.triggers.contains(rule.trigger)) {
+      errors.add('Rule "${rule.name}" has unknown trigger ${rule.trigger}.');
+    }
     final conditionVariableId = condition['variableId']?.toString();
     final operator = condition['operator']?.toString();
     if (conditionVariableId == null ||
@@ -335,6 +339,9 @@ class BuilderValidator {
     required Set<String> objectIds,
   }) {
     final type = action['type']?.toString();
+    if (type == null || RuleActionRegistry.byId(type) == null) {
+      return ['Rule "${rule.name}" has unsupported action ${type ?? ''}.'];
+    }
     switch (type) {
       case 'show_warning':
         final message = action['message']?.toString().trim() ?? '';
@@ -350,14 +357,20 @@ class BuilderValidator {
               ]
             : const [];
       case 'set_variable':
-        final variableId = action['variableId']?.toString();
+        final variableId =
+            action['variableId']?.toString() ??
+            action['targetVariable']?.toString();
         return variableId == null || !variablesById.containsKey(variableId)
             ? [
                 'Rule "${rule.name}" action references missing variable ${variableId ?? ''}.',
               ]
-            : const [];
+            : action.containsKey('value')
+            ? const []
+            : ['Rule "${rule.name}" set_variable value is required.'];
       case 'toggle_variable':
-        final variableId = action['variableId']?.toString();
+        final variableId =
+            action['variableId']?.toString() ??
+            action['targetVariable']?.toString();
         final variable = variableId == null ? null : variablesById[variableId];
         if (variable == null) {
           return [
@@ -370,18 +383,12 @@ class BuilderValidator {
             ? const []
             : ['Rule "${rule.name}" toggle_variable requires a boolean variable.'];
       default:
-        return ['Rule "${rule.name}" has unsupported action ${type ?? ''}.'];
+        return ['Rule "${rule.name}" has unsupported action $type.'];
     }
   }
 
   List<Map<String, dynamic>> _actionsForRule(BuilderRule rule) {
-    final rawActions = rule.runtimeConfig['actions'];
-    if (rawActions is List) {
-      return rawActions
-          .map((entry) => Map<String, dynamic>.from(entry as Map))
-          .toList(growable: false);
-    }
-    return rule.action.isEmpty ? const [] : [rule.action];
+    return rule.actions;
   }
 
   List<List<String>> _dependencyCycles(dynamic variables) {

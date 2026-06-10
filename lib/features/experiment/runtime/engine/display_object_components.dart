@@ -12,6 +12,14 @@ import '../runtime_event.dart';
 import '../runtime_world.dart';
 import '../scatter/scatter_plot_behavior.dart';
 import '../scatter/scatter_plot_renderer.dart';
+import '../scientific/bar_chart_behavior.dart';
+import '../scientific/bar_chart_renderer.dart';
+import '../scientific/oscilloscope_behavior.dart';
+import '../scientific/oscilloscope_renderer.dart';
+import '../scientific/spectrum_analyzer_behavior.dart';
+import '../scientific/spectrum_analyzer_renderer.dart';
+import '../scientific/vector_visualizer_behavior.dart';
+import '../scientific/vector_visualizer_renderer.dart';
 
 class RuntimeDisplayObjectComponent extends PositionComponent {
   final Map<String, dynamic> objectData;
@@ -37,6 +45,7 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
     _syncGraphState();
     _syncScatterState(state.state);
     _syncTableState(state.state);
+    _syncScientificState(state.state);
     runtimeWorld.objectLifecycle.getRenderer(objectId)?.update(state);
   }
 
@@ -55,6 +64,22 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
       );
     } else if (renderer is TableRenderer) {
       _emitTableEvent('TableRendered', renderer.tableState.rowCount);
+    } else if (renderer is VectorVisualizerRenderer) {
+      _emitScientificEvent('ScientificObjectRendered', 'vectorVisualizer', {
+        'magnitude': renderer.vectorState.magnitude,
+      });
+    } else if (renderer is OscilloscopeRenderer) {
+      _emitScientificEvent('ScientificObjectRendered', 'oscilloscope', {
+        'samples': renderer.oscilloscopeState.sampleCount,
+      });
+    } else if (renderer is SpectrumAnalyzerRenderer) {
+      _emitScientificEvent('ScientificObjectRendered', 'spectrumAnalyzer', {
+        'bins': renderer.spectrumState.binCount,
+      });
+    } else if (renderer is BarChartRenderer) {
+      _emitScientificEvent('ScientificObjectRendered', 'barChart', {
+        'bars': renderer.barChartState.barCount,
+      });
     }
   }
 
@@ -153,6 +178,80 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
     _emitTableEvent('TableUpdated', tableState.rowCount);
   }
 
+  void _syncScientificState(Map<String, dynamic> currentState) {
+    final type = objectData['objectType']?.toString();
+    switch (type) {
+      case 'vectorVisualizer':
+        final renderer = runtimeWorld.objectLifecycle.getRenderer(objectId);
+        if (renderer is! VectorVisualizerRenderer) return;
+        final vectorState = VectorVisualizerBehavior(
+          variables: runtimeWorld.variables,
+          objectJson: objectData,
+        ).buildState();
+        renderer.updateVectorState(vectorState);
+        _updateStateMap(vectorState.toObjectState(), currentState);
+        _emitScientificEvent('VectorVisualizerUpdated', type!, {
+          'magnitude': vectorState.magnitude,
+        });
+        break;
+      case 'oscilloscope':
+        final renderer = runtimeWorld.objectLifecycle.getRenderer(objectId);
+        if (renderer is! OscilloscopeRenderer) return;
+        final waveformState = OscilloscopeBehavior(
+          measurementStore: runtimeWorld.measurementStore,
+          objectJson: objectData,
+        ).buildState();
+        renderer.updateOscilloscopeState(waveformState);
+        _updateStateMap(waveformState.toObjectState(), currentState);
+        _emitScientificEvent('OscilloscopeUpdated', type!, {
+          'samples': waveformState.sampleCount,
+        });
+        break;
+      case 'spectrumAnalyzer':
+        final renderer = runtimeWorld.objectLifecycle.getRenderer(objectId);
+        if (renderer is! SpectrumAnalyzerRenderer) return;
+        final spectrumState = SpectrumAnalyzerBehavior(
+          measurementStore: runtimeWorld.measurementStore,
+          objectJson: objectData,
+        ).buildState();
+        renderer.updateSpectrumState(spectrumState);
+        _updateStateMap(spectrumState.toObjectState(), currentState);
+        _emitScientificEvent('SpectrumAnalyzerUpdated', type!, {
+          'bins': spectrumState.binCount,
+          'peakFrequency': spectrumState.peakFrequency,
+        });
+        break;
+      case 'barChart':
+        final renderer = runtimeWorld.objectLifecycle.getRenderer(objectId);
+        if (renderer is! BarChartRenderer) return;
+        final barState = BarChartBehavior(
+          variables: runtimeWorld.variables,
+          objectJson: objectData,
+        ).buildState();
+        renderer.updateBarChartState(barState);
+        _updateStateMap(barState.toObjectState(), currentState);
+        _emitScientificEvent('BarChartUpdated', type!, {
+          'bars': barState.barCount,
+        });
+        break;
+    }
+  }
+
+  void _updateStateMap(
+    Map<String, dynamic> nextState,
+    Map<String, dynamic> currentState,
+  ) {
+    for (final entry in nextState.entries) {
+      if (currentState[entry.key] != entry.value) {
+        runtimeWorld.objects.updateObjectState(
+          objectId,
+          entry.key,
+          entry.value,
+        );
+      }
+    }
+  }
+
   String? _linkedVariableId() {
     final properties = Map<String, dynamic>.from(
       objectData['properties'] as Map? ?? const {},
@@ -238,6 +337,22 @@ class RuntimeDisplayObjectComponent extends PositionComponent {
           'yVariableId': variables.$2,
           'pointCount': pointCount,
         },
+      ),
+    );
+  }
+
+  void _emitScientificEvent(
+    String message,
+    String objectType,
+    Map<String, dynamic> metadata,
+  ) {
+    runtimeWorld.eventBus.emit(
+      RuntimeEvent(
+        id: '${message}_${DateTime.now().microsecondsSinceEpoch}',
+        timestamp: DateTime.now(),
+        type: RuntimeEventType.custom,
+        message: message,
+        metadata: {'objectId': objectId, 'objectType': objectType, ...metadata},
       ),
     );
   }

@@ -1,10 +1,44 @@
 import 'package:flutter/material.dart';
 
+import '../domain/rule_action_registry.dart';
 import '../models/builder_object.dart';
 import '../models/builder_variable.dart';
 
 typedef RuleConditionChanged = void Function(Map<String, dynamic> condition);
 typedef RuleActionsChanged = void Function(List<Map<String, dynamic>> actions);
+typedef RuleTriggerChanged = void Function(String trigger);
+
+class RuleTriggerDropdown extends StatelessWidget {
+  final String trigger;
+  final RuleTriggerChanged onChanged;
+
+  const RuleTriggerDropdown({
+    super.key,
+    required this.trigger,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = RuleActionRegistry.triggers.contains(trigger)
+        ? trigger
+        : 'variableChanged';
+    return DropdownButtonFormField<String>(
+      isExpanded: true,
+      initialValue: selected,
+      decoration: const InputDecoration(
+        labelText: 'Rule Trigger',
+        border: OutlineInputBorder(),
+      ),
+      items: RuleActionRegistry.triggers
+          .map(
+            (trigger) => DropdownMenuItem(value: trigger, child: Text(trigger)),
+          )
+          .toList(),
+      onChanged: (value) => onChanged(value ?? selected),
+    );
+  }
+}
 
 class RuleTemplate {
   final String name;
@@ -194,6 +228,22 @@ class ActionBuilderEditor extends StatelessWidget {
                       final next = [...visibleActions]..removeAt(entry.key);
                       onChanged(next);
                     },
+              onMoveUp: entry.key == 0
+                  ? null
+                  : () {
+                      final next = [...visibleActions];
+                      final action = next.removeAt(entry.key);
+                      next.insert(entry.key - 1, action);
+                      onChanged(next);
+                    },
+              onMoveDown: entry.key == visibleActions.length - 1
+                  ? null
+                  : () {
+                      final next = [...visibleActions];
+                      final action = next.removeAt(entry.key);
+                      next.insert(entry.key + 1, action);
+                      onChanged(next);
+                    },
             ),
           );
         }),
@@ -216,6 +266,8 @@ class _SingleActionEditor extends StatelessWidget {
   final Map<String, dynamic> action;
   final ValueChanged<Map<String, dynamic>> onChanged;
   final VoidCallback? onRemove;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   const _SingleActionEditor({
     required this.variables,
@@ -223,6 +275,8 @@ class _SingleActionEditor extends StatelessWidget {
     required this.action,
     required this.onChanged,
     required this.onRemove,
+    required this.onMoveUp,
+    required this.onMoveDown,
   });
 
   @override
@@ -246,28 +300,14 @@ class _SingleActionEditor extends StatelessWidget {
                     labelText: 'Action',
                     border: OutlineInputBorder(),
                   ),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'show_warning',
-                      child: Text('Show Warning'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'hide_object',
-                      child: Text('Hide Object'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'show_object',
-                      child: Text('Show Object'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'set_variable',
-                      child: Text('Set Variable'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'toggle_variable',
-                      child: Text('Toggle Variable'),
-                    ),
-                  ],
+                  items: RuleActionRegistry.definitions
+                      .map(
+                        (definition) => DropdownMenuItem(
+                          value: definition.id,
+                          child: Text(definition.label),
+                        ),
+                      )
+                      .toList(),
                   onChanged: (value) =>
                       onChanged(_defaultAction(value ?? type)),
                 ),
@@ -277,6 +317,22 @@ class _SingleActionEditor extends StatelessWidget {
                 IconButton(
                   onPressed: onRemove,
                   icon: const Icon(Icons.delete_outline),
+                ),
+              ],
+              if (onMoveUp != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Move up',
+                  onPressed: onMoveUp,
+                  icon: const Icon(Icons.arrow_upward),
+                ),
+              ],
+              if (onMoveDown != null) ...[
+                const SizedBox(width: 4),
+                IconButton(
+                  tooltip: 'Move down',
+                  onPressed: onMoveDown,
+                  icon: const Icon(Icons.arrow_downward),
                 ),
               ],
             ],

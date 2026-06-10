@@ -19,13 +19,18 @@ class DesignWorkspacePanel extends StatelessWidget {
           length: 2,
           child: Column(
             children: [
-              const TabBar(
-                labelColor: Color(0xFF1E293B),
-                unselectedLabelColor: Color(0xFF64748B),
-                tabs: [
-                  Tab(text: 'Variables'),
-                  Tab(text: 'Objects'),
-                ],
+              ListenableBuilder(
+                listenable: controller,
+                builder: (context, _) => TabBar(
+                  labelColor: const Color(0xFF1E293B),
+                  unselectedLabelColor: const Color(0xFF64748B),
+                  tabs: [
+                    Tab(
+                      text: 'Variables (${controller.state.variables.length})',
+                    ),
+                    Tab(text: 'Objects (${controller.state.objects.length})'),
+                  ],
+                ),
               ),
               Expanded(
                 child: TabBarView(
@@ -116,16 +121,26 @@ class DesignWorkspacePanel extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const TabBar(
-                  isScrollable: true,
-                  labelColor: Color(0xFF1E293B),
-                  unselectedLabelColor: Color(0xFF64748B),
-                  tabs: [
-                    Tab(icon: Icon(Icons.brush), text: 'Scene'),
-                    Tab(icon: Icon(Icons.data_object), text: 'Variables'),
-                    Tab(icon: Icon(Icons.category), text: 'Objects'),
-                    Tab(icon: Icon(Icons.tune), text: 'Props'),
-                  ],
+                ListenableBuilder(
+                  listenable: controller,
+                  builder: (context, _) => TabBar(
+                    isScrollable: true,
+                    labelColor: const Color(0xFF1E293B),
+                    unselectedLabelColor: const Color(0xFF64748B),
+                    tabs: [
+                      const Tab(icon: Icon(Icons.brush), text: 'Scene'),
+                      Tab(
+                        icon: const Icon(Icons.data_object),
+                        text:
+                            'Variables (${controller.state.variables.length})',
+                      ),
+                      Tab(
+                        icon: const Icon(Icons.category),
+                        text: 'Objects (${controller.state.objects.length})',
+                      ),
+                      const Tab(icon: Icon(Icons.tune), text: 'Props'),
+                    ],
+                  ),
                 ),
                 Expanded(
                   child: TabBarView(

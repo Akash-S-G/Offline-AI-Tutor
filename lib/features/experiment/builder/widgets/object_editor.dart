@@ -2,20 +2,33 @@ import 'package:flutter/material.dart';
 import '../controllers/experiment_builder_controller.dart';
 import '../models/builder_object.dart';
 import '../models/builder_variable.dart';
+import 'builder_search_bar.dart';
+import 'empty_state_card.dart';
 import 'object_runtime_config_editors.dart';
 import '../wizards/object_wizard_dialog.dart';
 
-class ObjectEditor extends StatelessWidget {
+class ObjectEditor extends StatefulWidget {
   final ExperimentBuilderController controller;
 
   const ObjectEditor({super.key, required this.controller});
 
   @override
+  State<ObjectEditor> createState() => _ObjectEditorState();
+}
+
+class _ObjectEditorState extends State<ObjectEditor> {
+  String _query = '';
+
+  @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: controller,
+      listenable: widget.controller,
       builder: (context, _) {
-        final objects = controller.state.objects;
+        final objects = BuilderSearchBar.filter(
+          widget.controller.state.objects,
+          _query,
+          (object) => [object.name, object.id, object.type],
+        );
         final compact = MediaQuery.sizeOf(context).width < 380;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -24,9 +37,9 @@ class ObjectEditor extends StatelessWidget {
               padding: const EdgeInsets.all(16.0),
               child: Row(
                 children: [
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Objects',
+                      'Objects (${widget.controller.state.objects.length})',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -48,22 +61,28 @@ class ObjectEditor extends StatelessWidget {
                         context: context,
                         barrierDismissible: false,
                         builder: (context) => ObjectWizardDialog(
-                          availableVariables: controller.state.variables,
+                          availableVariables: widget.controller.state.variables,
                         ),
                       );
 
                       if (newObj != null) {
-                        controller.addObject(newObj);
+                        widget.controller.addObject(newObj);
                       }
                     },
                   ),
                 ],
               ),
             ),
+            BuilderSearchBar(
+              hintText: 'Search Objects',
+              onChanged: (value) => setState(() => _query = value),
+            ),
             const Divider(height: 1),
             Expanded(
-              child: objects.isEmpty
-                  ? _buildEmptyState()
+              child: widget.controller.state.objects.isEmpty
+                  ? _buildEmptyState(context)
+                  : objects.isEmpty
+                  ? const Center(child: Text('No matching objects'))
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       primary: true,
@@ -100,9 +119,13 @@ class ObjectEditor extends StatelessWidget {
                                 if (action == 'view') {
                                   _showObjectDetails(context, o);
                                 } else if (action == 'edit') {
-                                  _showEditObjectDialog(context, controller, o);
+                                  _showEditObjectDialog(
+                                    context,
+                                    widget.controller,
+                                    o,
+                                  );
                                 } else if (action == 'delete') {
-                                  controller.deleteObject(o.id);
+                                  widget.controller.deleteObject(o.id);
                                 }
                               },
                               itemBuilder: (context) => const [
@@ -282,67 +305,22 @@ class ObjectEditor extends StatelessWidget {
     }
   }
 
-  Widget _buildEmptyState() {
-    return SingleChildScrollView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        children: [
-          Icon(Icons.widgets_rounded, size: 64, color: Colors.grey.shade300),
-          const SizedBox(height: 16),
-          const Text(
-            'Create your first object',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
+  Widget _buildEmptyState(BuildContext context) {
+    return EmptyStateCard(
+      icon: Icons.widgets_rounded,
+      title: 'No Objects Yet',
+      message: 'Objects represent visual components in the experiment scene.',
+      primaryLabel: 'Create Object',
+      onPrimary: () async {
+        final newObj = await showDialog<BuilderObject>(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) => ObjectWizardDialog(
+            availableVariables: widget.controller.state.variables,
           ),
-          const SizedBox(height: 8),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 32.0),
-            child: Text(
-              'Objects represent visual components in the experiment scene.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
-            ),
-          ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF1F5F9),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Examples:',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF64748B),
-                    fontSize: 12,
-                  ),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  '• Line Graph',
-                  style: TextStyle(color: Color(0xFF1E293B), fontSize: 13),
-                ),
-                Text(
-                  '• Pendulum Bob',
-                  style: TextStyle(color: Color(0xFF1E293B), fontSize: 13),
-                ),
-                Text(
-                  '• Text Gauge',
-                  style: TextStyle(color: Color(0xFF1E293B), fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+        );
+        if (newObj != null && mounted) widget.controller.addObject(newObj);
+      },
     );
   }
 }

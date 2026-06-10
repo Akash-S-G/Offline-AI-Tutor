@@ -43,6 +43,15 @@ class RuntimeAnalytics {
   int _sensorMeasurements = 0;
   int _sensorErrors = 0;
   int _permissionDenials = 0;
+  int _vectorUpdates = 0;
+  int _waveformUpdates = 0;
+  int _fftComputations = 0;
+  int _barChartUpdates = 0;
+  int _scientificRenderCount = 0;
+  int _builderRulesLoaded = 0;
+  int _builderRulesValidated = 0;
+  int _builderRuleValidationFailures = 0;
+  int _builderActionsConfigured = 0;
   int _observationsRecorded = 0;
   int _observationRows = 0;
   int _observationExports = 0;
@@ -97,6 +106,15 @@ class RuntimeAnalytics {
   int get sensorMeasurements => _sensorMeasurements;
   int get sensorErrors => _sensorErrors;
   int get permissionDenials => _permissionDenials;
+  int get vectorUpdates => _vectorUpdates;
+  int get waveformUpdates => _waveformUpdates;
+  int get fftComputations => _fftComputations;
+  int get barChartUpdates => _barChartUpdates;
+  int get scientificRenderCount => _scientificRenderCount;
+  int get builderRulesLoaded => _builderRulesLoaded;
+  int get builderRulesValidated => _builderRulesValidated;
+  int get builderRuleValidationFailures => _builderRuleValidationFailures;
+  int get builderActionsConfigured => _builderActionsConfigured;
   int get observationsRecorded => _observationsRecorded;
   int get observationRows => _observationRows;
   int get observationExports => _observationExports;
@@ -210,6 +228,26 @@ class RuntimeAnalytics {
         _sensorErrors++;
       } else if (event.message == 'SensorPermissionDenied') {
         _permissionDenials++;
+      } else if (event.message == 'VectorVisualizerUpdated') {
+        _vectorUpdates++;
+      } else if (event.message == 'OscilloscopeUpdated') {
+        _waveformUpdates++;
+      } else if (event.message == 'SpectrumAnalyzerUpdated') {
+        _fftComputations++;
+      } else if (event.message == 'BarChartUpdated') {
+        _barChartUpdates++;
+      } else if (event.message == 'ScientificObjectRendered') {
+        _scientificRenderCount++;
+      } else if (event.message == 'RuleRegistered') {
+        _builderRulesLoaded++;
+        final actionCount = event.metadata?['actionCount'];
+        if (actionCount is num) {
+          _builderActionsConfigured += actionCount.toInt();
+        }
+      } else if (event.message == 'RuleActivated') {
+        _builderRulesValidated++;
+      } else if (event.message == 'ActionUnsupported') {
+        _builderRuleValidationFailures++;
       } else if (event.message == 'ObservationRecorded') {
         _observationsRecorded++;
         _observationRows++;
@@ -290,6 +328,15 @@ class RuntimeAnalytics {
       'sensorMeasurements': _sensorMeasurements,
       'sensorErrors': _sensorErrors,
       'permissionDenials': _permissionDenials,
+      'vectorUpdates': _vectorUpdates,
+      'waveformUpdates': _waveformUpdates,
+      'fftComputations': _fftComputations,
+      'barChartUpdates': _barChartUpdates,
+      'scientificRenderCount': _scientificRenderCount,
+      'builderRulesLoaded': _builderRulesLoaded,
+      'builderRulesValidated': _builderRulesValidated,
+      'builderRuleValidationFailures': _builderRuleValidationFailures,
+      'builderActionsConfigured': _builderActionsConfigured,
       'observationsRecorded': _observationsRecorded,
       'observationRows': _observationRows,
       'observationExports': _observationExports,
