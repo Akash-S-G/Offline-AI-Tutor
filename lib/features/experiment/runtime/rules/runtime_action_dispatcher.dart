@@ -17,7 +17,14 @@ class RuntimeActionDispatcher {
   });
 
   bool dispatch(RuntimeRule rule) {
-    final action = rule.action;
+    var allExecuted = true;
+    for (final action in rule.actions) {
+      allExecuted = _dispatchAction(rule, action) && allExecuted;
+    }
+    return allExecuted;
+  }
+
+  bool _dispatchAction(RuntimeRule rule, RuntimeRuleAction action) {
     switch (action.type) {
       case 'show_warning':
         _showWarning(rule, action);

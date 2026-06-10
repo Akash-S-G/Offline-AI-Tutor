@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'bindings/runtime_binding_engine.dart';
 import 'bindings/runtime_binding_registry.dart';
 import 'experiment_state/runtime_experiment_snapshot.dart';
@@ -21,6 +23,7 @@ import 'runtime_event_bus.dart';
 import 'simulation_clock.dart';
 import 'runtime_analytics.dart';
 import 'runtime_profiles.dart';
+import 'sensors/runtime_sensor_manager.dart';
 import 'variables/runtime_variable_executor.dart';
 
 class RuntimeWorld {
@@ -41,6 +44,7 @@ class RuntimeWorld {
   late final RuntimeInteractionBus interactionBus;
   late final RuntimeObjectVariableAdapter objectVariableAdapter;
   late final RuntimeVariableExecutor variableExecutor;
+  late final RuntimeSensorManager sensors;
   late final RuleEngine rules;
   late final RuntimeEventBus eventBus;
   late final SimulationClock clock;
@@ -101,6 +105,7 @@ class RuntimeWorld {
       variables: variables,
       eventBus: eventBus,
     );
+    sensors = RuntimeSensorManager(variables: variables, eventBus: eventBus);
     clock = SimulationClock();
     analytics = RuntimeAnalytics();
     rules = RuleEngine(variables, eventBus, objects);
@@ -125,6 +130,7 @@ class RuntimeWorld {
     );
     measurementCollector.initialize();
     variableExecutor.initialize();
+    sensors.initialize();
     objects.initialize(objectsJson);
     bindingEngine.initialize(objectsJson);
     rules.initialize(rulesJson);
@@ -146,21 +152,25 @@ class RuntimeWorld {
   void start() {
     clock.start();
     experimentState.start();
+    unawaited(sensors.start());
   }
 
   void pause() {
     clock.pause();
     experimentState.pause();
+    sensors.pause();
   }
 
   void resume() {
     clock.start();
     experimentState.resume();
+    unawaited(sensors.resume());
   }
 
   void stop() {
     clock.reset();
     experimentState.stop();
+    unawaited(sensors.stop());
   }
 
   void complete() {
@@ -193,6 +203,7 @@ class RuntimeWorld {
     experimentState.dispose();
     rules.dispose();
     variableExecutor.dispose();
+    unawaited(sensors.dispose());
     measurementCollector.dispose();
     objectLifecycle.dispose();
     bindingEngine.dispose();

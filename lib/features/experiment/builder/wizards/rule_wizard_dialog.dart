@@ -1,13 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../domain/rule_registry.dart';
+import '../models/builder_object.dart';
 import '../models/builder_rule.dart';
 import '../models/builder_variable.dart';
+import '../widgets/rule_runtime_config_editors.dart';
 
 class RuleWizardDialog extends StatefulWidget {
   final List<BuilderVariable> availableVariables;
+  final List<BuilderObject> availableObjects;
 
-  const RuleWizardDialog({super.key, required this.availableVariables});
+  const RuleWizardDialog({
+    super.key,
+    required this.availableVariables,
+    required this.availableObjects,
+  });
 
   @override
   State<RuleWizardDialog> createState() => _RuleWizardDialogState();
@@ -18,22 +25,17 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
   RuleDefinition? _selectedType;
 
   final _nameController = TextEditingController();
-
-  // Threshold Rule State
-  BuilderVariable? _selectedVariable;
-  String _selectedOperator = '>';
-  final _thresholdValueController = TextEditingController();
-  String _selectedAction = 'show_warning';
+  Map<String, dynamic> _condition = const {};
+  List<Map<String, dynamic>> _actions = const [
+    {'type': 'show_warning', 'message': ''},
+  ];
 
   bool get _canProceed {
     if (_currentStep == 0) return _selectedType != null;
     if (_currentStep == 1) return _nameController.text.trim().isNotEmpty;
     if (_currentStep == 2) {
-      if (_selectedType?.type == RuleType.threshold) {
-        return _selectedVariable != null &&
-            _thresholdValueController.text.isNotEmpty;
-      }
-      return true; // Other types bypass deep validation for MVP
+      return _condition['variableId']?.toString().isNotEmpty == true &&
+          _actions.isNotEmpty;
     }
     return false;
   }
@@ -41,28 +43,14 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
   @override
   void dispose() {
     _nameController.dispose();
-    _thresholdValueController.dispose();
     super.dispose();
   }
 
   void _createRule() {
     if (!_canProceed) return;
 
-    Map<String, dynamic> condition = {};
-    Map<String, dynamic> action = {};
-
-    if (_selectedType!.type == RuleType.threshold) {
-      condition = {
-        'variableId': _selectedVariable!.id,
-        'operator': _selectedOperator,
-        'value': num.tryParse(_thresholdValueController.text) ?? 0,
-      };
-      action = {'type': _selectedAction};
-    } else {
-      // Stub condition/action for other types
-      condition = {'type': 'generic_condition'};
-      action = {'type': 'generic_action'};
-    }
+    final condition = Map<String, dynamic>.from(_condition);
+    final action = _actions.isEmpty ? <String, dynamic>{} : _actions.first;
 
     final newRule = BuilderRule(
       id: const Uuid().v4(),
@@ -70,6 +58,7 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
       condition: condition,
       action: action,
       description: _selectedType!.description,
+      runtimeConfig: {'condition': condition, 'actions': _actions},
     );
 
     Navigator.of(context).pop(newRule);
@@ -92,6 +81,7 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
             setState(() {
               _selectedType = def;
               _nameController.text = '${def.title.replaceAll(' ', '')}Rule';
+              _applyDefaultTemplate();
             });
           },
         );
@@ -116,115 +106,77 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
   }
 
   Widget _buildLogicConfig() {
-    if (_selectedType?.type == RuleType.threshold) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text(
-            'IF',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<BuilderVariable>(
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Variable',
-              border: OutlineInputBorder(),
-            ),
-            initialValue: _selectedVariable,
-            items: widget.availableVariables.map((v) {
-              return DropdownMenuItem(value: v, child: Text(v.name));
-            }).toList(),
-            onChanged: (val) => setState(() => _selectedVariable = val),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Operator',
-              border: OutlineInputBorder(),
-            ),
-            initialValue: _selectedOperator,
-            items: const [
-              DropdownMenuItem(value: '>', child: Text('Greater Than (>)')),
-              DropdownMenuItem(value: '<', child: Text('Less Than (<)')),
-              DropdownMenuItem(
-                value: '>=',
-                child: Text('Greater or Equal (>=)'),
-              ),
-              DropdownMenuItem(value: '<=', child: Text('Less or Equal (<=)')),
-              DropdownMenuItem(value: '==', child: Text('Equals (==)')),
-            ],
-            onChanged: (val) => setState(() => _selectedOperator = val!),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _thresholdValueController,
-            decoration: const InputDecoration(
-              labelText: 'Threshold Value',
-              border: OutlineInputBorder(),
-            ),
-            keyboardType: TextInputType.number,
-            onChanged: (_) => setState(() {}),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'THEN',
-            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
-          ),
-          const SizedBox(height: 8),
-          DropdownButtonFormField<String>(
-            isExpanded: true,
-            decoration: const InputDecoration(
-              labelText: 'Action',
-              border: OutlineInputBorder(),
-            ),
-            initialValue: _selectedAction,
-            items: const [
-              DropdownMenuItem(
-                value: 'show_warning',
-                child: Text('Show Warning'),
-              ),
-              DropdownMenuItem(
-                value: 'hide_object',
-                child: Text('Hide Object'),
-              ),
-              DropdownMenuItem(
-                value: 'show_object',
-                child: Text('Show Object'),
-              ),
-              DropdownMenuItem(
-                value: 'set_variable',
-                child: Text('Set Variable'),
-              ),
-              DropdownMenuItem(
-                value: 'toggle_variable',
-                child: Text('Toggle Variable'),
-              ),
-              DropdownMenuItem(
-                value: 'start_recording',
-                enabled: false,
-                child: Text('Start Recording (Coming Soon)'),
-              ),
-              DropdownMenuItem(
-                value: 'stop_recording',
-                enabled: false,
-                child: Text('Stop Recording (Coming Soon)'),
-              ),
-            ],
-            onChanged: (val) => setState(() => _selectedAction = val!),
-          ),
-        ],
-      );
-    }
-
-    return const Padding(
-      padding: EdgeInsets.all(16.0),
-      child: Text(
-        'Logic builder for this rule type is under construction. It will be added with default generic logic for now.',
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _templatePicker(),
+        const SizedBox(height: 16),
+        ConditionBuilderEditor(
+          variables: widget.availableVariables,
+          condition: _condition,
+          onChanged: (condition) => setState(() => _condition = condition),
+        ),
+        const SizedBox(height: 16),
+        ActionBuilderEditor(
+          variables: widget.availableVariables,
+          objects: widget.availableObjects,
+          actions: _actions,
+          onChanged: (actions) => setState(() => _actions = actions),
+        ),
+      ],
     );
+  }
+
+  Widget _templatePicker() {
+    final templates = RuntimeRuleTemplates.build(
+      variables: widget.availableVariables,
+      objects: widget.availableObjects,
+    );
+    return DropdownButtonFormField<RuleTemplate>(
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Starter Template',
+        border: OutlineInputBorder(),
+      ),
+      items: templates
+          .map(
+            (template) =>
+                DropdownMenuItem(value: template, child: Text(template.name)),
+          )
+          .toList(),
+      onChanged: (template) {
+        if (template == null) return;
+        setState(() {
+          _nameController.text = template.name;
+          _condition = Map<String, dynamic>.from(template.condition);
+          _actions = template.actions
+              .map((action) => Map<String, dynamic>.from(action))
+              .toList();
+        });
+      },
+    );
+  }
+
+  void _applyDefaultTemplate() {
+    final template = RuntimeRuleTemplates.build(
+      variables: widget.availableVariables,
+      objects: widget.availableObjects,
+    ).firstOrNull;
+    _condition = Map<String, dynamic>.from(
+      template?.condition ??
+          {
+            'variableId': widget.availableVariables.firstOrNull?.id,
+            'operator': '>=',
+            'value': 100,
+          },
+    );
+    _actions =
+        template?.actions
+            .map((action) => Map<String, dynamic>.from(action))
+            .toList() ??
+        [
+          {'type': 'show_warning', 'message': ''},
+        ];
   }
 
   @override

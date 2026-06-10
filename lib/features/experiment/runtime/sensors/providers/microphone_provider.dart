@@ -6,7 +6,8 @@ import '../sensor_provider.dart';
 import '../sensor_measurement.dart';
 
 class MicrophoneProvider implements SensorProvider {
-  final StreamController<SensorMeasurement> _controller = StreamController<SensorMeasurement>.broadcast();
+  final StreamController<SensorMeasurement> _controller =
+      StreamController<SensorMeasurement>.broadcast();
 
   @override
   Stream<SensorMeasurement> get measurementStream => _controller.stream;
@@ -16,7 +17,9 @@ class MicrophoneProvider implements SensorProvider {
 
   @override
   Future<void> start() async {
-    print('[EXPERIMENT] SENSOR_ERROR provider=microphone message=Placeholder implementation, audio recording not implemented yet');
+    print(
+      '[EXPERIMENT] SENSOR_ERROR provider=microphone message=Placeholder implementation, audio recording not implemented yet',
+    );
   }
 
   @override

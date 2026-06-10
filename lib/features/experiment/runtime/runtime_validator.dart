@@ -1,3 +1,6 @@
+import 'sensors/models/runtime_sensor_type.dart';
+import 'sensors/sensor_registry.dart';
+
 class RuntimeValidationException implements Exception {
   final String message;
   RuntimeValidationException(this.message);
@@ -8,26 +11,47 @@ class RuntimeValidationException implements Exception {
 class RuntimeValidator {
   static void validate(Map<String, dynamic> manifest) {
     if (!manifest.containsKey('scene')) {
-      throw RuntimeValidationException("Manifest must contain a 'scene' object.");
+      throw RuntimeValidationException(
+        "Manifest must contain a 'scene' object.",
+      );
     }
-    
+
     final scene = manifest['scene'] as Map<String, dynamic>;
     final variables = List<Map<String, dynamic>>.from(scene['variables'] ?? []);
     final objects = List<Map<String, dynamic>>.from(scene['objects'] ?? []);
     final rules = List<Map<String, dynamic>>.from(scene['rules'] ?? []);
 
-    final varIds = variables.map((v) => (v['id'] ?? v['name']).toString()).toSet();
+    final varIds = variables
+        .map((v) => (v['id'] ?? v['name']).toString())
+        .toSet();
+    final sensorRegistry = SensorRegistry();
+
+    for (final variable in variables) {
+      final type = variable['type']?.toString() ?? '';
+      final sensorType = runtimeSensorTypeFromVariableType(type);
+      if (sensorType != null &&
+          !sensorRegistry.hasProvider(sensorType.providerType)) {
+        throw RuntimeValidationException(
+          'Unknown sensor provider: ${sensorType.name}',
+        );
+      }
+    }
 
     // Validate Objects
     for (var obj in objects) {
       if (!obj.containsKey('objectId') && !obj.containsKey('id')) {
-        throw RuntimeValidationException("All objects must have an 'objectId'.");
+        throw RuntimeValidationException(
+          "All objects must have an 'objectId'.",
+        );
       }
       final props = obj['properties'] as Map<String, dynamic>? ?? {};
       for (var entry in props.entries) {
-        if (entry.value is String && entry.value.toString().startsWith('var_')) {
+        if (entry.value is String &&
+            entry.value.toString().startsWith('var_')) {
           if (!varIds.contains(entry.value)) {
-            throw RuntimeValidationException("Object references undefined variable: ${entry.value}");
+            throw RuntimeValidationException(
+              "Object references undefined variable: ${entry.value}",
+            );
           }
         }
       }
@@ -35,7 +59,7 @@ class RuntimeValidator {
 
     // Build Dependency Graph
     final Map<String, List<String>> graph = {};
-    
+
     // Validate Rules & build graph edges
     for (var rule in rules) {
       if (!rule.containsKey('ruleId')) {
@@ -48,7 +72,9 @@ class RuntimeValidator {
       if (condition is Map && condition.containsKey('variableId')) {
         final varId = condition['variableId'].toString();
         if (!varIds.contains(varId)) {
-          throw RuntimeValidationException("Rule condition references undefined variable: $varId");
+          throw RuntimeValidationException(
+            "Rule condition references undefined variable: $varId",
+          );
         }
         // Variable triggers Rule (Edge: Var -> Rule)
         graph.putIfAbsent(varId, () => []).add(ruleId);
@@ -56,12 +82,19 @@ class RuntimeValidator {
 
       final action = rule['action'];
       if (action is String && action.contains('=')) {
-        final target = action.split('=')[0].replaceAll('+', '').replaceAll('-', '').trim();
+        final target = action
+            .split('=')[0]
+            .replaceAll('+', '')
+            .replaceAll('-', '')
+            .trim();
         // Assume target is a variable
-        final targetVar = variables.firstWhere((v) => v['name'] == target || v['id'] == target, orElse: () => <String,dynamic>{});
+        final targetVar = variables.firstWhere(
+          (v) => v['name'] == target || v['id'] == target,
+          orElse: () => <String, dynamic>{},
+        );
         if (targetVar.isNotEmpty) {
-           // Rule updates Variable (Edge: Rule -> Var)
-           graph[ruleId]!.add(targetVar['id'].toString());
+          // Rule updates Variable (Edge: Rule -> Var)
+          graph[ruleId]!.add(targetVar['id'].toString());
         }
       }
     }
@@ -94,7 +127,9 @@ class RuntimeValidator {
     for (var node in graph.keys) {
       if (!visited.contains(node)) {
         if (dfs(node)) {
-          throw RuntimeValidationException("Circular dependency detected involving: $node");
+          throw RuntimeValidationException(
+            "Circular dependency detected involving: $node",
+          );
         }
       }
     }

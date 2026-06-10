@@ -8,7 +8,8 @@ import '../sensor_measurement.dart';
 import '../sensor_type.dart';
 
 class AccelerometerProvider implements SensorProvider {
-  final StreamController<SensorMeasurement> _controller = StreamController<SensorMeasurement>.broadcast();
+  final StreamController<SensorMeasurement> _controller =
+      StreamController<SensorMeasurement>.broadcast();
   StreamSubscription<AccelerometerEvent>? _subscription;
 
   @override
@@ -21,15 +22,13 @@ class AccelerometerProvider implements SensorProvider {
   Future<void> start() async {
     print('[EXPERIMENT] PROVIDER_STARTED=accelerometer');
     _subscription = accelerometerEventStream().listen((event) {
-      _controller.add(SensorMeasurement(
-        sensorType: SensorType.accelerometer,
-        timestamp: DateTime.now(),
-        values: {
-          'x': event.x,
-          'y': event.y,
-          'z': event.z,
-        },
-      ));
+      _controller.add(
+        SensorMeasurement(
+          sensorType: SensorType.accelerometer,
+          timestamp: DateTime.now(),
+          values: {'x': event.x, 'y': event.y, 'z': event.z},
+        ),
+      );
     });
   }
 

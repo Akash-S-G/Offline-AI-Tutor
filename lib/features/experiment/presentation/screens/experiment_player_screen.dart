@@ -484,6 +484,7 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
     final scatterStatuses = objectLifecycleStatuses
         .where((status) => status.objectType == 'scatterPlot')
         .toList(growable: false);
+    final sensorStates = world?.sensors.sensorStates ?? const [];
     final experimentState = world?.experimentState.state;
     final lastTick = world == null
         ? 'Waiting'
@@ -672,6 +673,31 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                   ),
                 if (world != null)
                   _inspectorChip(
+                    'Sensor Vars',
+                    '${world.analytics.sensorVariables}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Active Sensors',
+                    '${world.analytics.activeSensors}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Sensor Samples',
+                    '${world.analytics.sensorMeasurements}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Sensor Errors',
+                    '${world.analytics.sensorErrors}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Permission Denials',
+                    '${world.analytics.permissionDenials}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
                     'Observations',
                     '${world.analytics.observationsRecorded}',
                   ),
@@ -833,6 +859,30 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                 );
               }),
             ],
+            if (sensorStates.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Sensor Runtime',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...sensorStates.map((state) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(state.type.name),
+                  subtitle: Text(
+                    'active=${state.active} | '
+                    'paused=${state.paused} | '
+                    'available=${state.available} | '
+                    'measurements=${state.measurementCount} | '
+                    'last=${state.lastMeasurementAt == null ? 'None' : _formatTime(state.lastMeasurementAt!)}'
+                    '${state.lastError == null ? '' : ' | error=${state.lastError}'}'
+                    '${state.warning == null ? '' : ' | warning=${state.warning}'}',
+                  ),
+                );
+              }),
+            ],
             if (measuredVariableIds.isNotEmpty) ...[
               const SizedBox(height: 16),
               const Text(
@@ -915,11 +965,42 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
             if (world?.rules.ruleStates.isNotEmpty == true) ...[
               const SizedBox(height: 16),
               const Text(
+                'Rule Definitions',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...world!.rules.allRules.map((rule) {
+                final condition = Map<String, dynamic>.from(
+                  rule['condition'] as Map? ?? const {},
+                );
+                final actions = rule['actions'] is List
+                    ? List<Map<String, dynamic>>.from(
+                        (rule['actions'] as List).map(
+                          (entry) => Map<String, dynamic>.from(entry as Map),
+                        ),
+                      )
+                    : [
+                        Map<String, dynamic>.from(
+                          rule['action'] as Map? ?? const {},
+                        ),
+                      ];
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(rule['name']?.toString() ?? 'Rule'),
+                  subtitle: Text(
+                    'Condition: ${condition['variableId']} ${condition['operator']} ${condition['value']} | '
+                    'Actions: ${actions.map((action) => _formatRuleDefinitionAction(action)).join(', ')}',
+                  ),
+                );
+              }),
+              const SizedBox(height: 16),
+              const Text(
                 'Rule Inspector',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              ...world!.rules.ruleStates.map((state) {
+              ...world.rules.ruleStates.map((state) {
                 return ListTile(
                   dense: true,
                   contentPadding: EdgeInsets.zero,
@@ -1411,6 +1492,22 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
         return 'force x velocity';
       case 'energy':
         return 'power x time';
+      default:
+        return type;
+    }
+  }
+
+  String _formatRuleDefinitionAction(Map<String, dynamic> action) {
+    final type = action['type']?.toString() ?? 'action';
+    switch (type) {
+      case 'hide_object':
+      case 'show_object':
+        return '$type(${action['objectId'] ?? ''})';
+      case 'set_variable':
+        return '$type(${action['variableId'] ?? ''}=${action['value'] ?? ''})';
+      case 'toggle_variable':
+        return '$type(${action['variableId'] ?? ''})';
+      case 'show_warning':
       default:
         return type;
     }

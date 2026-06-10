@@ -93,6 +93,7 @@ class RuntimeRuleEngine {
     _emit('RuleFired', rule, {
       'result': passed,
       'actionType': rule.action.type,
+      'actionTypes': rule.actions.map((action) => action.type).toList(),
       'actionExecuted': actionExecuted,
     });
   }

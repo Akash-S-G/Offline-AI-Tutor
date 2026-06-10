@@ -145,6 +145,7 @@ class RuntimeVariable {
       'microphone',
       'lightSensor',
       'proximity',
+      'barometer',
     };
     const timerTypes = {'elapsedTime', 'countdown', 'interval'};
     const computedTypes = {
@@ -173,6 +174,10 @@ class RuntimeVariable {
       'gyroscope',
       'magnetometer',
       'gps',
+      'lightSensor',
+      'proximity',
+      'microphone',
+      'barometer',
     };
     const timerTypes = {'elapsedTime', 'countdown', 'interval'};
     const computedTypes = {

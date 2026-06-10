@@ -14,7 +14,9 @@ class SensorValidator {
     await manager.initialize();
 
     final subscription = manager.measurementStream.listen((measurement) {
-      print('  -> Stream received: ${measurement.sensorType.name} values: ${measurement.values}');
+      print(
+        '  -> Stream received: ${measurement.sensorType.name} values: ${measurement.values}',
+      );
     });
 
     print('');

@@ -15,6 +15,7 @@ class RuntimeRule {
   final RuntimeRuleTrigger trigger;
   final RuntimeRuleCondition condition;
   final RuntimeRuleAction action;
+  final List<RuntimeRuleAction> actions;
   final String description;
   final Map<String, dynamic> raw;
 
@@ -24,24 +25,43 @@ class RuntimeRule {
     required this.trigger,
     required this.condition,
     required this.action,
+    required this.actions,
     required this.description,
     required this.raw,
   });
 
   factory RuntimeRule.fromJson(Map<String, dynamic> json) {
     final condition = RuntimeRuleCondition.fromJson(json['condition']);
+    final actions = _actionsFromJson(json);
     return RuntimeRule(
       ruleId: json['ruleId']?.toString() ?? json['id']?.toString() ?? '',
       name: json['name']?.toString() ?? 'Rule',
       trigger: _triggerFromJson(json['trigger']?.toString(), condition),
       condition: condition,
-      action: RuntimeRuleAction.fromJson(json['action']),
+      action: actions.isEmpty
+          ? RuntimeRuleAction.fromJson(json['action'])
+          : actions.first,
+      actions: actions.isEmpty
+          ? [RuntimeRuleAction.fromJson(json['action'])]
+          : actions,
       description: json['description']?.toString() ?? '',
       raw: Map<String, dynamic>.from(json),
     );
   }
 
   Map<String, dynamic> toJson() => raw;
+
+  static List<RuntimeRuleAction> _actionsFromJson(Map<String, dynamic> json) {
+    final actionsJson = json['actions'];
+    if (actionsJson is List) {
+      return actionsJson
+          .map(RuntimeRuleAction.fromJson)
+          .where((action) => action.type != 'noop')
+          .toList(growable: false);
+    }
+    final action = RuntimeRuleAction.fromJson(json['action']);
+    return action.type == 'noop' ? const [] : [action];
+  }
 
   static RuntimeRuleTrigger _triggerFromJson(
     String? trigger,

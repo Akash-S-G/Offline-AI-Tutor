@@ -1,5 +1,9 @@
 import '../models/builder_object.dart';
+import '../models/builder_rule.dart';
+import '../models/builder_variable.dart';
 import '../models/experiment_builder_state.dart';
+import '../../runtime/sensors/models/runtime_sensor_type.dart';
+import '../../runtime/sensors/sensor_registry.dart';
 
 class BuilderValidationResult {
   final bool isValid;
@@ -11,6 +15,7 @@ class BuilderValidationResult {
 class BuilderValidator {
   BuilderValidationResult validate(ExperimentBuilderState state) {
     final errors = <String>[];
+    final sensorRegistry = SensorRegistry();
 
     // Check Scene
     if (state.scene.name.trim().isEmpty) {
@@ -29,6 +34,13 @@ class BuilderValidator {
       }
       if (v.name.trim().isEmpty) {
         errors.add('Variable name cannot be empty for ${v.id}.');
+      }
+      final sensorType = runtimeSensorTypeFromVariableType(v.type);
+      if (sensorType != null &&
+          !sensorRegistry.hasProvider(sensorType.providerType)) {
+        errors.add(
+          'Variable "${v.name}" uses unknown sensor provider "${sensorType.name}".',
+        );
       }
       variableNamesById[v.id] = v.name;
     }
@@ -110,6 +122,13 @@ class BuilderValidator {
         errors.add(
           'Rule "${r.name}" references missing object "${_objectLabel(missing, objectNamesById)}".',
         );
+      }
+      for (final error in _ruleRuntimeConfigErrors(
+        r,
+        variables: state.variables,
+        objectIds: objectIds,
+      )) {
+        errors.add(error);
       }
     }
 
@@ -261,6 +280,108 @@ class BuilderValidator {
         break;
     }
     return errors;
+  }
+
+  List<String> _ruleRuntimeConfigErrors(
+    BuilderRule rule, {
+    required List<BuilderVariable> variables,
+    required Set<String> objectIds,
+  }) {
+    final errors = <String>[];
+    final variableIds = variables.map((variable) => variable.id).toSet();
+    final variablesById = {
+      for (final variable in variables) variable.id: variable,
+    };
+    final condition = rule.condition;
+    final conditionVariableId = condition['variableId']?.toString();
+    final operator = condition['operator']?.toString();
+    if (conditionVariableId == null ||
+        conditionVariableId.isEmpty ||
+        !variableIds.contains(conditionVariableId)) {
+      errors.add(
+        'Rule "${rule.name}" condition references missing variable ${conditionVariableId ?? ''}.',
+      );
+    }
+    if (!const {'==', '!=', '>', '>=', '<', '<='}.contains(operator)) {
+      errors.add(
+        'Rule "${rule.name}" condition has unsupported operator ${operator ?? ''}.',
+      );
+    }
+    if (!condition.containsKey('value')) {
+      errors.add('Rule "${rule.name}" condition value is required.');
+    }
+
+    final actions = _actionsForRule(rule);
+    if (actions.isEmpty) {
+      errors.add('Rule "${rule.name}" must have at least one action.');
+    }
+    for (final action in actions) {
+      errors.addAll(
+        _ruleActionErrors(
+          rule,
+          action,
+          variablesById: variablesById,
+          objectIds: objectIds,
+        ),
+      );
+    }
+    return errors;
+  }
+
+  List<String> _ruleActionErrors(
+    BuilderRule rule,
+    Map<String, dynamic> action, {
+    required Map<String, BuilderVariable> variablesById,
+    required Set<String> objectIds,
+  }) {
+    final type = action['type']?.toString();
+    switch (type) {
+      case 'show_warning':
+        final message = action['message']?.toString().trim() ?? '';
+        return message.isEmpty
+            ? ['Rule "${rule.name}" show_warning message cannot be empty.']
+            : const [];
+      case 'hide_object':
+      case 'show_object':
+        final objectId = action['objectId']?.toString();
+        return objectId == null || !objectIds.contains(objectId)
+            ? [
+                'Rule "${rule.name}" action references missing object ${objectId ?? ''}.',
+              ]
+            : const [];
+      case 'set_variable':
+        final variableId = action['variableId']?.toString();
+        return variableId == null || !variablesById.containsKey(variableId)
+            ? [
+                'Rule "${rule.name}" action references missing variable ${variableId ?? ''}.',
+              ]
+            : const [];
+      case 'toggle_variable':
+        final variableId = action['variableId']?.toString();
+        final variable = variableId == null ? null : variablesById[variableId];
+        if (variable == null) {
+          return [
+            'Rule "${rule.name}" action references missing variable ${variableId ?? ''}.',
+          ];
+        }
+        final isBoolean =
+            variable.defaultValue is bool || variable.type == 'toggle';
+        return isBoolean
+            ? const []
+            : ['Rule "${rule.name}" toggle_variable requires a boolean variable.'];
+      default:
+        return ['Rule "${rule.name}" has unsupported action ${type ?? ''}.'];
+    }
+  }
+
+  List<Map<String, dynamic>> _actionsForRule(BuilderRule rule) {
+    final rawActions = rule.runtimeConfig['actions'];
+    if (rawActions is List) {
+      return rawActions
+          .map((entry) => Map<String, dynamic>.from(entry as Map))
+          .toList(growable: false);
+    }
+    return rule.action.isEmpty ? const [] : [rule.action];
   }
 
   List<List<String>> _dependencyCycles(dynamic variables) {

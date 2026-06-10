@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/experiment_builder_controller.dart';
 import '../models/builder_rule.dart';
-import '../models/builder_variable.dart';
+import 'rule_runtime_config_editors.dart';
 import '../wizards/rule_wizard_dialog.dart';
 
 class RuleEditor extends StatelessWidget {
@@ -48,6 +48,7 @@ class RuleEditor extends StatelessWidget {
                         barrierDismissible: false,
                         builder: (context) => RuleWizardDialog(
                           availableVariables: controller.state.variables,
+                          availableObjects: controller.state.objects,
                         ),
                       );
 
@@ -141,7 +142,7 @@ class RuleEditor extends StatelessWidget {
     final conditionOp = rule.condition['operator'] ?? '==';
     final conditionVal = rule.condition['value'] ?? 'Unknown';
 
-    final actionType = rule.action['type'] ?? 'Unknown Action';
+    final actions = _actionsFor(rule);
 
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
@@ -265,10 +266,12 @@ class RuleEditor extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        actionType.toString().toUpperCase().replaceAll(
-                          '_',
-                          ' ',
-                        ),
+                        actions
+                            .map(
+                              (action) =>
+                                  action['type']?.toString() ?? 'action',
+                            )
+                            .join('\n'),
                         style: const TextStyle(
                           fontSize: 16,
                           color: Color(0xFF1E293B),
@@ -291,7 +294,7 @@ class RuleEditor extends StatelessWidget {
       builder: (context) => AlertDialog(
         title: Text(rule.name),
         content: SelectableText(
-          'ID: ${rule.id}\nCondition: ${rule.condition}\nAction: ${rule.action}\nDescription: ${rule.description}',
+          'ID: ${rule.id}\nCondition: ${rule.condition}\nActions: ${_actionsFor(rule)}\nRuntime Config: ${rule.runtimeConfig}\nDescription: ${rule.description}',
         ),
         actions: [
           TextButton(
@@ -305,19 +308,8 @@ class RuleEditor extends StatelessWidget {
 
   void _showEditRuleDialog(BuildContext context, BuilderRule rule) {
     final nameController = TextEditingController(text: rule.name);
-    final thresholdController = TextEditingController(
-      text: '${rule.condition['value'] ?? ''}',
-    );
-    var operator = rule.condition['operator']?.toString() ?? '>';
-    var action = rule.action['type']?.toString() ?? 'show_warning';
-    BuilderVariable? selectedVariable;
-    final variableId = rule.condition['variableId']?.toString();
-    for (final variable in controller.state.variables) {
-      if (variable.id == variableId) {
-        selectedVariable = variable;
-        break;
-      }
-    }
+    var condition = Map<String, dynamic>.from(rule.condition);
+    var actions = _actionsFor(rule);
 
     showDialog<void>(
       context: context,
@@ -332,62 +324,18 @@ class RuleEditor extends StatelessWidget {
                   controller: nameController,
                   decoration: const InputDecoration(labelText: 'Name'),
                 ),
-                DropdownButtonFormField<BuilderVariable>(
-                  isExpanded: true,
-                  initialValue: selectedVariable,
-                  decoration: const InputDecoration(labelText: 'Variable'),
-                  items: controller.state.variables
-                      .map(
-                        (variable) => DropdownMenuItem(
-                          value: variable,
-                          child: Text('${variable.name} (${variable.id})'),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setDialogState(() => selectedVariable = value),
+                const SizedBox(height: 12),
+                ConditionBuilderEditor(
+                  variables: controller.state.variables,
+                  condition: condition,
+                  onChanged: (next) => setDialogState(() => condition = next),
                 ),
-                DropdownButtonFormField<String>(
-                  initialValue: operator,
-                  decoration: const InputDecoration(labelText: 'Operator'),
-                  items: const [
-                    DropdownMenuItem(value: '>', child: Text('>')),
-                    DropdownMenuItem(value: '<', child: Text('<')),
-                    DropdownMenuItem(value: '>=', child: Text('>=')),
-                    DropdownMenuItem(value: '<=', child: Text('<=')),
-                    DropdownMenuItem(value: '==', child: Text('==')),
-                  ],
-                  onChanged: (value) =>
-                      setDialogState(() => operator = value ?? operator),
-                ),
-                TextField(
-                  controller: thresholdController,
-                  decoration: const InputDecoration(labelText: 'Threshold'),
-                  keyboardType: TextInputType.number,
-                ),
-                DropdownButtonFormField<String>(
-                  initialValue: action,
-                  decoration: const InputDecoration(labelText: 'Action'),
-                  items: const [
-                    DropdownMenuItem(
-                      value: 'show_warning',
-                      child: Text('Show Warning'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'hide_object',
-                      child: Text('Hide Object'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'start_recording',
-                      child: Text('Start Recording'),
-                    ),
-                    DropdownMenuItem(
-                      value: 'stop_recording',
-                      child: Text('Stop Recording'),
-                    ),
-                  ],
-                  onChanged: (value) =>
-                      setDialogState(() => action = value ?? action),
+                const SizedBox(height: 16),
+                ActionBuilderEditor(
+                  variables: controller.state.variables,
+                  objects: controller.state.objects,
+                  actions: actions,
+                  onChanged: (next) => setDialogState(() => actions = next),
                 ),
               ],
             ),
@@ -398,28 +346,32 @@ class RuleEditor extends StatelessWidget {
               child: const Text('Cancel'),
             ),
             ElevatedButton(
-              onPressed: selectedVariable == null
-                  ? null
-                  : () {
-                      controller.editRule(
-                        rule.copyWith(
-                          name: nameController.text.trim(),
-                          condition: {
-                            'variableId': selectedVariable!.id,
-                            'operator': operator,
-                            'value':
-                                num.tryParse(thresholdController.text) ?? 0,
-                          },
-                          action: {'type': action},
-                        ),
-                      );
-                      Navigator.pop(context);
-                    },
+              onPressed: () {
+                controller.editRule(
+                  rule.copyWith(
+                    name: nameController.text.trim(),
+                    condition: condition,
+                    action: actions.isEmpty ? const {} : actions.first,
+                    runtimeConfig: {'condition': condition, 'actions': actions},
+                  ),
+                );
+                Navigator.pop(context);
+              },
               child: const Text('Save'),
             ),
           ],
         ),
       ),
     );
+  }
+
+  List<Map<String, dynamic>> _actionsFor(BuilderRule rule) {
+    final raw = rule.runtimeConfig['actions'];
+    if (raw is List) {
+      return raw
+          .map((entry) => Map<String, dynamic>.from(entry as Map))
+          .toList(growable: false);
+    }
+    return rule.action.isEmpty ? const [] : [rule.action];
   }
 }

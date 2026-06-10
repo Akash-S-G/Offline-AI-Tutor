@@ -8,7 +8,8 @@ import '../sensor_measurement.dart';
 import '../sensor_type.dart';
 
 class BarometerProvider implements SensorProvider {
-  final StreamController<SensorMeasurement> _controller = StreamController<SensorMeasurement>.broadcast();
+  final StreamController<SensorMeasurement> _controller =
+      StreamController<SensorMeasurement>.broadcast();
   StreamSubscription<BarometerEvent>? _subscription;
 
   @override
@@ -21,13 +22,13 @@ class BarometerProvider implements SensorProvider {
   Future<void> start() async {
     print('[EXPERIMENT] PROVIDER_STARTED=barometer');
     _subscription = barometerEventStream().listen((event) {
-      _controller.add(SensorMeasurement(
-        sensorType: SensorType.barometer,
-        timestamp: DateTime.now(),
-        values: {
-          'pressure': event.pressure,
-        },
-      ));
+      _controller.add(
+        SensorMeasurement(
+          sensorType: SensorType.barometer,
+          timestamp: DateTime.now(),
+          values: {'pressure': event.pressure},
+        ),
+      );
     });
   }
 

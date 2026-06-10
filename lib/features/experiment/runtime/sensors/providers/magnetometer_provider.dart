@@ -8,7 +8,8 @@ import '../sensor_measurement.dart';
 import '../sensor_type.dart';
 
 class MagnetometerProvider implements SensorProvider {
-  final StreamController<SensorMeasurement> _controller = StreamController<SensorMeasurement>.broadcast();
+  final StreamController<SensorMeasurement> _controller =
+      StreamController<SensorMeasurement>.broadcast();
   StreamSubscription<MagnetometerEvent>? _subscription;
 
   @override
@@ -21,15 +22,13 @@ class MagnetometerProvider implements SensorProvider {
   Future<void> start() async {
     print('[EXPERIMENT] PROVIDER_STARTED=magnetometer');
     _subscription = magnetometerEventStream().listen((event) {
-      _controller.add(SensorMeasurement(
-        sensorType: SensorType.magnetometer,
-        timestamp: DateTime.now(),
-        values: {
-          'x': event.x,
-          'y': event.y,
-          'z': event.z,
-        },
-      ));
+      _controller.add(
+        SensorMeasurement(
+          sensorType: SensorType.magnetometer,
+          timestamp: DateTime.now(),
+          values: {'x': event.x, 'y': event.y, 'z': event.z},
+        ),
+      );
     });
   }
 

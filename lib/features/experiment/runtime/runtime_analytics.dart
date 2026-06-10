@@ -38,6 +38,11 @@ class RuntimeAnalytics {
   int _scatterPlotsRendered = 0;
   int _scatterPlotUpdates = 0;
   int _scatterPointsProcessed = 0;
+  int _sensorVariables = 0;
+  int _activeSensors = 0;
+  int _sensorMeasurements = 0;
+  int _sensorErrors = 0;
+  int _permissionDenials = 0;
   int _observationsRecorded = 0;
   int _observationRows = 0;
   int _observationExports = 0;
@@ -87,6 +92,11 @@ class RuntimeAnalytics {
   int get scatterPlotsRendered => _scatterPlotsRendered;
   int get scatterPlotUpdates => _scatterPlotUpdates;
   int get scatterPointsProcessed => _scatterPointsProcessed;
+  int get sensorVariables => _sensorVariables;
+  int get activeSensors => _activeSensors;
+  int get sensorMeasurements => _sensorMeasurements;
+  int get sensorErrors => _sensorErrors;
+  int get permissionDenials => _permissionDenials;
   int get observationsRecorded => _observationsRecorded;
   int get observationRows => _observationRows;
   int get observationExports => _observationExports;
@@ -188,6 +198,18 @@ class RuntimeAnalytics {
         if (pointCount is num) {
           _scatterPointsProcessed += pointCount.toInt();
         }
+      } else if (event.message == 'SensorVariableRegistered') {
+        _sensorVariables++;
+      } else if (event.message == 'SensorStarted') {
+        _activeSensors++;
+      } else if (event.message == 'SensorStopped') {
+        if (_activeSensors > 0) _activeSensors--;
+      } else if (event.message == 'SensorMeasurementReceived') {
+        _sensorMeasurements++;
+      } else if (event.message == 'SensorError') {
+        _sensorErrors++;
+      } else if (event.message == 'SensorPermissionDenied') {
+        _permissionDenials++;
       } else if (event.message == 'ObservationRecorded') {
         _observationsRecorded++;
         _observationRows++;
@@ -263,6 +285,11 @@ class RuntimeAnalytics {
       'scatterPlotsRendered': _scatterPlotsRendered,
       'scatterPlotUpdates': _scatterPlotUpdates,
       'scatterPointsProcessed': _scatterPointsProcessed,
+      'sensorVariables': _sensorVariables,
+      'activeSensors': _activeSensors,
+      'sensorMeasurements': _sensorMeasurements,
+      'sensorErrors': _sensorErrors,
+      'permissionDenials': _permissionDenials,
       'observationsRecorded': _observationsRecorded,
       'observationRows': _observationRows,
       'observationExports': _observationExports,

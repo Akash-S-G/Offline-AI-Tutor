@@ -82,13 +82,7 @@ class ExperimentBuilderController extends ChangeNotifier {
             .toList(),
         rules: (sceneData['rules'] as List<dynamic>? ?? [])
             .map(
-              (r) => BuilderRule(
-                id: r['ruleId'] ?? '',
-                name: r['name'] ?? '',
-                condition: r['condition'] as Map<String, dynamic>? ?? {},
-                action: r['action'] as Map<String, dynamic>? ?? {},
-                description: r['description'] ?? '',
-              ),
+              (r) => BuilderRule.fromJson(Map<String, dynamic>.from(r as Map)),
             )
             .toList(),
       );
@@ -235,6 +229,12 @@ class ExperimentBuilderController extends ChangeNotifier {
       condition: {'variableId': variable.id, 'operator': '>', 'value': 75},
       action: {'type': 'show_warning'},
       description: 'Shows a warning when the manual value is high.',
+      runtimeConfig: {
+        'condition': {'variableId': variable.id, 'operator': '>', 'value': 75},
+        'actions': [
+          {'type': 'show_warning', 'message': 'Manual value is high'},
+        ],
+      },
     );
 
     _state = _state.copyWith(

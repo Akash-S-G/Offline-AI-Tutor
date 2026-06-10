@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/experiment_builder_controller.dart';
 import '../models/builder_object.dart';
+import '../models/builder_rule.dart';
 import '../models/builder_variable.dart';
 
 import '../../../shared/presentation/widgets/error_state_card.dart';
@@ -217,6 +218,8 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
             _variableRuntimeValidationSection(),
             const SizedBox(height: 8),
             _runtimeValidationSection(),
+            const SizedBox(height: 8),
+            _ruleRuntimeValidationSection(),
             if (isEmptyManifest) ...[
               const SizedBox(height: 12),
               const Text(
@@ -235,6 +238,129 @@ class BuilderExecutionPreviewPanel extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _ruleRuntimeValidationSection() {
+    final state = controller.state;
+    final variableIds = state.variables.map((variable) => variable.id).toSet();
+    final objectIds = state.objects.map((object) => object.id).toSet();
+    final variablesById = {
+      for (final variable in state.variables) variable.id: variable,
+    };
+    final rows = state.rules.expand((rule) {
+      return [
+        _ruleConditionValidation(rule, variableIds),
+        ..._actionsForRule(rule).map(
+          (action) => _ruleActionValidation(
+            rule,
+            action,
+            variablesById: variablesById,
+            objectIds: objectIds,
+          ),
+        ),
+      ];
+    }).toList();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Runtime Rule Validation',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 6),
+        if (rows.isEmpty)
+          const Text('No rules', style: TextStyle(color: Colors.grey))
+        else
+          ...rows.map((result) {
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  result.$1 ? Icons.check_circle : Icons.cancel,
+                  color: result.$1 ? Colors.green : Colors.red,
+                  size: 18,
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    result.$2,
+                    style: TextStyle(
+                      color: result.$1 ? Colors.green : Colors.red,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
+      ],
+    );
+  }
+
+  (bool, String) _ruleConditionValidation(
+    BuilderRule rule,
+    Set<String> variableIds,
+  ) {
+    final variableId = rule.condition['variableId']?.toString();
+    final operator = rule.condition['operator']?.toString();
+    final operators = const {'==', '!=', '>', '>=', '<', '<='};
+    if (variableId == null || !variableIds.contains(variableId)) {
+      return (false, 'Missing variable ${variableId ?? ''}');
+    }
+    if (!operators.contains(operator)) {
+      return (false, 'Unsupported operator ${operator ?? ''}');
+    }
+    return (true, '${rule.name} rule valid');
+  }
+
+  (bool, String) _ruleActionValidation(
+    BuilderRule rule,
+    Map<String, dynamic> action, {
+    required Map<String, BuilderVariable> variablesById,
+    required Set<String> objectIds,
+  }) {
+    final type = action['type']?.toString();
+    switch (type) {
+      case 'show_warning':
+        final message = action['message']?.toString().trim() ?? '';
+        return message.isEmpty
+            ? (false, 'Warning message missing')
+            : (true, 'Warning action valid');
+      case 'hide_object':
+      case 'show_object':
+        final objectId = action['objectId']?.toString();
+        return objectId != null && objectIds.contains(objectId)
+            ? (
+                true,
+                '${type == 'hide_object' ? 'Hide' : 'Show'} object action valid',
+              )
+            : (false, 'Missing object ${objectId ?? ''}');
+      case 'set_variable':
+        final variableId = action['variableId']?.toString();
+        return variableId != null && variablesById.containsKey(variableId)
+            ? (true, 'Set variable action valid')
+            : (false, 'Missing variable ${variableId ?? ''}');
+      case 'toggle_variable':
+        final variableId = action['variableId']?.toString();
+        final variable = variableId == null ? null : variablesById[variableId];
+        if (variable == null) {
+          return (false, 'Missing variable ${variableId ?? ''}');
+        }
+        return variable.defaultValue is bool || variable.type == 'toggle'
+            ? (true, 'Toggle variable action valid')
+            : (false, 'Toggle variable must target a boolean variable');
+      default:
+        return (false, 'Unsupported action ${type ?? ''}');
+    }
+  }
+
+  List<Map<String, dynamic>> _actionsForRule(BuilderRule rule) {
+    final rawActions = rule.runtimeConfig['actions'];
+    if (rawActions is List) {
+      return rawActions
+          .map((entry) => Map<String, dynamic>.from(entry as Map))
+          .toList(growable: false);
+    }
+    return rule.action.isEmpty ? const [] : [rule.action];
   }
 
   Widget _variableRuntimeValidationSection() {

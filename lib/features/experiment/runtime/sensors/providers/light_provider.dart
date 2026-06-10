@@ -6,7 +6,8 @@ import '../sensor_provider.dart';
 import '../sensor_measurement.dart';
 
 class LightProvider implements SensorProvider {
-  final StreamController<SensorMeasurement> _controller = StreamController<SensorMeasurement>.broadcast();
+  final StreamController<SensorMeasurement> _controller =
+      StreamController<SensorMeasurement>.broadcast();
 
   @override
   Stream<SensorMeasurement> get measurementStream => _controller.stream;
@@ -16,7 +17,9 @@ class LightProvider implements SensorProvider {
 
   @override
   Future<void> start() async {
-    print('[EXPERIMENT] SENSOR_ERROR provider=light message=Placeholder implementation, hardware not easily accessible');
+    print(
+      '[EXPERIMENT] SENSOR_ERROR provider=light message=Placeholder implementation, hardware not easily accessible',
+    );
   }
 
   @override

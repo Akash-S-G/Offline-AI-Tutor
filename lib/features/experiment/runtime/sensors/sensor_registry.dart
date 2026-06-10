@@ -7,6 +7,7 @@ import 'providers/barometer_provider.dart';
 import 'providers/gps_provider.dart';
 import 'providers/microphone_provider.dart';
 import 'providers/light_provider.dart';
+import 'providers/mock_sensor_provider.dart';
 
 class SensorRegistry {
   final Map<SensorType, SensorProvider> _providers = {};
@@ -23,7 +24,17 @@ class SensorRegistry {
     _providers[SensorType.gps] = GpsProvider();
     _providers[SensorType.microphone] = MicrophoneProvider();
     _providers[SensorType.light] = LightProvider();
+    _providers[SensorType.proximity] = MockSensorProvider(
+      type: SensorType.proximity,
+      warning: 'Proximity hardware provider is not available; using mock data.',
+    );
   }
+
+  void registerProvider(SensorType type, SensorProvider provider) {
+    _providers[type] = provider;
+  }
+
+  bool hasProvider(SensorType type) => _providers.containsKey(type);
 
   SensorProvider? getProvider(SensorType type) {
     return _providers[type];

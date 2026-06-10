@@ -8,7 +8,8 @@ import '../sensor_measurement.dart';
 import '../sensor_type.dart';
 
 class GpsProvider implements SensorProvider {
-  final StreamController<SensorMeasurement> _controller = StreamController<SensorMeasurement>.broadcast();
+  final StreamController<SensorMeasurement> _controller =
+      StreamController<SensorMeasurement>.broadcast();
   StreamSubscription<Position>? _subscription;
 
   @override
@@ -20,30 +21,39 @@ class GpsProvider implements SensorProvider {
   @override
   Future<void> start() async {
     print('[EXPERIMENT] PROVIDER_STARTED=gps');
-    
+
     LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) {
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
       print('[EXPERIMENT] SENSOR_ERROR provider=gps message=Permission denied');
       return;
     }
 
-    _subscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-    ).listen((Position position) {
-      _controller.add(SensorMeasurement(
-        sensorType: SensorType.gps,
-        timestamp: DateTime.now(),
-        values: {
-          'latitude': position.latitude,
-          'longitude': position.longitude,
-          'accuracy': position.accuracy,
-          'speed': position.speed,
-          'altitude': position.altitude,
-        },
-      ));
-    }, onError: (e) {
-      print('[EXPERIMENT] SENSOR_ERROR provider=gps message=$e');
-    });
+    _subscription =
+        Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+          ),
+        ).listen(
+          (Position position) {
+            _controller.add(
+              SensorMeasurement(
+                sensorType: SensorType.gps,
+                timestamp: DateTime.now(),
+                values: {
+                  'latitude': position.latitude,
+                  'longitude': position.longitude,
+                  'accuracy': position.accuracy,
+                  'speed': position.speed,
+                  'altitude': position.altitude,
+                },
+              ),
+            );
+          },
+          onError: (e) {
+            print('[EXPERIMENT] SENSOR_ERROR provider=gps message=$e');
+          },
+        );
   }
 
   @override

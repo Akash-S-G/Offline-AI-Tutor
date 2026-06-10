@@ -6,4 +6,5 @@ enum SensorType {
   gps,
   microphone,
   light,
+  proximity,
 }

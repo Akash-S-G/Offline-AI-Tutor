@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../measurements/runtime_measurement.dart';
 import '../measurements/runtime_measurement_store.dart';
 import 'line_graph_state.dart';
@@ -47,6 +49,28 @@ class LineGraphBehavior {
 
   double _numeric(dynamic value) {
     if (value is num) return value.toDouble();
+    if (value is Map) {
+      for (final key in const [
+        'magnitude',
+        'value',
+        'amplitude',
+        'lux',
+        'distance',
+        'accuracy',
+        'speed',
+        'altitude',
+        'latitude',
+      ]) {
+        final entry = value[key];
+        if (entry is num) return entry.toDouble();
+      }
+      final x = value['x'];
+      final y = value['y'];
+      final z = value['z'];
+      if (x is num && y is num && z is num) {
+        return sqrt(x * x + y * y + z * z);
+      }
+    }
     return double.tryParse(value?.toString() ?? '') ?? 0;
   }
 }
