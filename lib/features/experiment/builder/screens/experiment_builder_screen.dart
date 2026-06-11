@@ -93,9 +93,7 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
                 Expanded(
                   child: Container(
                     color: Colors.white,
-                    child: _buildWorkspaceChrome(
-                      _buildWorkspaceForStep(_currentStep),
-                    ),
+                    child: _buildWorkspaceForStep(_currentStep),
                   ),
                 ),
                 BottomNavigationBar(
@@ -114,23 +112,23 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
                   items: const [
                     BottomNavigationBarItem(
                       icon: Icon(Icons.add_circle_outline),
-                      label: 'Create',
+                      label: 'Overview',
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.design_services),
-                      label: 'Design',
+                      label: 'Components',
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.account_tree),
-                      label: 'Logic',
+                      label: 'Interactions',
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.play_circle_outline),
-                      label: 'Preview',
+                      label: 'Simulation',
                     ),
                     BottomNavigationBarItem(
                       icon: Icon(Icons.publish),
-                      label: 'Publish',
+                      label: 'Share',
                     ),
                   ],
                 ),
@@ -154,9 +152,7 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
               Expanded(
                 child: Container(
                   color: Colors.white,
-                  child: _buildWorkspaceChrome(
-                    _buildWorkspaceForStep(_currentStep),
-                  ),
+                  child: _buildWorkspaceForStep(_currentStep),
                 ),
               ),
             ],
@@ -181,25 +177,6 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
     }
   }
 
-  Widget _buildWorkspaceChrome(Widget child) {
-    return ListenableBuilder(
-      listenable: _controller,
-      builder: (context, _) {
-        return Column(
-          children: [
-            ExperimentSummaryCard(state: _controller.state),
-            LaunchReadinessCard(validation: _controller.currentValidation),
-            if (_controller.lastTemplateImportReport != null)
-              _TemplateImportReportBanner(
-                report: _controller.lastTemplateImportReport!,
-              ),
-            Expanded(child: child),
-          ],
-        );
-      },
-    );
-  }
-
   Widget _buildCreateWorkspace() {
     return DefaultTabController(
       length: 3,
@@ -209,9 +186,9 @@ class _ExperimentBuilderScreenState extends State<ExperimentBuilderScreen>
             labelColor: Color(0xFF1E293B),
             unselectedLabelColor: Color(0xFF64748B),
             tabs: [
-              Tab(text: 'Manual'),
-              Tab(text: 'AI Generator'),
-              Tab(text: 'Drafts'),
+              Tab(text: 'Start'),
+              Tab(text: 'Assistant'),
+              Tab(text: 'Saved'),
             ],
           ),
           Expanded(
@@ -252,8 +229,15 @@ class _ManualCreatePanel extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              ExperimentSummaryCard(state: controller.state),
+              LaunchReadinessCard(validation: controller.currentValidation),
+              if (controller.lastTemplateImportReport != null)
+                _TemplateImportReportBanner(
+                  report: controller.lastTemplateImportReport!,
+                ),
+              const SizedBox(height: 8),
               const Text(
-                'Manual Experiment',
+                'Experiment Overview',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -262,7 +246,7 @@ class _ManualCreatePanel extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Build an experiment by adding scene metadata, variables, visual objects, and rules. Scene name, description, and tags are metadata only; they do not create runtime behavior by themselves.',
+                'Plan the lab by adding readings, instruments, interactions, and simulation notes. The name, description, and tags are only labels; the lab needs components and interactions to run.',
                 style: TextStyle(color: Color(0xFF64748B)),
               ),
               const SizedBox(height: 16),
@@ -270,7 +254,7 @@ class _ManualCreatePanel extends StatelessWidget {
                 onPressed: controller.createManualStarterScene,
                 icon: const Icon(Icons.build_circle_outlined),
                 label: Text(
-                  hasParts ? 'Add Starter Parts' : 'Create Starter Scene',
+                  hasParts ? 'Add Starter Parts' : 'Create Starter Lab',
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0F172A),
@@ -303,7 +287,7 @@ class _ManualCreatePanel extends StatelessWidget {
                     children: [
                       Icon(Icons.file_download_outlined),
                       SizedBox(width: 8),
-                      Text('Import Template'),
+                      Text('Use Lab Template'),
                     ],
                   ),
                 ),
@@ -336,9 +320,9 @@ class _TemplateImportReportBanner extends StatelessWidget {
       ),
       child: Text(
         'Template Imported: ${report.templateName} | '
-        'Variables: ${report.variables} | '
-        'Objects: ${report.objects} | '
-        'Rules: ${report.rules}',
+        'Readings: ${report.variables} | '
+        'Instruments: ${report.objects} | '
+        'Interactions: ${report.rules}',
         style: const TextStyle(
           color: Color(0xFF1E40AF),
           fontWeight: FontWeight.w600,
@@ -364,9 +348,9 @@ class _ManualChecklist extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _row('Scene metadata', scene.name.trim().isNotEmpty),
-        _row('Variables', variables > 0, '$variables added'),
-        _row('Objects', objects > 0, '$objects added'),
-        _row('Rules', rules > 0, '$rules added'),
+        _row('Readings', variables > 0, '$variables added'),
+        _row('Instruments', objects > 0, '$objects added'),
+        _row('Interactions', rules > 0, '$rules added'),
       ],
     );
   }

@@ -42,6 +42,21 @@ class RuntimeMeasurementStore {
     return count;
   }
 
+  void restoreMeasurements(Map<String, List<RuntimeMeasurement>> measurements) {
+    _measurements
+      ..clear()
+      ..addAll(measurements.map((key, value) => MapEntry(key, List.of(value))));
+    for (final variableId in _measurements.keys.toList(growable: false)) {
+      trimHistory(variableId);
+    }
+  }
+
+  Map<String, List<RuntimeMeasurement>> exportMeasurements() {
+    return _measurements.map(
+      (key, value) => MapEntry(key, List.unmodifiable(value)),
+    );
+  }
+
   List<RuntimeMeasurement> trimHistory(String variableId) {
     final history = _measurements[variableId];
     if (history == null || history.length <= historyLimit) return const [];

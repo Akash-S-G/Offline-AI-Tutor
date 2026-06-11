@@ -17,6 +17,13 @@ class RuleEditor extends StatefulWidget {
 
 class _RuleEditorState extends State<RuleEditor> {
   String _query = '';
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +45,7 @@ class _RuleEditorState extends State<RuleEditor> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Rules (${widget.controller.state.rules.length})',
+                      'Interactions (${widget.controller.state.rules.length})',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -50,7 +57,7 @@ class _RuleEditorState extends State<RuleEditor> {
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: Text(compact ? 'Add' : 'Add Rule'),
+                    label: Text(compact ? 'Add' : 'Add Interaction'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3B82F6),
                       foregroundColor: Colors.white,
@@ -74,7 +81,7 @@ class _RuleEditorState extends State<RuleEditor> {
               ),
             ),
             BuilderSearchBar(
-              hintText: 'Search Rules',
+              hintText: 'Search Interactions',
               onChanged: (value) => setState(() => _query = value),
             ),
             const Divider(height: 1),
@@ -82,10 +89,12 @@ class _RuleEditorState extends State<RuleEditor> {
               child: widget.controller.state.rules.isEmpty
                   ? _buildEmptyState(context)
                   : rules.isEmpty
-                  ? const Center(child: Text('No matching rules'))
+                  ? const Center(child: Text('No matching interactions'))
                   : ListView.builder(
+                      key: const PageStorageKey<String>('builder_rules_list'),
+                      controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
-                      primary: true,
+                      primary: false,
                       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                       itemCount: rules.length,
                       itemBuilder: (context, index) {
@@ -103,9 +112,9 @@ class _RuleEditorState extends State<RuleEditor> {
   Widget _buildEmptyState(BuildContext context) {
     return EmptyStateCard(
       icon: Icons.account_tree_rounded,
-      title: 'No Rules Yet',
-      message: 'Rules define the interactive logic of your experiment.',
-      primaryLabel: 'Create Rule',
+      title: 'No Interactions Yet',
+      message: 'Interactions define cause and effect in your experiment.',
+      primaryLabel: 'Create Interaction',
       onPrimary: () async {
         final newRule = await showDialog<BuilderRule>(
           context: context,

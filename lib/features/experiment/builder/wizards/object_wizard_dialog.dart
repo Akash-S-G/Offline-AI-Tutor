@@ -68,71 +68,78 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
   }
 
   Widget _buildTypeSelection() {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 280,
-        mainAxisExtent: 150,
-        mainAxisSpacing: 12,
-        crossAxisSpacing: 12,
-      ),
-      itemCount: ObjectRegistry.definitions.length,
-      itemBuilder: (context, index) {
-        final def = ObjectRegistry.definitions[index];
-        final selected = _selectedType == def;
-        return OutlinedButton(
-          style: OutlinedButton.styleFrom(
-            alignment: Alignment.topLeft,
-            padding: const EdgeInsets.all(12),
-            side: BorderSide(
-              color: selected ? Colors.blue : Colors.grey.shade300,
-              width: selected ? 2 : 1,
-            ),
-            backgroundColor: selected
-                ? Colors.blue.withValues(alpha: 0.08)
-                : null,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 620 ? 2 : 1;
+        return GridView.builder(
+          key: const PageStorageKey<String>('object_wizard_type_grid'),
+          shrinkWrap: true,
+          primary: false,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisExtent: 150,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
           ),
-          onPressed: () {
-            setState(() {
-              _selectedType = def;
-              _nameController.text = def.title.toLowerCase().replaceAll(
-                ' ',
-                '_',
-              );
-              _linkedVariable = _getCompatibleVariables(def).firstOrNull;
-              _runtimeConfig = _defaultConfigFor(def, _linkedVariable);
-            });
-          },
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                def.icon,
-                color: selected ? Colors.blue : Colors.grey.shade700,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                def.title,
-                style: const TextStyle(fontWeight: FontWeight.bold),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Expanded(
-                child: Text(
-                  def.description,
-                  style: const TextStyle(fontSize: 12),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
+          itemCount: ObjectRegistry.definitions.length,
+          itemBuilder: (context, index) {
+            final def = ObjectRegistry.definitions[index];
+            final selected = _selectedType == def;
+            return OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                alignment: Alignment.topLeft,
+                padding: const EdgeInsets.all(12),
+                side: BorderSide(
+                  color: selected ? Colors.blue : Colors.grey.shade300,
+                  width: selected ? 2 : 1,
                 ),
+                backgroundColor: selected
+                    ? Colors.blue.withValues(alpha: 0.08)
+                    : null,
               ),
-              const Text(
-                'Example: link to a live value',
-                style: TextStyle(fontSize: 11, color: Colors.grey),
+              onPressed: () {
+                setState(() {
+                  _selectedType = def;
+                  _nameController.text = def.title.toLowerCase().replaceAll(
+                    ' ',
+                    '_',
+                  );
+                  _linkedVariable = _getCompatibleVariables(def).firstOrNull;
+                  _runtimeConfig = _defaultConfigFor(def, _linkedVariable);
+                });
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(
+                    def.icon,
+                    color: selected ? Colors.blue : Colors.grey.shade700,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    def.title,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 4),
+                  Expanded(
+                    child: Text(
+                      def.description,
+                      style: const TextStyle(fontSize: 12),
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const Text(
+                    'Example: link to a live value',
+                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -308,6 +315,31 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
     }
   }
 
+  String get _stepTitle =>
+      _currentStep == 0 ? 'Choose Object Type' : 'Configure Object';
+
+  Widget _buildCurrentStep() =>
+      _currentStep == 0 ? _buildTypeSelection() : _buildConfiguration();
+
+  Widget _buildStepHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_stepTitle, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(value: (_currentStep + 1) / 2),
+          const SizedBox(height: 8),
+          Text(
+            'Step ${_currentStep + 1} of 2',
+            style: const TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -345,30 +377,15 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
                       ],
                     ),
                   ),
+                  _buildStepHeader(),
                   Expanded(
                     child: SingleChildScrollView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.only(bottom: 24),
-                      child: Stepper(
-                        currentStep: _currentStep,
-                        controlsBuilder: (context, details) =>
-                            const SizedBox.shrink(),
-                        steps: [
-                          Step(
-                            title: const Text('Visualization Type'),
-                            content: _buildTypeSelection(),
-                            isActive: _currentStep >= 0,
-                            state: _currentStep > 0
-                                ? StepState.complete
-                                : StepState.indexed,
-                          ),
-                          Step(
-                            title: const Text('Configure'),
-                            content: _buildConfiguration(),
-                            isActive: _currentStep >= 1,
-                          ),
-                        ],
+                      key: const PageStorageKey<String>(
+                        'object_wizard_step_scroll',
                       ),
+                      controller: scrollController,
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                      child: _buildCurrentStep(),
                     ),
                   ),
                   Padding(

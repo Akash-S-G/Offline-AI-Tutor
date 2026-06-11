@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'dart:math' as math;
@@ -35,6 +37,16 @@ class SyncManager {
 
   /// Queue for managing sync operations
   final SyncQueue syncQueue = SyncQueue();
+  final StreamController<String> _progressController =
+      StreamController<String>.broadcast();
+
+  Stream<String> get progressStream => _progressController.stream;
+
+  void _emitProgress(String message) {
+    if (!_progressController.isClosed) {
+      _progressController.add(message);
+    }
+  }
 
   /// Check for pack updates from backend, optionally filtered by grade
   Future<List<PackSyncEntry>> checkForPackUpdates({int? grade}) async {
@@ -42,7 +54,10 @@ class SyncManager {
       // Consult cached backend status to avoid redundant 30s timeout
       final cached = BackendAvailabilityCache().cachedStatus;
       if (cached == false) {
-        AppEnvironment.log('SYNC', '[SyncManager] Skipping pack check — backend cached as unavailable');
+        AppEnvironment.log(
+          'SYNC',
+          '[SyncManager] Skipping pack check — backend cached as unavailable',
+        );
         return [];
       }
 
@@ -55,10 +70,12 @@ class SyncManager {
       print('[URL] SERVICE=SyncManager URL=$endpoint');
       print('[SYNC] ACTIVE_URL=$endpoint');
       print('[SYNC] REQUEST_URL=$endpoint');
-      final response = await http.get(
-        Uri.parse(endpoint),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(
+            Uri.parse(endpoint),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 10));
 
       print('[SYNC_VERIFY] REQUEST_URL=$endpoint');
       print('[SYNC_VERIFY] HTTP_STATUS=${response.statusCode}');
@@ -67,7 +84,7 @@ class SyncManager {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         final validPacks = <PackSyncEntry>[];
-        
+
         final packsList = data['packs'];
 
         if (packsList is List) {
@@ -83,7 +100,10 @@ class SyncManager {
                 }
                 count++;
               } catch (e) {
-                AppEnvironment.log('SYNC', '[SyncManager] Failed to parse pack entry: $e');
+                AppEnvironment.log(
+                  'SYNC',
+                  '[SyncManager] Failed to parse pack entry: $e',
+                );
               }
             }
           }
@@ -107,15 +127,23 @@ class SyncManager {
   /// Process the pack updates and enqueue download operations
   Future<void> processPackUpdates(List<PackSyncEntry> updates) async {
     if (updates.isEmpty) return;
-    
-    AppEnvironment.log('SYNC', '[SyncManager] Processing ${updates.length} pack updates');
+
+    AppEnvironment.log(
+      'SYNC',
+      '[SyncManager] Processing ${updates.length} pack updates',
+    );
     print('[SYNC] PACKS_REQUIRING_UPDATE=${updates.length}');
-    
+
     for (final entry in updates) {
       final packId = entry.packId;
-      var downloadUrl = entry.downloadUrl ?? '${_runtimeEndpoints().packsSync}/$packId/download';
+      var downloadUrl =
+          entry.downloadUrl ??
+          '${_runtimeEndpoints().packsSync}/$packId/download';
       if (downloadUrl.startsWith('/')) {
-        final baseUrl = _runtimeEndpoints().packsSync.replaceAll('/packs/sync', '');
+        final baseUrl = _runtimeEndpoints().packsSync.replaceAll(
+          '/packs/sync',
+          '',
+        );
         downloadUrl = '$baseUrl$downloadUrl';
       }
       syncQueue.enqueue(
@@ -124,6 +152,7 @@ class SyncManager {
           packId: packId,
           remoteUrl: downloadUrl,
           localPath: '',
+          onProgress: _emitProgress,
         ),
       );
     }
@@ -143,17 +172,22 @@ class SyncManager {
         'timestamp': DateTime.now().toIso8601String(),
       };
 
-      final response = await http.post(
-        Uri.parse(endpoint),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(delta),
-      ).timeout(const Duration(seconds: 60));
+      final response = await http
+          .post(
+            Uri.parse(endpoint),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(delta),
+          )
+          .timeout(const Duration(seconds: 60));
 
       if (response.statusCode == 200 || response.statusCode == 204) {
         AppEnvironment.log('SYNC', '[SyncManager] Pack sync complete: $packId');
         return true;
       } else {
-        AppEnvironment.log('SYNC', '[SyncManager] Pack sync failed: ${response.statusCode}');
+        AppEnvironment.log(
+          'SYNC',
+          '[SyncManager] Pack sync failed: ${response.statusCode}',
+        );
         return false;
       }
     } catch (e) {
@@ -174,13 +208,15 @@ class SyncManager {
       );
 
       final endpoint = '${_runtimeEndpoints().syncDelta}/$packId';
-      final response = await http.get(
-        Uri.parse(endpoint),
-        headers: {
-          'Content-Type': 'application/json',
-          'X-From-Version': fromVersion,
-        },
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .get(
+            Uri.parse(endpoint),
+            headers: {
+              'Content-Type': 'application/json',
+              'X-From-Version': fromVersion,
+            },
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body) as Map<String, dynamic>;
@@ -194,7 +230,10 @@ class SyncManager {
   }
 
   /// Sync learner progress to backend
-  Future<bool> syncLearnerProgress(int chapterId, Map<String, dynamic> progress) async {
+  Future<bool> syncLearnerProgress(
+    int chapterId,
+    Map<String, dynamic> progress,
+  ) async {
     try {
       final endpoint = _runtimeEndpoints().progressUpdate;
 
@@ -204,11 +243,13 @@ class SyncManager {
         'timestamp': DateTime.now().toIso8601String(),
       };
 
-      final response = await http.post(
-        Uri.parse(endpoint),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(payload),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            Uri.parse(endpoint),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 30));
 
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
@@ -222,10 +263,12 @@ class SyncManager {
     try {
       final endpoint = '${_runtimeEndpoints().packsSync}/$packId/validate';
 
-      final response = await http.get(
-        Uri.parse(endpoint),
-        headers: {'Content-Type': 'application/json'},
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .get(
+            Uri.parse(endpoint),
+            headers: {'Content-Type': 'application/json'},
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
@@ -258,11 +301,17 @@ class ConflictResolver {
     EducationalPackModel remote,
   ) {
     if (remote.updatedAt.isAfter(local.updatedAt)) {
-      AppEnvironment.log('SYNC', '[ConflictResolver] Remote version newer for ${local.packId}');
+      AppEnvironment.log(
+        'SYNC',
+        '[ConflictResolver] Remote version newer for ${local.packId}',
+      );
       return remote;
     }
 
-    AppEnvironment.log('SYNC', '[ConflictResolver] Local version retained for ${local.packId}');
+    AppEnvironment.log(
+      'SYNC',
+      '[ConflictResolver] Local version retained for ${local.packId}',
+    );
     return local;
   }
 
@@ -279,13 +328,18 @@ class ConflictResolver {
     final localFlashcards = local.flashcardsReviewed ?? 0;
     final remoteFlashcards = remote.flashcardsReviewed ?? 0;
 
-    final localLastAccessed = local.lastAccessedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
-    final remoteLastAccessed = remote.lastAccessedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final localLastAccessed =
+        local.lastAccessedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+    final remoteLastAccessed =
+        remote.lastAccessedAt ?? DateTime.fromMillisecondsSinceEpoch(0);
 
     return LearnerProgressModel(
       id: local.id,
       chapterId: local.chapterId,
-      completionState: _mergeCompletionState(local.completionState, remote.completionState),
+      completionState: _mergeCompletionState(
+        local.completionState,
+        remote.completionState,
+      ),
       readingProgressPercent: math.max(
         local.readingProgressPercent,
         remote.readingProgressPercent,
@@ -293,21 +347,19 @@ class ConflictResolver {
       quizAttempts: localAttempts + remoteAttempts,
       quizBestScore: math.max(localBestScore, remoteBestScore),
       flashcardsReviewed: localFlashcards + remoteFlashcards,
-        lastAccessedAt: localLastAccessed.isAfter(remoteLastAccessed)
+      lastAccessedAt: localLastAccessed.isAfter(remoteLastAccessed)
           ? localLastAccessed
           : remoteLastAccessed,
-      completedAt: local.completionState == 'completed' ? local.completedAt : null,
+      completedAt: local.completionState == 'completed'
+          ? local.completedAt
+          : null,
       createdAt: local.createdAt,
       updatedAt: DateTime.now(),
     );
   }
 
   static String _mergeCompletionState(String local, String remote) {
-    const priority = {
-      'completed': 3,
-      'in-progress': 2,
-      'not-started': 1,
-    };
+    const priority = {'completed': 3, 'in-progress': 2, 'not-started': 1};
 
     final localPriority = priority[local] ?? 0;
     final remotePriority = priority[remote] ?? 0;
@@ -406,56 +458,80 @@ class PackDownloadOperation implements SyncOperation {
   final String packId;
   final String remoteUrl;
   final String localPath;
+  final void Function(String message)? onProgress;
 
   PackDownloadOperation({
     required this.id,
     required this.packId,
     required this.remoteUrl,
     required this.localPath,
+    this.onProgress,
   });
 
   @override
   Future<void> execute() async {
     AppEnvironment.log('SYNC', '[PackDownloadOp] Starting download: $packId');
+    onProgress?.call('Installing Pack...');
     print('[PACK] DOWNLOAD_START packId=$packId');
     print('[PACK] DOWNLOAD_URL=$remoteUrl');
-    
+
     final stopwatch = Stopwatch()..start();
     try {
-      final response = await http.get(Uri.parse(remoteUrl)).timeout(const Duration(minutes: 5));
+      final response = await http
+          .get(Uri.parse(remoteUrl))
+          .timeout(const Duration(minutes: 5));
       stopwatch.stop();
       print('[PACK] DOWNLOAD_COMPLETE');
       print('packId=$packId');
       print('status=${response.statusCode}');
       print('bytes=${response.bodyBytes.length}');
       print('duration_ms=${stopwatch.elapsedMilliseconds}');
-      
+
       if (response.statusCode == 200) {
-        AppEnvironment.log('SYNC', '[PackDownloadOp] Download complete: $packId. Length: ${response.bodyBytes.length} bytes');
-        
+        AppEnvironment.log(
+          'SYNC',
+          '[PackDownloadOp] Download complete: $packId. Length: ${response.bodyBytes.length} bytes',
+        );
+
         // Save the downloaded pack
         final docs = await path_provider.getApplicationDocumentsDirectory();
-        final savePath = path.join(docs.path, 'content_packs', '$packId.otpack');
+        final savePath = path.join(
+          docs.path,
+          'content_packs',
+          '$packId.otpack',
+        );
         final file = File(savePath);
-        
+
         // Ensure parent directory exists
         if (!await file.parent.exists()) {
           await file.parent.create(recursive: true);
         }
-        
+
         await file.writeAsBytes(response.bodyBytes);
         AppEnvironment.log('SYNC', '[PackDownloadOp] Saved pack to: $savePath');
         print('[PACK] FILE_SAVED=$savePath');
-        
-        AppEnvironment.log('SYNC', '[PackDownloadOp] Starting installation for $packId');
+
+        AppEnvironment.log(
+          'SYNC',
+          '[PackDownloadOp] Starting installation for $packId',
+        );
         try {
-          final result = await ContentPackArchiveService().importPackArchive(savePath, allowReplaceSameOrOlder: true);
+          final result = await ContentPackArchiveService().importPackArchive(
+            savePath,
+            allowReplaceSameOrOlder: true,
+            onProgress: onProgress,
+          );
           print('[PACK] ITEMS_IMPORTED=${result.itemCount} packId=$packId');
+          for (final pdfResult in result.pdfResults) {
+            print(
+              '[PDF_INSTALL] INSTALL_REPORT=${jsonEncode(pdfResult.toJson())}',
+            );
+          }
         } catch (installErr) {
           print('[PACK] INSTALL_FAILURE_REASON=$installErr packId=$packId');
           rethrow;
         }
-        
+
         try {
           final items = await ContentPackRepository().listItemsForPack(packId);
           var chunksImported = 0;
@@ -482,7 +558,9 @@ class PackDownloadOperation implements SyncOperation {
                 print('[RAG] RETRIEVAL_READY');
               }
             } else if (item.kind == 'pdf') {
-              final text = await PdfExtractionService.extractTextFromPdf(item.absolutePath);
+              final text = await PdfExtractionService.extractTextFromPdf(
+                item.absolutePath,
+              );
               await RagRepository().ingestChapterNotes(
                 chapterId: effectiveChapterId,
                 sourceTitle: item.title,
@@ -497,27 +575,48 @@ class PackDownloadOperation implements SyncOperation {
           }
           print('[PACK] CHUNKS_IMPORTED=$chunksImported packId=$packId');
           print('[PACK] QUIZZES_IMPORTED=$quizzesImported packId=$packId');
-          print('[PACK] FLASHCARDS_IMPORTED=$flashcardsImported packId=$packId');
-          AppEnvironment.log('SYNC', '[PackDownloadOp] Indexed $chunksImported items for RAG.');
+          print(
+            '[PACK] FLASHCARDS_IMPORTED=$flashcardsImported packId=$packId',
+          );
+          AppEnvironment.log(
+            'SYNC',
+            '[PackDownloadOp] Indexed $chunksImported items for RAG.',
+          );
         } catch (e) {
-          AppEnvironment.log('SYNC', '[PackDownloadOp] Error generating RAG chunks: $e');
-          print('[PACK] INSTALL_FAILURE_REASON=RAG_CHUNK_ERROR: $e packId=$packId');
+          AppEnvironment.log(
+            'SYNC',
+            '[PackDownloadOp] Error generating RAG chunks: $e',
+          );
+          print(
+            '[PACK] INSTALL_FAILURE_REASON=RAG_CHUNK_ERROR: $e packId=$packId',
+          );
         }
 
-        AppEnvironment.log('SYNC', '[PackDownloadOp] Successfully installed $packId');
+        AppEnvironment.log(
+          'SYNC',
+          '[PackDownloadOp] Successfully installed $packId',
+        );
         print('[PACK] INSTALL_SUCCESS packId=$packId');
-        
+
         // Clean up the downloaded archive
         if (await file.exists()) {
           await file.delete();
         }
       } else {
-        AppEnvironment.log('SYNC', '[PackDownloadOp] Download failed for $packId: ${response.statusCode}');
-        print('[PACK] DOWNLOAD_FAILED packId=$packId statusCode=${response.statusCode}');
+        AppEnvironment.log(
+          'SYNC',
+          '[PackDownloadOp] Download failed for $packId: ${response.statusCode}',
+        );
+        print(
+          '[PACK] DOWNLOAD_FAILED packId=$packId statusCode=${response.statusCode}',
+        );
         throw Exception('HTTP ${response.statusCode}');
       }
     } catch (e) {
-      AppEnvironment.log('SYNC', '[PackDownloadOp] Error downloading $packId: $e');
+      AppEnvironment.log(
+        'SYNC',
+        '[PackDownloadOp] Error downloading $packId: $e',
+      );
       print('[PACK] DOWNLOAD_FAILED packId=$packId error=$e');
       rethrow;
     }
@@ -545,7 +644,10 @@ class ProgressUploadOperation implements SyncOperation {
 
   @override
   Future<void> execute() async {
-    AppEnvironment.log('SYNC', '[ProgressUploadOp] Uploading progress: $chapterId');
+    AppEnvironment.log(
+      'SYNC',
+      '[ProgressUploadOp] Uploading progress: $chapterId',
+    );
     await SyncManager().syncLearnerProgress(chapterId, progressData);
   }
 

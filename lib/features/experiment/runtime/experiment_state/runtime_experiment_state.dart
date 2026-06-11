@@ -41,6 +41,40 @@ class RuntimeExperimentState {
     );
   }
 
+  factory RuntimeExperimentState.fromJson(Map<String, dynamic> json) {
+    final runtimeSeconds = json['runtimeSeconds'];
+    final startedAt = DateTime.tryParse(json['startedAt']?.toString() ?? '');
+    final completedAt = DateTime.tryParse(
+      json['completedAt']?.toString() ?? '',
+    );
+    int readInt(String key) {
+      final value = json[key];
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    return RuntimeExperimentState(
+      experimentId: json['experimentId']?.toString() ?? 'experiment',
+      status: runtimeExperimentStatusFromName(json['status']?.toString()),
+      runtime: Duration(
+        milliseconds: runtimeSeconds is num
+            ? (runtimeSeconds.toDouble() * 1000).round()
+            : 0,
+      ),
+      observations: readInt('observations'),
+      measurements: readInt('measurements'),
+      warnings: readInt('warnings'),
+      rulesTriggered: readInt('rulesTriggered'),
+      startedAt: startedAt ?? DateTime.now(),
+      completedAt: completedAt,
+      metrics: json['metrics'] is Map
+          ? RuntimeExperimentMetrics.fromJson(
+              Map<String, dynamic>.from(json['metrics'] as Map),
+            )
+          : const RuntimeExperimentMetrics.empty(),
+    );
+  }
+
   RuntimeExperimentState copyWith({
     String? experimentId,
     RuntimeExperimentStatus? status,

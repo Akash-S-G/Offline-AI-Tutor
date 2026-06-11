@@ -22,6 +22,12 @@ class RuntimeObservationStore {
     return count;
   }
 
+  void restoreObservations(List<RuntimeObservation> observations) {
+    _observations
+      ..clear()
+      ..addAll(observations);
+  }
+
   List<RuntimeObservation> getObservations() {
     return List.unmodifiable(_observations);
   }

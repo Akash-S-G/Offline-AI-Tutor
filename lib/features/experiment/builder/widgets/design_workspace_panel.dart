@@ -26,9 +26,11 @@ class DesignWorkspacePanel extends StatelessWidget {
                   unselectedLabelColor: const Color(0xFF64748B),
                   tabs: [
                     Tab(
-                      text: 'Variables (${controller.state.variables.length})',
+                      text: 'Readings (${controller.state.variables.length})',
                     ),
-                    Tab(text: 'Objects (${controller.state.objects.length})'),
+                    Tab(
+                      text: 'Instruments (${controller.state.objects.length})',
+                    ),
                   ],
                 ),
               ),
@@ -50,7 +52,7 @@ class DesignWorkspacePanel extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.all(12.0),
               child: Text(
-                'Scene Canvas',
+                'Experiment Scene',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -71,7 +73,7 @@ class DesignWorkspacePanel extends StatelessWidget {
               const Padding(
                 padding: EdgeInsets.all(12.0),
                 child: Text(
-                  'Properties Inspector',
+                  'Settings',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -100,7 +102,7 @@ class DesignWorkspacePanel extends StatelessWidget {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        'Select an object or variable\nto view its properties.',
+                        'Select an instrument or reading\nto view its settings.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 12,
@@ -131,12 +133,12 @@ class DesignWorkspacePanel extends StatelessWidget {
                       const Tab(icon: Icon(Icons.brush), text: 'Scene'),
                       Tab(
                         icon: const Icon(Icons.data_object),
-                        text:
-                            'Variables (${controller.state.variables.length})',
+                        text: 'Readings (${controller.state.variables.length})',
                       ),
                       Tab(
                         icon: const Icon(Icons.category),
-                        text: 'Objects (${controller.state.objects.length})',
+                        text:
+                            'Instruments (${controller.state.objects.length})',
                       ),
                       const Tab(icon: Icon(Icons.tune), text: 'Props'),
                     ],

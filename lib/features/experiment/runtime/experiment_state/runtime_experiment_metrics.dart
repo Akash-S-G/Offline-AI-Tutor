@@ -32,6 +32,26 @@ class RuntimeExperimentMetrics {
       graphUpdates = 0,
       sensorUpdates = 0;
 
+  factory RuntimeExperimentMetrics.fromJson(Map<String, dynamic> json) {
+    int read(String key) {
+      final value = json[key];
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '') ?? 0;
+    }
+
+    return RuntimeExperimentMetrics(
+      variables: read('variables'),
+      objects: read('objects'),
+      rules: read('rules'),
+      measurements: read('measurements'),
+      observations: read('observations'),
+      warnings: read('warnings'),
+      rulesTriggered: read('rulesTriggered'),
+      graphUpdates: read('graphUpdates'),
+      sensorUpdates: read('sensorUpdates'),
+    );
+  }
+
   RuntimeExperimentMetrics copyWith({
     int? variables,
     int? objects,

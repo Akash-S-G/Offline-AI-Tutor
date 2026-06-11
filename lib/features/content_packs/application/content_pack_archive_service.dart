@@ -7,6 +7,7 @@ import 'package:path/path.dart' as p;
 
 import '../data/local/content_pack_repository.dart';
 import '../domain/content_pack_models.dart';
+import '../../course/data/install/pdf_install_service.dart';
 import '../../course/data/local/app_database.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -29,11 +30,13 @@ class PackArchiveImportResult {
     required this.packId,
     required this.itemCount,
     required this.installedRoot,
+    this.pdfResults = const [],
   });
 
   final String packId;
   final int itemCount;
   final String installedRoot;
+  final List<PdfInstallResult> pdfResults;
 }
 
 class PackVersionConflictException implements Exception {
@@ -56,7 +59,7 @@ class PackVersionConflictException implements Exception {
 
 class ContentPackArchiveService {
   ContentPackArchiveService({ContentPackRepository? repository})
-      : _repository = repository ?? ContentPackRepository();
+    : _repository = repository ?? ContentPackRepository();
 
   final ContentPackRepository _repository;
 
@@ -71,7 +74,8 @@ class ContentPackArchiveService {
     }
 
     final now = DateTime.now().millisecondsSinceEpoch;
-    final archiveName = '${entry.manifest.packId}_v${entry.manifest.version}_$now.otpack';
+    final archiveName =
+        '${entry.manifest.packId}_v${entry.manifest.version}_$now.otpack';
     final archivePath = p.join(exportDir.path, archiveName);
 
     final tempDir = await Directory.systemTemp.createTemp('pack_export_');
@@ -113,12 +117,21 @@ class ContentPackArchiveService {
   Future<PackArchiveImportResult> importPackArchive(
     String archivePath, {
     bool allowReplaceSameOrOlder = false,
+    void Function(String message)? onProgress,
   }) async {
     final db = await AppDatabase.instance.database;
-    final packsBefore = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_packs'));
-    final itemsBefore = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_pack_items'));
-    final ragBefore = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'));
-    final ftsBefore = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'));
+    final packsBefore = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM material_packs'),
+    );
+    final itemsBefore = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM material_pack_items'),
+    );
+    final ragBefore = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'),
+    );
+    final ftsBefore = Sqflite.firstIntValue(
+      await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
+    );
     print('PACKS_BEFORE=$packsBefore');
     print('ITEMS_BEFORE=$itemsBefore');
     print('RAG_BEFORE=$ragBefore');
@@ -131,7 +144,11 @@ class ContentPackArchiveService {
 
     final root = await _repository.packRootDirectory;
     final unpackDir = Directory(
-      p.join(root.path, 'installed', 'incoming_${DateTime.now().millisecondsSinceEpoch}'),
+      p.join(
+        root.path,
+        'installed',
+        'incoming_${DateTime.now().millisecondsSinceEpoch}',
+      ),
     );
     await unpackDir.create(recursive: true);
 
@@ -142,7 +159,7 @@ class ContentPackArchiveService {
       print('[PACK_VERIFY] ARCHIVE_OPENED');
 
       final bytes = await archiveFile.readAsBytes();
-      Archive? decodedArchive;
+      late final Archive decodedArchive;
 
       try {
         final gzipBytes = GZipDecoder().decodeBytes(bytes);
@@ -155,14 +172,12 @@ class ContentPackArchiveService {
         }
       }
 
-      if (decodedArchive != null) {
-        for (final file in decodedArchive) {
-          if (file.isFile) {
-            final data = file.content as List<int>;
-            final outFile = File(p.join(unpackDir.path, file.name));
-            outFile.createSync(recursive: true);
-            outFile.writeAsBytesSync(data);
-          }
+      for (final file in decodedArchive) {
+        if (file.isFile) {
+          final data = file.content as List<int>;
+          final outFile = File(p.join(unpackDir.path, file.name));
+          outFile.createSync(recursive: true);
+          outFile.writeAsBytesSync(data);
         }
       }
     } catch (e) {
@@ -185,14 +200,19 @@ class ContentPackArchiveService {
     }
 
     if (manifestFile == null) {
-      throw Exception('Invalid pack archive: missing pack_manifest.json or manifest.json');
+      throw Exception(
+        'Invalid pack archive: missing pack_manifest.json or manifest.json',
+      );
     }
-    
+    if (packRootDir == null) {
+      throw Exception('Invalid pack archive: missing pack root directory');
+    }
+
     print('[PACK] MANIFEST_FOUND=${p.basename(manifestFile.path)}');
 
     final raw = await manifestFile.readAsString();
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
-    
+
     var manifest = decoded['manifest'] as Map<String, dynamic>?;
     var items = decoded['items'] as List<dynamic>?;
 
@@ -203,17 +223,24 @@ class ContentPackArchiveService {
 
     if (items == null) {
       items = [];
-      final files = await packRootDir!.list(recursive: true).toList();
+      final files = await packRootDir.list(recursive: true).toList();
       for (final f in files) {
-        if (f is File && f.path.endsWith('.json') && f.path != manifestFile.path) {
-          final relative = p.relative(f.path, from: packRootDir!.path);
+        if (f is File &&
+            f.path.endsWith('.json') &&
+            f.path != manifestFile.path) {
+          final relative = p.relative(f.path, from: packRootDir.path);
           String kind = 'other';
-          if (relative.endsWith('content.json')) kind = 'content_json';
-          else if (relative.endsWith('quizzes.json')) kind = 'quiz';
-          else if (relative.endsWith('flashcards.json')) kind = 'flashcard';
-          else if (relative.endsWith('summaries.json')) kind = 'summary';
-          else if (relative.endsWith('glossary.json')) kind = 'glossary';
-          
+          if (relative.endsWith('content.json'))
+            kind = 'content_json';
+          else if (relative.endsWith('quizzes.json'))
+            kind = 'quiz';
+          else if (relative.endsWith('flashcards.json'))
+            kind = 'flashcard';
+          else if (relative.endsWith('summaries.json'))
+            kind = 'summary';
+          else if (relative.endsWith('glossary.json'))
+            kind = 'glossary';
+
           items.add({
             'relativePath': relative,
             'kind': kind,
@@ -227,14 +254,15 @@ class ContentPackArchiveService {
       throw Exception('Invalid pack archive: empty manifest');
     }
 
-    final packId = manifest['packId'] as String? ?? manifest['pack_id'] as String?;
+    final packId =
+        manifest['packId'] as String? ?? manifest['pack_id'] as String?;
     if (packId == null || packId.trim().isEmpty) {
       throw Exception('Invalid pack archive: packId missing');
     }
-    
+
     print('[PACK] INSTALL_START=$packId');
     print('[PACK] EXTRACTION_COMPLETE=$packId');
-    
+
     // Version might be an int (1) or string ("1.0.0")
     int incomingVersion = 1;
     final rawVersion = manifest['version'];
@@ -246,7 +274,7 @@ class ContentPackArchiveService {
         incomingVersion = int.tryParse(parts.first) ?? 1;
       }
     }
-    
+
     final existingPack = await _repository.getPackById(packId);
     if (!allowReplaceSameOrOlder &&
         existingPack != null &&
@@ -258,14 +286,37 @@ class ContentPackArchiveService {
       );
     }
 
-    var contentDir = Directory(p.join(packRootDir!.path, 'content'));
+    var contentDir = Directory(p.join(packRootDir.path, 'content'));
     if (!await contentDir.exists()) {
       contentDir = packRootDir;
     }
 
+    await _reuseExistingSourcePdfIfAvailable(
+      existingPack: existingPack,
+      targetChapterRootPath: contentDir.path,
+      onProgress: onProgress,
+    );
+
+    onProgress?.call('Finalizing Chapter...');
+    final pdfResults = await _installChapterPdfIfPossible(
+      manifest: manifest,
+      chapterRootPath: contentDir.path,
+      packId: packId,
+      onProgress: onProgress,
+    );
+    final failedPdfResults = pdfResults.where(
+      (result) => !result.installSuccess,
+    );
+    if (failedPdfResults.isNotEmpty) {
+      throw Exception(
+        'PDF installation failed for $packId: '
+        '${failedPdfResults.map((r) => r.failureReason).join('; ')}',
+      );
+    }
+
     final packItems = <ContentPackItem>[];
     var totalSize = 0;
-    
+
     int contentJsonCount = 0;
     int flashcardCount = 0;
     int quizCount = 0;
@@ -274,7 +325,9 @@ class ContentPackArchiveService {
 
     for (var i = 0; i < items.length; i++) {
       final item = items[i] as Map<String, dynamic>;
-      final relative = _normalizeRelative(item['relativePath'] as String? ?? '');
+      final relative = _normalizeRelative(
+        item['relativePath'] as String? ?? '',
+      );
       if (relative.isEmpty) {
         continue;
       }
@@ -302,22 +355,59 @@ class ContentPackArchiveService {
           metadataJson: item['metadataJson'] as String?,
         ),
       );
-      
+
       final kindLower = (item['kind'] as String? ?? 'other').toLowerCase();
-      if (kindLower == 'json' || kindLower == 'content_json') contentJsonCount++;
+      if (kindLower == 'json' || kindLower == 'content_json')
+        contentJsonCount++;
       if (kindLower == 'flashcard') flashcardCount++;
       if (kindLower == 'quiz') quizCount++;
       if (kindLower == 'summary') summaryCount++;
       if (kindLower == 'glossary') glossaryCount++;
     }
 
+    final sourcePdf = File(p.join(contentDir.path, 'source.pdf'));
+    final alreadyIndexedSourcePdf = packItems.any(
+      (item) => _normalizeRelative(item.relativePath) == 'source.pdf',
+    );
+    if (await sourcePdf.exists() && !alreadyIndexedSourcePdf) {
+      final stat = await sourcePdf.stat();
+      if (stat.size > 0) {
+        totalSize += stat.size;
+        packItems.add(
+          ContentPackItem(
+            packId: packId,
+            kind: 'pdf',
+            title: 'Source PDF',
+            relativePath: 'source.pdf',
+            absolutePath: sourcePdf.path,
+            grade: _readGrade(manifest),
+            subject: manifest['subject']?.toString(),
+            medium: manifest['medium']?.toString(),
+            chapterId: packId,
+            languageCode: _readLanguage(manifest),
+            orderIndex: packItems.length,
+            sizeBytes: stat.size,
+            metadataJson: jsonEncode({
+              'pdfDownloaded': pdfResults.any((r) => r.pdfDownloaded),
+              'pdfReused': pdfResults.any((r) => r.pdfReused),
+            }),
+          ),
+        );
+      }
+    }
+
     print('[PACK] CONTENT_ROWS=$contentJsonCount');
+    print('[PACK] FLASHCARDS=$flashcardCount');
     print('[PACK] QUIZZES=$quizCount');
     print('[PACK] SUMMARIES=$summaryCount');
     print('[PACK] GLOSSARY=$glossaryCount');
 
     final installedAt = DateTime.now().millisecondsSinceEpoch;
-    final hash = sha256.convert(utf8.encode('$packId:$installedAt:$totalSize:${packItems.length}')).toString();
+    final hash = sha256
+        .convert(
+          utf8.encode('$packId:$installedAt:$totalSize:${packItems.length}'),
+        )
+        .toString();
 
     final packManifest = ContentPackManifest(
       packId: packId,
@@ -337,11 +427,27 @@ class ContentPackArchiveService {
 
     await _repository.upsertPack(manifest: packManifest, items: packItems);
 
-    final packsAfter = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_packs')) ?? 0;
-    final itemsAfter = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_pack_items')) ?? 0;
-    final ragAfter = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks')) ?? 0;
-    final ftsAfter = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts')) ?? 0;
-    
+    final packsAfter =
+        Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM material_packs'),
+        ) ??
+        0;
+    final itemsAfter =
+        Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM material_pack_items'),
+        ) ??
+        0;
+    final ragAfter =
+        Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'),
+        ) ??
+        0;
+    final ftsAfter =
+        Sqflite.firstIntValue(
+          await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
+        ) ??
+        0;
+
     print('PACKS_AFTER=$packsAfter');
     print('ITEMS_AFTER=$itemsAfter');
     print('RAG_AFTER=$ragAfter');
@@ -359,7 +465,88 @@ class ContentPackArchiveService {
       packId: packId,
       itemCount: packItems.length,
       installedRoot: contentDir.path,
+      pdfResults: pdfResults,
     );
+  }
+
+  Future<List<PdfInstallResult>> _installChapterPdfIfPossible({
+    required Map<String, dynamic> manifest,
+    required String chapterRootPath,
+    required String packId,
+    void Function(String message)? onProgress,
+  }) async {
+    final grade = _readGrade(manifest);
+    final subject = manifest['subject']?.toString().trim() ?? '';
+    final chapter = manifest['chapter']?.toString().trim().isNotEmpty == true
+        ? manifest['chapter'].toString().trim()
+        : manifest['title']?.toString().trim() ?? '';
+    if (grade == null || subject.isEmpty || chapter.isEmpty) {
+      print('[PDF_INSTALL] SKIPPED packId=$packId reason=missing metadata');
+      return const [];
+    }
+
+    onProgress?.call('Downloading PDF...');
+    final result = await PdfInstallService().installChapterPdf(
+      chapterRootPath: chapterRootPath,
+      chapterId: packId,
+      grade: grade,
+      subject: subject,
+      chapter: chapter,
+      medium: manifest['medium']?.toString(),
+      language: _readLanguage(manifest),
+      onProgress: onProgress,
+    );
+    print('[PDF_INSTALL] REPORT=${jsonEncode(result.toJson())}');
+    return [result];
+  }
+
+  Future<void> _reuseExistingSourcePdfIfAvailable({
+    required ContentPackManifest? existingPack,
+    required String targetChapterRootPath,
+    void Function(String message)? onProgress,
+  }) async {
+    if (existingPack == null || existingPack.rootPath.trim().isEmpty) return;
+    final previousPdf = File(p.join(existingPack.rootPath, 'source.pdf'));
+    if (!await previousPdf.exists()) return;
+    final previousStat = await previousPdf.stat();
+    if (previousStat.size <= 0) return;
+
+    final targetPdf = File(p.join(targetChapterRootPath, 'source.pdf'));
+    if (await targetPdf.exists()) return;
+    onProgress?.call('Saving PDF...');
+    await targetPdf.parent.create(recursive: true);
+    await previousPdf.copy(targetPdf.path);
+  }
+
+  int? _readGrade(Map<String, dynamic> manifest) {
+    final candidates = [
+      manifest['grade'],
+      manifest['gradeMin'],
+      manifest['grade_min'],
+    ];
+    for (final candidate in candidates) {
+      if (candidate is int) return candidate;
+      if (candidate is num) return candidate.toInt();
+      if (candidate is String) {
+        final match = RegExp(r'\d+').firstMatch(candidate);
+        if (match != null) return int.tryParse(match.group(0)!);
+      }
+    }
+    return null;
+  }
+
+  String? _readLanguage(Map<String, dynamic> manifest) {
+    final candidates = [
+      manifest['language'],
+      manifest['languageCode'],
+      manifest['language_code'],
+      manifest['medium'],
+    ];
+    for (final candidate in candidates) {
+      final value = candidate?.toString().trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
   }
 
   Map<String, dynamic> _buildArchiveManifest(

@@ -29,4 +29,10 @@ class SimulationClock extends ChangeNotifier {
     _isRunning = false;
     notifyListeners();
   }
+
+  void restore({required double elapsedTime, bool running = false}) {
+    _elapsedTime = elapsedTime < 0 ? 0 : elapsedTime;
+    _isRunning = running;
+    notifyListeners();
+  }
 }

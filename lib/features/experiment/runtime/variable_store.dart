@@ -55,6 +55,16 @@ class VariableStore extends ChangeNotifier {
     notifyListeners();
   }
 
+  void restoreVariables(Map<String, RuntimeVariable> variables) {
+    _variables
+      ..clear()
+      ..addAll(variables);
+    for (final variable in _variables.values) {
+      _subscriptions.notifySubscribers(variable);
+    }
+    notifyListeners();
+  }
+
   void setVariable(String id, dynamic value) => updateVariable(id, value);
 
   void set(String id, dynamic value) => updateVariable(id, value);

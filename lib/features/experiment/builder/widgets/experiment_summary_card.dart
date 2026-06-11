@@ -92,9 +92,9 @@ class ExperimentSummaryCard extends StatelessWidget {
               spacing: 8,
               runSpacing: 8,
               children: [
-                _chip('Variables', summary.variables),
-                _chip('Objects', summary.objects),
-                _chip('Rules', summary.rules),
+                _chip('Readings', summary.variables),
+                _chip('Instruments', summary.objects),
+                _chip('Interactions', summary.rules),
                 _chip('Sensors', summary.sensors),
                 _chip('Displays', summary.displays),
                 _chip('Graphs', summary.graphs),

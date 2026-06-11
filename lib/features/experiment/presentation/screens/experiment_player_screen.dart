@@ -6,8 +6,12 @@ import '../widgets/experiment_status_banner.dart';
 import '../runtime_visualization/controllers/runtime_visualization_controller.dart';
 import '../runtime_visualization/widgets/runtime_visualization_container.dart';
 import '../../domain/experiment_progress_repository.dart';
-import 'package:flame/game.dart';
-import '../../runtime/engine/experiment_flame_game.dart';
+import '../../assessment/analytics/assessment_analytics.dart';
+import '../../assessment/models/assessment_question.dart';
+import '../../assessment/models/assessment_result.dart';
+import '../../assessment/models/experiment_assessment.dart';
+import '../../assessment/models/learning_outcome.dart';
+import '../../assessment/models/learning_outcome_result.dart';
 import '../../runtime/graphs/line_graph_renderer.dart';
 import '../../runtime/runtime_serializer.dart';
 import '../../runtime/relationship_graph_model.dart';
@@ -18,7 +22,27 @@ import '../../runtime/scientific/bar_chart_renderer.dart';
 import '../../runtime/scientific/oscilloscope_renderer.dart';
 import '../../runtime/scientific/spectrum_analyzer_renderer.dart';
 import '../../runtime/scientific/vector_visualizer_renderer.dart';
+import '../../experience/engine/runtime_experience_engine.dart';
+import '../../experience/models/runtime_experience.dart';
+import '../../experience/workspace/lab_workspace_analytics.dart';
+import '../../experience/workspace/runtime_lab_workspace.dart';
+import '../../guided_runtime/conditions/task_completion_condition.dart'
+    as guided_conditions;
+import '../../guided_runtime/engine/guided_experiment_engine.dart';
+import '../../guided_runtime/models/experiment_mission.dart' as guided_mission;
+import '../../guided_runtime/models/experiment_question.dart'
+    as guided_question;
+import '../../guided_runtime/models/experiment_task.dart' as guided_task;
+import '../../investigation/analytics/investigation_analytics.dart';
+import '../../investigation/comparison/trial_comparison_engine.dart';
+import '../../investigation/conclusions/conclusion_engine.dart';
+import '../../investigation/conclusions/conclusion_generator.dart';
+import '../../investigation/engine/investigation_timeline.dart';
+import '../../investigation/predictions/prediction_store.dart';
+import '../../investigation/trials/experiment_trial_manager.dart';
 import '../widgets/native_graph_view.dart';
+import '../runtime_workspace/runtime_orientation_lock.dart';
+import '../runtime_workspace/runtime_view_mode.dart';
 
 class ExperimentPlayerScreen extends StatefulWidget {
   final ExperimentManifest manifest;
@@ -39,10 +63,29 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
   final RuntimeVisualizationController _visualizationController =
       RuntimeVisualizationController();
   ExperimentProgressRepository? _progressRepo;
+  RuntimeViewMode _viewMode = RuntimeViewMode.student;
+  bool _recoveryPromptShown = false;
+  RuntimeExperienceEngine? _experienceEngine;
+  RuntimeExperience? _experience;
+  final LabWorkspaceAnalytics _labWorkspaceAnalytics = LabWorkspaceAnalytics();
+  GuidedExperimentEngine? _guidedEngine;
+  InvestigationAnalytics? _investigationAnalytics;
+  ExperimentTrialManager? _trialManager;
+  TrialComparisonEngine? _trialComparisonEngine;
+  ConclusionEngine? _conclusionEngine;
+  final AssessmentAnalytics _assessmentAnalytics = AssessmentAnalytics();
+  ExperimentAssessment? _assessment;
+  List<LearningOutcome> _learningOutcomes = const [];
+  AssessmentResult? _assessmentResult;
+  List<LearningOutcomeResult> _outcomeResults = const [];
+  PredictionStore? _predictionStore;
+  ConclusionGenerator? _conclusionGenerator;
+  InvestigationTimeline? _investigationTimeline;
 
   @override
   void initState() {
     super.initState();
+    RuntimeOrientationLock.lockLandscape();
     _controller.addListener(_onStateChanged);
     _initOrchestrator();
     _initProgressTracking();
@@ -63,12 +106,114 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
     );
     if (_controller.world != null) {
       _visualizationController.attachStream(_controller.world!.eventBus.stream);
+      _initExperienceLayer();
+      _initGuidedRuntimeLayer();
+      _initInvestigationLayer();
+      _initAssessmentLayer();
+      _checkRecoverySession();
     }
+  }
+
+  void _initExperienceLayer() {
+    final world = _controller.world;
+    if (world == null) return;
+    _experienceEngine?.dispose();
+    final experience = RuntimeExperience.fromWorld(world);
+    final engine = RuntimeExperienceEngine(eventBus: world.eventBus)
+      ..load(experience);
+    setState(() {
+      _experience = experience;
+      _experienceEngine = engine;
+    });
+  }
+
+  void _initInvestigationLayer() {
+    final world = _controller.world;
+    if (world == null) return;
+    final analytics = InvestigationAnalytics();
+    setState(() {
+      _investigationAnalytics = analytics;
+      _trialManager = ExperimentTrialManager(
+        world: world,
+        analytics: analytics,
+      );
+      _trialComparisonEngine = TrialComparisonEngine(analytics: analytics);
+      _conclusionEngine = ConclusionEngine(analytics: analytics);
+      _predictionStore = PredictionStore(analytics: analytics);
+      _conclusionGenerator = ConclusionGenerator(analytics: analytics);
+      _investigationTimeline = InvestigationTimeline();
+    });
+  }
+
+  void _initGuidedRuntimeLayer() {
+    final world = _controller.world;
+    final experience = _experience;
+    if (world == null || experience == null) return;
+    _guidedEngine?.dispose();
+    final mission = _missionFromWorld(world, experience);
+    final engine = GuidedExperimentEngine(
+      runtime: world,
+      eventBus: world.eventBus,
+    )..loadMission(mission);
+    engine.startMission();
+    setState(() => _guidedEngine = engine);
+  }
+
+  void _initAssessmentLayer() {
+    final world = _controller.world;
+    final experience = _experience;
+    if (world == null || experience == null) return;
+    setState(() {
+      _assessment = _assessmentFromWorld(world, experience);
+      _learningOutcomes = _learningOutcomesFromWorld(world, experience);
+      _assessmentResult = null;
+      _outcomeResults = const [];
+    });
+  }
+
+  Future<void> _checkRecoverySession() async {
+    if (_recoveryPromptShown || !mounted) return;
+    final world = _controller.world;
+    if (world == null) return;
+    final session = await world.recoverySession();
+    if (session == null || !mounted) return;
+    _recoveryPromptShown = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final resume = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('Resume Experiment?'),
+            content: Text(
+              'A saved session from ${_formatTime(session.updatedAt)} is available.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Start Fresh'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Resume'),
+              ),
+            ],
+          );
+        },
+      );
+      if (resume == true && mounted) {
+        await world.restoreSession(session);
+        _showRuntimeFeedback('Experiment session restored');
+      }
+    });
   }
 
   @override
   void dispose() {
+    RuntimeOrientationLock.restore();
     _controller.removeListener(_onStateChanged);
+    _guidedEngine?.dispose();
+    _experienceEngine?.dispose();
     _visualizationController.dispose();
     _controller.dispose();
     super.dispose();
@@ -76,30 +221,323 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final world = _controller.world;
     return Scaffold(
-      appBar: AppBar(title: Text(widget.manifest.title), actions: const []),
-      body: Column(
+      body: world == null
+          ? const Center(child: Text('Loading Experiment...'))
+          : _experience == null || _experienceEngine == null
+          ? const Center(child: Text('Preparing experience...'))
+          : RuntimeLabWorkspace(
+              world: world,
+              experience: _experience!,
+              engine: _experienceEngine!,
+              onRecordObservation: _recordObservation,
+              onRun: () {
+                _progressRepo?.markExperimentStarted(
+                  widget.manifest.id,
+                  widget.manifest.chapter,
+                );
+                _trialManager?.startTrial();
+                _controller.start();
+              },
+              onPause: _controller.pause,
+              onResume: _controller.resume,
+              onStop: () {
+                _progressRepo?.markExperimentCompleted(
+                  widget.manifest.id,
+                  widget.manifest.chapter,
+                  score: 100,
+                );
+                _controller.stop();
+              },
+              onReset: () {
+                _trialManager?.resetTrial();
+                _controller.stop();
+              },
+              onExit: () => Navigator.of(context).maybePop(),
+              onToggleDeveloper: () {
+                setState(() {
+                  _viewMode = _viewMode == RuntimeViewMode.student
+                      ? RuntimeViewMode.developer
+                      : RuntimeViewMode.student;
+                });
+              },
+              onFeedback: _showRuntimeFeedback,
+              analytics: _labWorkspaceAnalytics,
+              guidedEngine: _guidedEngine,
+              trialManager: _trialManager,
+              comparisonEngine: _trialComparisonEngine,
+              conclusionEngine: _conclusionEngine,
+              assessment: _assessment,
+              learningOutcomes: _learningOutcomes,
+              assessmentAnalytics: _assessmentAnalytics,
+              assessmentResult: _assessmentResult,
+              outcomeResults: _outcomeResults,
+              isRunning: _controller.state == ExperimentExecutionState.running,
+              isPaused: _controller.state == ExperimentExecutionState.paused,
+              isPreparing:
+                  _controller.state == ExperimentExecutionState.preparing ||
+                  _controller.state == ExperimentExecutionState.analyzing ||
+                  _controller.state == ExperimentExecutionState.planning,
+              developerMode: _viewMode == RuntimeViewMode.developer,
+              developerPanel: _buildDeveloperPanel(),
+              onAssessmentComplete: (result) {
+                setState(() => _assessmentResult = result);
+              },
+              onOutcomesEvaluated: (outcomes) {
+                setState(() => _outcomeResults = outcomes);
+              },
+            ),
+    );
+  }
+
+  void _showRuntimeFeedback(String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
+      );
+  }
+
+  void _recordObservation() {
+    final world = _controller.world;
+    if (world == null) return;
+    final observation = world.recordObservation();
+    _showRuntimeFeedback(
+      'Observation saved (${observation.values.length} values)',
+    );
+  }
+
+  guided_mission.ExperimentMission _missionFromWorld(
+    dynamic world,
+    RuntimeExperience experience,
+  ) {
+    final rawMission = world.metadata['mission'];
+    if (rawMission is Map) {
+      final mission = guided_mission.ExperimentMission.fromJson(
+        Map<String, dynamic>.from(rawMission),
+      );
+      if (mission.tasks.isNotEmpty || mission.questions.isNotEmpty) {
+        return mission;
+      }
+    }
+    return guided_mission.ExperimentMission(
+      id: '${experience.id}_mission',
+      title: '${experience.title} Mission',
+      objective: experience.objective,
+      description: experience.description,
+      difficulty: world.metadata['difficulty']?.toString() ?? 'Easy',
+      estimatedDuration: _durationFromMetadata(
+        world.metadata['estimatedTime'] ?? world.metadata['estimatedDuration'],
+      ),
+      tasks: _guidedTasksFromExperience(experience),
+      questions: experience.questions
+          .map(guided_question.ExperimentQuestion.fromJson)
+          .toList(growable: false),
+    );
+  }
+
+  List<guided_task.ExperimentTask> _guidedTasksFromExperience(
+    RuntimeExperience experience,
+  ) {
+    final tasks = <guided_task.ExperimentTask>[];
+    for (final step in experience.steps) {
+      final condition = _guidedConditionFromJson(
+        step.completionCondition.toJson(),
+      );
+      if (condition is guided_conditions.AlwaysIncompleteCondition) continue;
+      tasks.add(
+        guided_task.ExperimentTask(
+          id: step.id,
+          title: step.title,
+          description: step.instruction,
+          condition: condition,
+        ),
+      );
+    }
+    if (tasks.isNotEmpty) return tasks;
+    return const [
+      guided_task.ExperimentTask(
+        id: 'use_control',
+        title: 'Use a Control',
+        description: 'Change a control and observe what happens.',
+        condition: guided_conditions.ControlUsedCondition(),
+      ),
+      guided_task.ExperimentTask(
+        id: 'record_observation',
+        title: 'Record Observation',
+        description: 'Capture one measurement from the experiment.',
+        condition: guided_conditions.ObservationCreatedCondition(),
+      ),
+    ];
+  }
+
+  guided_conditions.TaskCompletionCondition _guidedConditionFromJson(
+    Map<String, dynamic> json,
+  ) {
+    final type = json['type']?.toString();
+    switch (type) {
+      case 'variable':
+      case 'variableUpdated':
+        return guided_conditions.MeasurementCapturedCondition(
+          variableId: json['variableId']?.toString(),
+        );
+      case 'observation':
+        return const guided_conditions.ObservationCreatedCondition();
+      case 'graph':
+      case 'graphViewed':
+        return const guided_conditions.GraphViewedCondition();
+      case 'controlUsed':
+      case 'interaction':
+        return guided_conditions.ControlUsedCondition(
+          controlId: json['controlId']?.toString(),
+        );
+      case 'question':
+      case 'questionAnswered':
+        return guided_conditions.QuestionAnsweredCondition(
+          questionId: json['questionId']?.toString(),
+        );
+      case 'trial':
+      case 'trialCompleted':
+        return guided_conditions.TrialCompletedCondition(
+          minimumTrials:
+              (json['minimumTrials'] as num?)?.toInt() ??
+              (json['requiredCount'] as num?)?.toInt() ??
+              1,
+        );
+      case 'comparison':
+      case 'comparisonCompleted':
+        return const guided_conditions.ComparisonCompletedCondition();
+      case 'conclusion':
+      case 'conclusionGenerated':
+        return const guided_conditions.ConclusionGeneratedCondition();
+      default:
+        return const guided_conditions.AlwaysIncompleteCondition();
+    }
+  }
+
+  Duration _durationFromMetadata(dynamic value) {
+    if (value is Duration) return value;
+    if (value is num) return Duration(seconds: value.toInt());
+    final raw = value?.toString() ?? '';
+    final number = RegExp(r'\d+').firstMatch(raw)?.group(0);
+    return Duration(minutes: int.tryParse(number ?? '') ?? 5);
+  }
+
+  ExperimentAssessment _assessmentFromWorld(
+    dynamic world,
+    RuntimeExperience experience,
+  ) {
+    final raw = world.metadata['assessment'];
+    if (raw is Map) {
+      final assessment = ExperimentAssessment.fromJson(
+        Map<String, dynamic>.from(raw),
+      );
+      if (assessment.questions.isNotEmpty) return assessment;
+      return ExperimentAssessment(
+        id: assessment.id,
+        title: assessment.title,
+        description: assessment.description,
+        passingScore: assessment.passingScore,
+        rubric: assessment.rubric,
+        questions: _assessmentQuestionsFromExperience(experience),
+      );
+    }
+    return ExperimentAssessment(
+      id: '${experience.id}_assessment',
+      title: '${experience.title} Assessment',
+      description: 'Show what you learned from this investigation.',
+      questions: _assessmentQuestionsFromExperience(experience),
+    );
+  }
+
+  List<AssessmentQuestion> _assessmentQuestionsFromExperience(
+    RuntimeExperience experience,
+  ) {
+    final questions = experience.questions
+        .map((item) {
+          return AssessmentQuestion.fromJson({
+            ...item,
+            'prompt': item['prompt'] ?? item['question'],
+          });
+        })
+        .toList(growable: false);
+    if (questions.isNotEmpty) return questions;
+    return const [
+      AssessmentQuestion(
+        id: 'trend_reflection',
+        prompt: 'What trend did you observe during the trials?',
+        type: AssessmentQuestionType.observationReflection,
+        points: 0,
+      ),
+      AssessmentQuestion(
+        id: 'evidence_reflection',
+        prompt: 'Which trial evidence supports your conclusion?',
+        type: AssessmentQuestionType.observationReflection,
+        points: 0,
+      ),
+    ];
+  }
+
+  List<LearningOutcome> _learningOutcomesFromWorld(
+    dynamic world,
+    RuntimeExperience experience,
+  ) {
+    final raw = world.metadata['learningOutcomes'];
+    final parsed = (raw as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map(
+          (item) => LearningOutcome.fromJson(Map<String, dynamic>.from(item)),
+        )
+        .toList(growable: false);
+    if (parsed.isNotEmpty) return parsed;
+    return [
+      LearningOutcome(
+        id: '${experience.id}_outcome',
+        description: experience.objective,
+        skill: 'scientific_reasoning',
+      ),
+    ];
+  }
+
+  Widget _buildDeveloperPanel() {
+    return Material(
+      elevation: 12,
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ExperimentStatusBanner(state: _controller.state),
-          _buildRuntimeStatusIndicator(),
-
-          if (_controller.state == ExperimentExecutionState.failed)
-            _buildErrorState(),
-
-          Expanded(
-            flex: 5,
-            child: _controller.world != null
-                ? GameWidget(game: ExperimentFlameGame(_controller.world!))
-                : const Center(child: Text('Loading Simulation Canvas...')),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            color: const Color(0xFF111827),
+            child: Row(
+              children: [
+                const Icon(Icons.bug_report_outlined, color: Colors.white),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    'Developer Panel',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  onPressed: () {
+                    setState(() => _viewMode = RuntimeViewMode.student);
+                  },
+                  icon: const Icon(Icons.close, color: Colors.white),
+                ),
+              ],
+            ),
           ),
-
-          _buildControls(),
-
           Expanded(
-            flex: 4,
             child: ListView(
               padding: const EdgeInsets.only(bottom: 16),
               children: [
+                ExperimentStatusBanner(state: _controller.state),
+                _buildRuntimeStatusIndicator(),
                 _buildRuntimeHealthCard(),
                 _buildLastErrorPanel(),
                 _buildActiveWarningsPanel(),
@@ -114,55 +552,6 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    final lastError = _controller.lastError;
-    return Card(
-      margin: const EdgeInsets.all(16.0),
-      color: Colors.red.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.red, size: 48),
-            const SizedBox(height: 8),
-            const Text(
-              'Runtime Failed',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              lastError?.detail ??
-                  'The experiment engine encountered an error while preparing or running the simulation.',
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                ElevatedButton.icon(
-                  onPressed: () {
-                    // Force a retry by calling prepare again
-                    _controller.prepare(widget.manifest);
-                  },
-                  icon: const Icon(Icons.refresh),
-                  label: const Text('Retry'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -772,8 +1161,178 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                     'Experiments Done',
                     '${world.analytics.experimentsCompleted}',
                   ),
+                if (_investigationAnalytics != null)
+                  _inspectorChip(
+                    'Trials Started',
+                    '${_investigationAnalytics!.trialsStarted}',
+                  ),
+                if (_investigationAnalytics != null)
+                  _inspectorChip(
+                    'Trials Done',
+                    '${_investigationAnalytics!.trialsCompleted}',
+                  ),
+                if (_investigationAnalytics != null)
+                  _inspectorChip(
+                    'Predictions',
+                    '${_investigationAnalytics!.predictionsSubmitted}',
+                  ),
+                if (_investigationAnalytics != null)
+                  _inspectorChip(
+                    'Conclusions',
+                    '${_investigationAnalytics!.conclusionsGenerated}',
+                  ),
+                _inspectorChip(
+                  'Focus Uses',
+                  '${_labWorkspaceAnalytics.focusModeUses}',
+                ),
+                _inspectorChip(
+                  'Measurements Captured',
+                  '${_labWorkspaceAnalytics.measurementCaptures}',
+                ),
+                _inspectorChip(
+                  'Graph Views',
+                  '${_labWorkspaceAnalytics.graphViews}',
+                ),
+                _inspectorChip(
+                  'Control Changes',
+                  '${_labWorkspaceAnalytics.controlInteractions}',
+                ),
+                if (_trialManager != null)
+                  _inspectorChip('Trial Count', '${_trialManager!.trialCount}'),
+                if (_predictionStore != null)
+                  _inspectorChip(
+                    'Prediction Count',
+                    '${_predictionStore!.predictions.length}',
+                  ),
+                if (_investigationTimeline != null)
+                  _inspectorChip(
+                    'Timeline Items',
+                    '${_investigationTimeline!.entries.length}',
+                  ),
+                if (_conclusionGenerator != null)
+                  _inspectorChip('Conclusion Engine', 'Ready'),
+                _inspectorChip(
+                  'Assessments',
+                  '${_assessmentAnalytics.assessmentsCompleted}',
+                ),
+                _inspectorChip(
+                  'Reports',
+                  '${_assessmentAnalytics.reportsGenerated}',
+                ),
+                _inspectorChip(
+                  'Outcomes',
+                  '${_assessmentAnalytics.outcomesAchieved}',
+                ),
+                _inspectorChip(
+                  'Avg Score',
+                  _assessmentAnalytics.averageAssessmentScore.toStringAsFixed(
+                    1,
+                  ),
+                ),
+                if (world != null)
+                  _inspectorChip('Actors', '${world.analytics.actorsCreated}'),
+                if (world != null)
+                  _inspectorChip(
+                    'Visible Actors',
+                    '${world.analytics.actorsVisible}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Visual Bindings',
+                    '${world.analytics.visualBindingsResolved}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Visual Binding Failures',
+                    '${world.analytics.visualBindingFailures}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Animations',
+                    '${world.analytics.animationsRunning}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Animation Updates',
+                    '${world.analytics.animationUpdates}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Canvas Renders',
+                    '${world.analytics.canvasRenders}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Templates',
+                    '${world.analytics.visualTemplatesGenerated}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Generated Actors',
+                    '${world.analytics.generatedActors}',
+                  ),
+                if (world != null)
+                  _inspectorChip(
+                    'Template Failures',
+                    '${world.analytics.visualTemplateFailures}',
+                  ),
               ],
             ),
+            if (world != null) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Simulation Canvas',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _inspectorChip(
+                    'Actor Count',
+                    '${world.simulationCanvas.actorCount}',
+                  ),
+                  _inspectorChip(
+                    'Visible Actors',
+                    '${world.simulationCanvas.visibleActorCount}',
+                  ),
+                  _inspectorChip(
+                    'Animation Count',
+                    '${world.animationEngine.animationCount}',
+                  ),
+                  _inspectorChip(
+                    'Binding Count',
+                    '${world.visualBindings.bindingCount}',
+                  ),
+                  _inspectorChip(
+                    'Canvas Refresh Count',
+                    '${world.simulationCanvas.refreshCount}',
+                  ),
+                ],
+              ),
+            ],
+            if (world != null && world.visualTemplates.groups.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Visual Templates',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ...world.visualTemplates.groups.take(8).map((group) {
+                return ListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(group.objectId),
+                  subtitle: Text(
+                    '${group.templateName} | '
+                    'Actors: ${group.actorIds.length} | '
+                    'Bindings: ${group.bindingIds.length} | '
+                    'Animations: ${group.animationIds.length}',
+                  ),
+                );
+              }),
+            ],
             if (experimentState != null) ...[
               const SizedBox(height: 16),
               const Text(
@@ -795,6 +1354,42 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
               ),
             ],
             if (world != null) ...[
+              const SizedBox(height: 16),
+              const Text(
+                'Runtime Sessions',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              FutureBuilder(
+                future: world.listSessions(),
+                builder: (context, snapshot) {
+                  final sessions = snapshot.data ?? const [];
+                  if (sessions.isEmpty) {
+                    return const ListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      title: Text('No saved sessions'),
+                    );
+                  }
+                  return Column(
+                    children: sessions
+                        .take(3)
+                        .map((session) {
+                          return ListTile(
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                            title: Text(session.sessionId),
+                            subtitle: Text(
+                              'Last Saved: ${_formatTime(session.updatedAt)} | '
+                              'Autosaves: ${session.autosaveCount} | '
+                              'Recovery Available: yes',
+                            ),
+                          );
+                        })
+                        .toList(growable: false),
+                  );
+                },
+              ),
               const SizedBox(height: 16),
               const Text(
                 'Observations',
@@ -1586,127 +2181,5 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
       default:
         return type;
     }
-  }
-
-  Widget _buildControls() {
-    final state = _controller.state;
-    final isRunning = state == ExperimentExecutionState.running;
-    final isPaused = state == ExperimentExecutionState.paused;
-    final isPreparing =
-        state == ExperimentExecutionState.preparing ||
-        state == ExperimentExecutionState.analyzing ||
-        state == ExperimentExecutionState.planning;
-    final isReady =
-        state == ExperimentExecutionState.idle ||
-        state == ExperimentExecutionState.starting;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: 12,
-        runSpacing: 8,
-        children: [
-          if (isPreparing)
-            const Row(
-              children: [
-                SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                SizedBox(width: 8),
-                Text(
-                  'Preparing Runtime...',
-                  style: TextStyle(color: Colors.grey),
-                ),
-              ],
-            ),
-
-          if (isReady &&
-              !isPreparing &&
-              state != ExperimentExecutionState.failed)
-            ElevatedButton.icon(
-              onPressed: () {
-                _progressRepo?.markExperimentStarted(
-                  widget.manifest.id,
-                  widget.manifest.chapter,
-                );
-                _controller.start();
-              },
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('START'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
-            ),
-
-          if (isRunning)
-            ElevatedButton.icon(
-              onPressed: () => _controller.pause(),
-              icon: const Icon(Icons.pause),
-              label: const Text('PAUSE'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.orange,
-                foregroundColor: Colors.white,
-              ),
-            ),
-
-          if (isPaused)
-            ElevatedButton.icon(
-              onPressed: () => _controller.resume(),
-              icon: const Icon(Icons.play_arrow),
-              label: const Text('RESUME'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-              ),
-            ),
-
-          if (isRunning || isPaused)
-            ElevatedButton.icon(
-              onPressed: _controller.world == null
-                  ? null
-                  : () {
-                      final observation = _controller.world!
-                          .recordObservation();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Recorded observation ${observation.values.length} values',
-                          ),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
-                    },
-              icon: const Icon(Icons.playlist_add_check),
-              label: const Text('Record Observation'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.teal,
-                foregroundColor: Colors.white,
-              ),
-            ),
-
-          if (isRunning || isPaused)
-            ElevatedButton.icon(
-              onPressed: () {
-                _progressRepo?.markExperimentCompleted(
-                  widget.manifest.id,
-                  widget.manifest.chapter,
-                  score: 100,
-                );
-                _controller.stop();
-              },
-              icon: const Icon(Icons.stop),
-              label: const Text('STOP'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-            ),
-        ],
-      ),
-    );
   }
 }

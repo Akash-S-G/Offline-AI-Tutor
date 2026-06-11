@@ -19,6 +19,11 @@ class RuntimeExperimentStateManager {
 
   RuntimeExperimentState get state => _state;
 
+  void restore(RuntimeExperimentState state) {
+    _state = state;
+    _emit('ExperimentStateRestored');
+  }
+
   void attach() {
     _subscription?.cancel();
     _subscription = eventBus.stream.listen(_handleEvent);

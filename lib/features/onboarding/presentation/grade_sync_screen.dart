@@ -20,18 +20,30 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
   bool _loadingCatalog = true;
   bool _syncing = false;
   String? _error;
-  
+  StreamSubscription<String>? _progressSubscription;
+
   List<PackSyncEntry> _packs = [];
   int _totalPacks = 0;
   int _downloadedPacks = 0;
   double _estimatedSizeMb = 0;
   Set<String> _subjects = {};
   String _currentChapter = '';
+  String _installStage = 'Installing Pack...';
 
   @override
   void initState() {
     super.initState();
+    _progressSubscription = _syncManager.progressStream.listen((message) {
+      if (!mounted) return;
+      setState(() => _installStage = message);
+    });
     _loadCatalog();
+  }
+
+  @override
+  void dispose() {
+    _progressSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadCatalog() async {
@@ -44,17 +56,19 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
       // PHASE 2: CATALOG LOADING
       // Instead of GET /packs/catalog, we fetch sync with grade to get the filtered list
       final packs = await _syncManager.checkForPackUpdates(grade: widget.grade);
-      
+
       double totalSizeMb = 0;
       Set<String> subjects = {};
 
       for (var pack in packs) {
         totalSizeMb += (pack.sizeBytes ?? 5000000) / (1024 * 1024);
-        
+
         // Extract subject from packId (e.g., chapter_7_science_nutrition_in_plants_english -> science)
         final parts = pack.packId.split('_');
         if (parts.length > 2) {
-          subjects.add(parts[2].replaceAll(RegExp(r'[^a-zA-Z]'), '').toUpperCase());
+          subjects.add(
+            parts[2].replaceAll(RegExp(r'[^a-zA-Z]'), '').toUpperCase(),
+          );
         }
       }
 
@@ -88,12 +102,13 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
     print('[SYNC] DOWNLOAD_QUEUE_SIZE=${_packs.length}');
 
     int successCount = 0;
-    
+
     for (int i = 0; i < _packs.length; i++) {
       final pack = _packs[i];
       if (mounted) {
         setState(() {
           _currentChapter = pack.packId;
+          _installStage = 'Installing Pack...';
         });
       }
 
@@ -116,12 +131,11 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
     if (mounted) {
       // PHASE 6: BACKGROUND PREFETCH
       BackgroundPrefetchService.schedulePrefetch();
-      
+
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => MainDashboardScreen(
-            courseRepository: CourseRepository(),
-          ),
+          builder: (_) =>
+              MainDashboardScreen(courseRepository: CourseRepository()),
         ),
       );
     }
@@ -139,26 +153,36 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
         child: Padding(
           padding: const EdgeInsets.all(24.0),
           child: _loadingCatalog
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF0B6E4F)))
+              ? const Center(
+                  child: CircularProgressIndicator(color: Color(0xFF0B6E4F)),
+                )
               : _error != null
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
-                          const SizedBox(height: 16),
-                          Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.red)),
-                          const SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: _loadCatalog,
-                            child: const Text('Retry'),
-                          )
-                        ],
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(
+                        Icons.error_outline,
+                        color: Colors.red,
+                        size: 48,
                       ),
-                    )
-                  : _syncing
-                      ? _buildSyncingView()
-                      : _buildCatalogView(),
+                      const SizedBox(height: 16),
+                      Text(
+                        _error!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                      const SizedBox(height: 16),
+                      ElevatedButton(
+                        onPressed: _loadCatalog,
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              : _syncing
+              ? _buildSyncingView()
+              : _buildCatalogView(),
         ),
       ),
     );
@@ -168,7 +192,11 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const Icon(Icons.library_books_rounded, size: 64, color: Color(0xFF0B6E4F)),
+        const Icon(
+          Icons.library_books_rounded,
+          size: 64,
+          color: Color(0xFF0B6E4F),
+        ),
         const SizedBox(height: 24),
         Text(
           'Grade ${widget.grade} Curriculum',
@@ -176,28 +204,48 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 32),
-        _buildStatRow(Icons.folder_zip_rounded, 'Packs to Install', '$_totalPacks'),
+        _buildStatRow(
+          Icons.folder_zip_rounded,
+          'Packs to Install',
+          '$_totalPacks',
+        ),
         const Divider(height: 32),
-        _buildStatRow(Icons.data_usage_rounded, 'Estimated Download Size', '${_estimatedSizeMb.toStringAsFixed(1)} MB'),
+        _buildStatRow(
+          Icons.data_usage_rounded,
+          'Estimated Download Size',
+          '${_estimatedSizeMb.toStringAsFixed(1)} MB',
+        ),
         const Divider(height: 32),
-        _buildStatRow(Icons.subject_rounded, 'Subjects Included', _subjects.join(', ')),
+        _buildStatRow(
+          Icons.subject_rounded,
+          'Subjects Included',
+          _subjects.join(', '),
+        ),
         const Spacer(),
         FilledButton.icon(
-          onPressed: _totalPacks > 0 ? _startSync : () {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => MainDashboardScreen(
-                  courseRepository: CourseRepository(),
-                ),
-              ),
-            );
-          },
+          onPressed: _totalPacks > 0
+              ? _startSync
+              : () {
+                  Navigator.of(context).pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => MainDashboardScreen(
+                        courseRepository: CourseRepository(),
+                      ),
+                    ),
+                  );
+                },
           icon: const Icon(Icons.download_rounded),
-          label: Text(_totalPacks > 0 ? 'Install Offline Content' : 'Continue to Dashboard'),
+          label: Text(
+            _totalPacks > 0
+                ? 'Install Offline Content'
+                : 'Continue to Dashboard',
+          ),
           style: FilledButton.styleFrom(
             backgroundColor: const Color(0xFF0B6E4F),
             padding: const EdgeInsets.symmetric(vertical: 16),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
           ),
         ),
       ],
@@ -207,13 +255,13 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
   Widget _buildSyncingView() {
     final progress = _totalPacks == 0 ? 1.0 : _downloadedPacks / _totalPacks;
     final remainingMb = _estimatedSizeMb * (1.0 - progress);
-    
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Text(
-          'Downloading packs...',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+        Text(
+          _installStage,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 32),
         Stack(
@@ -231,7 +279,11 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
             ),
             Text(
               '${(progress * 100).toInt()}%',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0B6E4F)),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF0B6E4F),
+              ),
             ),
           ],
         ),
@@ -281,12 +333,15 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
       children: [
         Icon(icon, color: Colors.grey.shade600),
         const SizedBox(width: 16),
-        Text(label, style: TextStyle(fontSize: 16, color: Colors.grey.shade700)),
+        Text(
+          label,
+          style: TextStyle(fontSize: 16, color: Colors.grey.shade700),
+        ),
         const Spacer(),
         Expanded(
           flex: 2,
           child: Text(
-            value, 
+            value,
             textAlign: TextAlign.right,
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),

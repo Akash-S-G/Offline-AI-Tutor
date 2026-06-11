@@ -17,6 +17,13 @@ class VariableEditor extends StatefulWidget {
 
 class _VariableEditorState extends State<VariableEditor> {
   String _query = '';
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +45,7 @@ class _VariableEditorState extends State<VariableEditor> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Variables (${widget.controller.state.variables.length})',
+                      'Readings (${widget.controller.state.variables.length})',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -50,7 +57,7 @@ class _VariableEditorState extends State<VariableEditor> {
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: Text(compact ? 'Add' : 'Add Variable'),
+                    label: Text(compact ? 'Add' : 'Add Reading'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF3B82F6),
                       foregroundColor: Colors.white,
@@ -73,7 +80,7 @@ class _VariableEditorState extends State<VariableEditor> {
               ),
             ),
             BuilderSearchBar(
-              hintText: 'Search Variables',
+              hintText: 'Search Readings',
               onChanged: (value) => setState(() => _query = value),
             ),
             const Divider(height: 1),
@@ -81,10 +88,14 @@ class _VariableEditorState extends State<VariableEditor> {
               child: widget.controller.state.variables.isEmpty
                   ? _buildEmptyState(context)
                   : vars.isEmpty
-                  ? const Center(child: Text('No matching variables'))
+                  ? const Center(child: Text('No matching readings'))
                   : ListView.builder(
+                      key: const PageStorageKey<String>(
+                        'builder_variables_list',
+                      ),
+                      controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
-                      primary: true,
+                      primary: false,
                       padding: const EdgeInsets.only(bottom: 96),
                       itemCount: vars.length,
                       itemBuilder: (context, index) {
@@ -298,9 +309,9 @@ class _VariableEditorState extends State<VariableEditor> {
   Widget _buildEmptyState(BuildContext context) {
     return EmptyStateCard(
       icon: Icons.data_array_rounded,
-      title: 'No Variables Yet',
-      message: 'Variables track dynamic values during the experiment.',
-      primaryLabel: 'Create Variable',
+      title: 'No Readings Yet',
+      message: 'Readings track values that change during the experiment.',
+      primaryLabel: 'Create Reading',
       onPrimary: () async {
         final newVar = await showDialog<BuilderVariable>(
           context: context,

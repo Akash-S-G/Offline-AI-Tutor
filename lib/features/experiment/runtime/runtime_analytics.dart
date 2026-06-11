@@ -58,6 +58,29 @@ class RuntimeAnalytics {
   int _experimentsStarted = 0;
   int _experimentsCompleted = 0;
   int _experimentsFailed = 0;
+  int _sessionsSaved = 0;
+  int _sessionsLoaded = 0;
+  int _autosavesPerformed = 0;
+  int _recoveriesPerformed = 0;
+  int _sessionsDeleted = 0;
+  int _actorsCreated = 0;
+  int _actorsVisible = 0;
+  int _visualBindingsResolved = 0;
+  int _visualBindingFailures = 0;
+  int _animationsRunning = 0;
+  int _animationUpdates = 0;
+  int _canvasRenders = 0;
+  int _visualTemplatesLoaded = 0;
+  int _visualTemplatesGenerated = 0;
+  int _generatedActors = 0;
+  int _generatedBindings = 0;
+  int _generatedAnimations = 0;
+  int _visualTemplateFailures = 0;
+  int _presetsLoaded = 0;
+  int _presetSceneBuilds = 0;
+  int _presetActorsGenerated = 0;
+  int _presetAnimationsGenerated = 0;
+  int _presetFailures = 0;
   double _completedRuntimeTotal = 0;
   final Set<String> _measurementVariablesTracked = {};
   DateTime? _lastInteractionTime;
@@ -121,6 +144,29 @@ class RuntimeAnalytics {
   int get experimentsStarted => _experimentsStarted;
   int get experimentsCompleted => _experimentsCompleted;
   int get experimentsFailed => _experimentsFailed;
+  int get sessionsSaved => _sessionsSaved;
+  int get sessionsLoaded => _sessionsLoaded;
+  int get autosavesPerformed => _autosavesPerformed;
+  int get recoveriesPerformed => _recoveriesPerformed;
+  int get sessionsDeleted => _sessionsDeleted;
+  int get actorsCreated => _actorsCreated;
+  int get actorsVisible => _actorsVisible;
+  int get visualBindingsResolved => _visualBindingsResolved;
+  int get visualBindingFailures => _visualBindingFailures;
+  int get animationsRunning => _animationsRunning;
+  int get animationUpdates => _animationUpdates;
+  int get canvasRenders => _canvasRenders;
+  int get visualTemplatesLoaded => _visualTemplatesLoaded;
+  int get visualTemplatesGenerated => _visualTemplatesGenerated;
+  int get generatedActors => _generatedActors;
+  int get generatedBindings => _generatedBindings;
+  int get generatedAnimations => _generatedAnimations;
+  int get visualTemplateFailures => _visualTemplateFailures;
+  int get presetsLoaded => _presetsLoaded;
+  int get presetSceneBuilds => _presetSceneBuilds;
+  int get presetActorsGenerated => _presetActorsGenerated;
+  int get presetAnimationsGenerated => _presetAnimationsGenerated;
+  int get presetFailures => _presetFailures;
   double get averageRuntime => _experimentsCompleted == 0
       ? 0
       : _completedRuntimeTotal / _experimentsCompleted;
@@ -267,6 +313,60 @@ class RuntimeAnalytics {
         }
       } else if (event.message == 'ExperimentFailed') {
         _experimentsFailed++;
+      } else if (event.message == 'SessionSaved') {
+        _sessionsSaved++;
+      } else if (event.message == 'SessionLoaded') {
+        _sessionsLoaded++;
+        _recoveriesPerformed++;
+      } else if (event.message == 'AutosaveCompleted') {
+        _autosavesPerformed++;
+      } else if (event.message == 'SessionDeleted') {
+        _sessionsDeleted++;
+      } else if (event.message == 'ActorCreated') {
+        _actorsCreated++;
+        if (event.metadata?['visible'] == true) _actorsVisible++;
+      } else if (event.message == 'ActorShown') {
+        _actorsVisible++;
+      } else if (event.message == 'ActorHidden') {
+        if (_actorsVisible > 0) _actorsVisible--;
+      } else if (event.message == 'VisualBindingResolved') {
+        _visualBindingsResolved++;
+      } else if (event.message == 'VisualBindingFailed') {
+        _visualBindingFailures++;
+      } else if (event.message == 'AnimationStarted') {
+        _animationsRunning++;
+      } else if (event.message == 'AnimationUpdated') {
+        _animationUpdates++;
+      } else if (event.message == 'CanvasRendered') {
+        _canvasRenders++;
+      } else if (event.message == 'VisualTemplatesLoaded') {
+        _visualTemplatesLoaded++;
+      } else if (event.message == 'VisualTemplateGenerated') {
+        _visualTemplatesGenerated++;
+        final actorCount = event.metadata?['actorCount'];
+        final bindingCount = event.metadata?['bindingCount'];
+        final animationCount = event.metadata?['animationCount'];
+        if (actorCount is num) _generatedActors += actorCount.toInt();
+        if (bindingCount is num) _generatedBindings += bindingCount.toInt();
+        if (animationCount is num) {
+          _generatedAnimations += animationCount.toInt();
+        }
+      } else if (event.message == 'VisualTemplateFailed') {
+        _visualTemplateFailures++;
+      } else if (event.message == 'PresetsLoaded') {
+        _presetsLoaded++;
+      } else if (event.message == 'PresetSceneBuilt') {
+        _presetSceneBuilds++;
+        final actorCount = event.metadata?['actorCount'];
+        final animationCount = event.metadata?['animationCount'];
+        if (actorCount is num) {
+          _presetActorsGenerated += actorCount.toInt();
+        }
+        if (animationCount is num) {
+          _presetAnimationsGenerated += animationCount.toInt();
+        }
+      } else if (event.message == 'PresetFailed') {
+        _presetFailures++;
       }
     });
   }
@@ -343,6 +443,29 @@ class RuntimeAnalytics {
       'experimentsStarted': _experimentsStarted,
       'experimentsCompleted': _experimentsCompleted,
       'experimentsFailed': _experimentsFailed,
+      'sessionsSaved': _sessionsSaved,
+      'sessionsLoaded': _sessionsLoaded,
+      'autosavesPerformed': _autosavesPerformed,
+      'recoveriesPerformed': _recoveriesPerformed,
+      'sessionsDeleted': _sessionsDeleted,
+      'actorsCreated': _actorsCreated,
+      'actorsVisible': _actorsVisible,
+      'visualBindingsResolved': _visualBindingsResolved,
+      'visualBindingFailures': _visualBindingFailures,
+      'animationsRunning': _animationsRunning,
+      'animationUpdates': _animationUpdates,
+      'canvasRenders': _canvasRenders,
+      'visualTemplatesLoaded': _visualTemplatesLoaded,
+      'visualTemplatesGenerated': _visualTemplatesGenerated,
+      'generatedActors': _generatedActors,
+      'generatedBindings': _generatedBindings,
+      'generatedAnimations': _generatedAnimations,
+      'visualTemplateFailures': _visualTemplateFailures,
+      'presetsLoaded': _presetsLoaded,
+      'presetSceneBuilds': _presetSceneBuilds,
+      'presetActorsGenerated': _presetActorsGenerated,
+      'presetAnimationsGenerated': _presetAnimationsGenerated,
+      'presetFailures': _presetFailures,
       'averageRuntime': averageRuntime,
       'lastInteractionTime': _lastInteractionTime?.toIso8601String(),
       'lastInteractionSource': _lastInteractionSource,

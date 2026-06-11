@@ -35,6 +35,15 @@ class ObjectRegistry extends ChangeNotifier {
     notifyListeners();
   }
 
+  void restoreObjectStates(List<RuntimeObjectState> states) {
+    for (final state in states) {
+      if (state.objectId.isEmpty) continue;
+      _objectStates[state.objectId] = state;
+      _lifecycleManager?.onStateUpdated(state);
+    }
+    notifyListeners();
+  }
+
   void updateObjectState(String objectId, String property, dynamic value) {
     final current = _objectStates[objectId];
     if (current == null) return;

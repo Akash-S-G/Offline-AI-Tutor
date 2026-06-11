@@ -25,6 +25,27 @@ class RuntimeLoader {
       ...manifestMetadata,
       if (sceneData['sceneId'] != null) 'sceneId': sceneData['sceneId'],
       if (sceneData['name'] != null) 'name': sceneData['name'],
+      if (sceneData['description'] != null)
+        'description': sceneData['description'],
+      if (sceneData['objective'] != null) 'objective': sceneData['objective'],
+      if (sceneData['experience'] != null)
+        'experience': sceneData['experience'],
+      if (sceneData['mission'] != null) 'mission': sceneData['mission'],
+      if (sceneData['investigation'] != null)
+        'investigation': sceneData['investigation'],
+      if (sceneData['assessment'] != null)
+        'assessment': sceneData['assessment'],
+      if (sceneData['learningOutcomes'] != null)
+        'learningOutcomes': sceneData['learningOutcomes'],
+      if (sceneData['visualPreset'] != null)
+        'visualPreset': sceneData['visualPreset'],
+      if (sceneData['actors'] != null) 'actors': sceneData['actors'],
+      if (sceneData['simulationActors'] != null)
+        'simulationActors': sceneData['simulationActors'],
+      if (sceneData['visualBindings'] != null)
+        'visualBindings': sceneData['visualBindings'],
+      if (sceneData['animations'] != null)
+        'animations': sceneData['animations'],
     };
     final variablesJson = List<Map<String, dynamic>>.from(
       sceneData['variables'] ?? [],

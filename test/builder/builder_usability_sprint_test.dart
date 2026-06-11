@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:offline_tutor_app/features/experiment/builder/controllers/experiment_builder_controller.dart';
 import 'package:offline_tutor_app/features/experiment/builder/data/api/experiment_manifest_api_service.dart';
 import 'package:offline_tutor_app/features/experiment/builder/data/repositories/experiment_manifest_repository.dart';
+import 'package:offline_tutor_app/features/experiment/builder/models/builder_object.dart';
 import 'package:offline_tutor_app/features/experiment/builder/models/builder_rule.dart';
 import 'package:offline_tutor_app/features/experiment/builder/models/builder_scene.dart';
 import 'package:offline_tutor_app/features/experiment/builder/models/builder_variable.dart';
@@ -13,9 +14,14 @@ import 'package:offline_tutor_app/features/experiment/builder/storage/builder_dr
 import 'package:offline_tutor_app/features/experiment/builder/templates/experiment_templates.dart';
 import 'package:offline_tutor_app/features/experiment/builder/validation/builder_validator.dart';
 import 'package:offline_tutor_app/features/experiment/builder/widgets/builder_search_bar.dart';
+import 'package:offline_tutor_app/features/experiment/builder/widgets/design_workspace_panel.dart';
 import 'package:offline_tutor_app/features/experiment/builder/widgets/experiment_summary_card.dart';
 import 'package:offline_tutor_app/features/experiment/builder/widgets/launch_readiness_card.dart';
+import 'package:offline_tutor_app/features/experiment/builder/widgets/rule_editor.dart';
 import 'package:offline_tutor_app/features/experiment/builder/widgets/variable_editor.dart';
+import 'package:offline_tutor_app/features/experiment/builder/wizards/object_wizard_dialog.dart';
+import 'package:offline_tutor_app/features/experiment/builder/wizards/rule_wizard_dialog.dart';
+import 'package:offline_tutor_app/features/experiment/builder/wizards/variable_wizard_dialog.dart';
 import 'package:offline_tutor_app/features/network/domain/backend_config.dart';
 
 void main() {
@@ -106,9 +112,9 @@ void main() {
       expect(filteredRules.single.id, 'rule_speed');
     });
 
-    testWidgets('large variable list remains scrollable', (tester) async {
+    testWidgets('large variable list can reach the last item', (tester) async {
       final controller = _controller();
-      for (var i = 1; i <= 50; i++) {
+      for (var i = 1; i <= 100; i++) {
         controller.addVariable(
           _variable('var_$i', 'Variable $i', 'numberInput', i),
         );
@@ -128,16 +134,173 @@ void main() {
 
       expect(find.text('Variable 1'), findsOneWidget);
       await tester.scrollUntilVisible(
-        find.text('Variable 50'),
+        find.text('Variable 100'),
         500,
-        scrollable: find.byType(Scrollable).last,
+        scrollable: _scrollableIn(
+          const PageStorageKey<String>('builder_variables_list'),
+        ),
       );
 
-      expect(find.text('Variable 50'), findsOneWidget);
+      expect(find.text('Variable 100'), findsOneWidget);
 
       controller.dispose();
     });
+
+    testWidgets('large object list can reach the last item in Design tabs', (
+      tester,
+    ) async {
+      final controller = _controller();
+      for (var i = 1; i <= 100; i++) {
+        controller.addObject(_object('obj_$i', 'Object $i', 'numericDisplay'));
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              width: 390,
+              height: 720,
+              child: DesignWorkspacePanel(controller: controller),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final tabController = DefaultTabController.of(
+        tester.element(find.byType(TabBar)),
+      );
+      tabController.animateTo(2);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Object 1'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Object 100'),
+        500,
+        scrollable: _scrollableIn(
+          const PageStorageKey<String>('builder_objects_list'),
+        ),
+      );
+
+      expect(find.text('Object 100'), findsOneWidget);
+
+      controller.dispose();
+    });
+
+    testWidgets('large rule list can reach the last item', (tester) async {
+      final controller = _controller();
+      for (var i = 1; i <= 100; i++) {
+        controller.addRule(_rule('rule_$i', 'var_$i', name: 'Rule $i'));
+      }
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 640,
+              child: RuleEditor(controller: controller),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Rule 1'), findsOneWidget);
+      await tester.scrollUntilVisible(
+        find.text('Rule 100'),
+        500,
+        scrollable: _scrollableIn(
+          const PageStorageKey<String>('builder_rules_list'),
+        ),
+      );
+
+      expect(find.text('Rule 100'), findsOneWidget);
+
+      controller.dispose();
+    });
+
+    testWidgets(
+      'variable type selection step scrolls to the last computed type',
+      (tester) async {
+        await tester.pumpWidget(
+          const MaterialApp(home: VariableWizardDialog()),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Calculated Value'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Next'));
+        await tester.pumpAndSettle();
+
+        await tester.scrollUntilVisible(
+          find.text('Energy'),
+          300,
+          scrollable: _scrollableIn(
+            const PageStorageKey<String>('variable_wizard_step_scroll'),
+          ),
+        );
+
+        expect(find.text('Energy'), findsOneWidget);
+      },
+    );
+
+    testWidgets('object selection step scrolls to the last object type', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: ObjectWizardDialog(
+            availableVariables: [
+              _variable('var_1', 'Variable 1', 'numberInput', 1),
+            ],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Vector Visualizer'),
+        300,
+        scrollable: _scrollableIn(
+          const PageStorageKey<String>('object_wizard_step_scroll'),
+        ),
+      );
+
+      expect(find.text('Vector Visualizer'), findsOneWidget);
+    });
+
+    testWidgets('logic selection step scrolls to the last rule type', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: RuleWizardDialog(
+            availableVariables: [
+              _variable('var_1', 'Variable 1', 'numberInput', 1),
+            ],
+            availableObjects: [_object('obj_1', 'Object 1', 'numericDisplay')],
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.scrollUntilVisible(
+        find.text('Data Collection'),
+        300,
+        scrollable: _scrollableIn(
+          const PageStorageKey<String>('rule_wizard_step_scroll'),
+        ),
+      );
+
+      expect(find.text('Data Collection'), findsOneWidget);
+    });
   });
+}
+
+Finder _scrollableIn(Key key) {
+  return find
+      .descendant(of: find.byKey(key), matching: find.byType(Scrollable))
+      .last;
 }
 
 ExperimentBuilderController _controller() {
@@ -175,6 +338,10 @@ BuilderVariable _variable(String id, String name, String type, dynamic value) {
     defaultValue: value,
     description: name,
   );
+}
+
+BuilderObject _object(String id, String name, String type) {
+  return BuilderObject(id: id, name: name, type: type, properties: const {});
 }
 
 BuilderRule _rule(String id, String variableId, {String name = 'Rule'}) {

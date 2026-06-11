@@ -16,15 +16,26 @@ import 'observations/runtime_observation.dart';
 import 'observations/runtime_observation_exporter.dart';
 import 'observations/runtime_observation_scheduler.dart';
 import 'observations/runtime_observation_store.dart';
+import 'persistence/runtime_session.dart';
+import 'persistence/runtime_session_manager.dart';
+import 'persistence/runtime_session_repository.dart';
 import 'variable_store.dart';
 import 'object_registry.dart';
 import 'rule_engine.dart';
 import 'runtime_event_bus.dart';
+import 'runtime_event.dart';
 import 'simulation_clock.dart';
 import 'runtime_analytics.dart';
 import 'runtime_profiles.dart';
 import 'sensors/runtime_sensor_manager.dart';
+import 'simulation/animations/runtime_animation_engine.dart';
+import 'simulation/bindings/runtime_visual_binding_engine.dart';
+import 'simulation/canvas/runtime_simulation_canvas.dart';
 import 'variables/runtime_variable_executor.dart';
+import 'visual_templates/registry/runtime_visual_template_registry.dart';
+import 'visual_templates/runtime/runtime_visual_template_engine.dart';
+import '../visual_presets/composer/simulation_scene_composer.dart';
+import '../visual_presets/registry/visual_preset_registry.dart';
 
 class RuntimeWorld {
   late final VariableStore variables;
@@ -45,6 +56,14 @@ class RuntimeWorld {
   late final RuntimeObjectVariableAdapter objectVariableAdapter;
   late final RuntimeVariableExecutor variableExecutor;
   late final RuntimeSensorManager sensors;
+  late final RuntimeSimulationCanvas simulationCanvas;
+  late final RuntimeVisualBindingEngine visualBindings;
+  late final RuntimeAnimationEngine animationEngine;
+  late final RuntimeVisualTemplateRegistry visualTemplateRegistry;
+  late final RuntimeVisualTemplateEngine visualTemplates;
+  late final VisualPresetRegistry visualPresetRegistry;
+  late final SimulationSceneComposer sceneComposer;
+  late final RuntimeSessionManager sessions;
   late final RuleEngine rules;
   late final RuntimeEventBus eventBus;
   late final SimulationClock clock;
@@ -53,7 +72,7 @@ class RuntimeWorld {
   RuntimeProfile profile = RuntimeProfile.general;
   Map<String, dynamic> metadata = {};
 
-  RuntimeWorld() {
+  RuntimeWorld({RuntimeSessionRepository? sessionRepository}) {
     eventBus = RuntimeEventBus();
     experimentState = RuntimeExperimentStateManager(eventBus: eventBus)
       ..attach();
@@ -106,10 +125,43 @@ class RuntimeWorld {
       eventBus: eventBus,
     );
     sensors = RuntimeSensorManager(variables: variables, eventBus: eventBus);
+    simulationCanvas = RuntimeSimulationCanvas(eventBus: eventBus);
+    visualBindings = RuntimeVisualBindingEngine(
+      eventBus: eventBus,
+      canvas: simulationCanvas,
+    );
+    animationEngine = RuntimeAnimationEngine(
+      canvas: simulationCanvas,
+      eventBus: eventBus,
+    );
+    visualTemplateRegistry = RuntimeVisualTemplateRegistry();
+    visualTemplates = RuntimeVisualTemplateEngine(
+      world: this,
+      registry: visualTemplateRegistry,
+      eventBus: eventBus,
+    );
+    visualPresetRegistry = VisualPresetRegistry();
+    sceneComposer = SimulationSceneComposer(
+      registry: visualPresetRegistry,
+      eventBus: eventBus,
+    );
+    sessions = RuntimeSessionManager(
+      repository: sessionRepository ?? const FileRuntimeSessionRepository(),
+      eventBus: eventBus,
+    );
     clock = SimulationClock();
     analytics = RuntimeAnalytics();
     rules = RuleEngine(variables, eventBus, objects);
     analytics.attach(eventBus);
+    eventBus.emit(
+      RuntimeEvent(
+        id: 'PresetsLoaded_${DateTime.now().microsecondsSinceEpoch}',
+        timestamp: DateTime.now(),
+        type: RuntimeEventType.custom,
+        message: 'PresetsLoaded',
+        metadata: {'count': visualPresetRegistry.allPresets().length},
+      ),
+    );
   }
 
   void initialize({
@@ -133,6 +185,13 @@ class RuntimeWorld {
     sensors.initialize();
     objects.initialize(objectsJson);
     bindingEngine.initialize(objectsJson);
+    simulationCanvas.initialize(
+      _simulationActors(objectsJson, curriculumMetadata),
+    );
+    visualBindings.initialize(_visualBindings(objectsJson, curriculumMetadata));
+    animationEngine.initialize(_animations(curriculumMetadata));
+    visualTemplates.initialize();
+    _composeVisualPreset(curriculumMetadata);
     rules.initialize(rulesJson);
     clock.reset();
     analytics.recordLaunch();
@@ -144,6 +203,7 @@ class RuntimeWorld {
       analytics.addTimeSpent(dt);
       experimentState.tick(dt);
       variableExecutor.tick(dt);
+      animationEngine.tick(dt, clock.elapsedTime);
       observationScheduler.tick(dt);
       rules.evaluateContinuousRules(dt);
     }
@@ -198,6 +258,34 @@ class RuntimeWorld {
     );
   }
 
+  Future<RuntimeSession> saveSession({String? sessionId}) {
+    return sessions.save(this, sessionId: sessionId);
+  }
+
+  Future<void> restoreSession(RuntimeSession session) {
+    return sessions.restore(this, session);
+  }
+
+  Future<void> restoreSessionById(String sessionId) async {
+    final session = await sessions.load(sessionId);
+    if (session != null) await restoreSession(session);
+  }
+
+  Future<void> deleteSession(String sessionId) {
+    return sessions.delete(
+      sessionId,
+      experimentId: experimentState.state.experimentId,
+    );
+  }
+
+  Future<List<RuntimeSession>> listSessions() {
+    return sessions.list(experimentId: experimentState.state.experimentId);
+  }
+
+  Future<RuntimeSession?> recoverySession() {
+    return sessions.recoveryForExperiment(experimentState.state.experimentId);
+  }
+
   void dispose() {
     analytics.dispose();
     experimentState.dispose();
@@ -206,6 +294,10 @@ class RuntimeWorld {
     unawaited(sensors.dispose());
     measurementCollector.dispose();
     objectLifecycle.dispose();
+    visualTemplates.dispose();
+    animationEngine.dispose();
+    visualBindings.dispose();
+    simulationCanvas.dispose();
     bindingEngine.dispose();
     interactionBus.dispose();
     eventBus.dispose();
@@ -220,5 +312,97 @@ class RuntimeWorld {
         metadata['title']?.toString() ??
         metadata['name']?.toString() ??
         'experiment';
+  }
+
+  List<Map<String, dynamic>> _simulationActors(
+    List<Map<String, dynamic>> objectsJson,
+    Map<String, dynamic> metadata,
+  ) {
+    final explicitActors = _listFromMetadata(metadata, const [
+      'simulationActors',
+      'actors',
+    ]);
+    if (explicitActors.isNotEmpty) return explicitActors;
+    return objectsJson
+        .where((object) {
+          final type = object['type']?.toString();
+          final actor = object['actor'];
+          return actor is Map || _genericActorTypes.contains(type);
+        })
+        .map((object) {
+          final actor = object['actor'] is Map
+              ? Map<String, dynamic>.from(object['actor'] as Map)
+              : <String, dynamic>{};
+          return {
+            'id': actor['id'] ?? object['id'],
+            'type': actor['type'] ?? object['type'],
+            ...actor,
+          };
+        })
+        .toList(growable: false);
+  }
+
+  List<Map<String, dynamic>> _visualBindings(
+    List<Map<String, dynamic>> objectsJson,
+    Map<String, dynamic> metadata,
+  ) {
+    final explicitBindings = _listFromMetadata(metadata, const [
+      'visualBindings',
+      'simulationBindings',
+    ]);
+    final objectBindings = <Map<String, dynamic>>[];
+    for (final object in objectsJson) {
+      final bindings = object['visualBindings'];
+      if (bindings is List) {
+        for (final binding in bindings) {
+          if (binding is Map) {
+            objectBindings.add({
+              'actorId': object['id'],
+              ...Map<String, dynamic>.from(binding),
+            });
+          }
+        }
+      }
+    }
+    return [...explicitBindings, ...objectBindings];
+  }
+
+  List<Map<String, dynamic>> _animations(Map<String, dynamic> metadata) {
+    return _listFromMetadata(metadata, const [
+      'animations',
+      'simulationAnimations',
+    ]);
+  }
+
+  List<Map<String, dynamic>> _listFromMetadata(
+    Map<String, dynamic> metadata,
+    List<String> keys,
+  ) {
+    for (final key in keys) {
+      final raw = metadata[key];
+      if (raw is List) {
+        return raw
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList(growable: false);
+      }
+    }
+    return const [];
+  }
+
+  static const _genericActorTypes = {
+    'circle',
+    'rectangle',
+    'line',
+    'arrow',
+    'text',
+    'image',
+    'particle',
+  };
+
+  void _composeVisualPreset(Map<String, dynamic> metadata) {
+    final presetId = metadata['visualPreset']?.toString();
+    if (presetId == null || presetId.isEmpty) return;
+    sceneComposer.composePresetById(presetId, this);
   }
 }

@@ -27,7 +27,11 @@ class PublishWorkspacePanel extends StatelessWidget {
                 children: [
                   const Text(
                     'Experiment Summary',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -41,7 +45,12 @@ class PublishWorkspacePanel extends StatelessWidget {
                     icon: Icons.info_outline,
                     children: [
                       _buildDetailRow('Title', state.scene.name),
-                      _buildDetailRow('Description', state.scene.description.isEmpty ? 'No description' : state.scene.description),
+                      _buildDetailRow(
+                        'Description',
+                        state.scene.description.isEmpty
+                            ? 'No description'
+                            : state.scene.description,
+                      ),
                       _buildDetailRow('Tags', state.scene.tags.join(', ')),
                     ],
                   ),
@@ -50,14 +59,23 @@ class PublishWorkspacePanel extends StatelessWidget {
                     title: 'Composition',
                     icon: Icons.layers_rounded,
                     children: [
-                      _buildDetailRow('Variables', '${state.variables.length} defined'),
-                      _buildDetailRow('Objects', '${state.objects.length} configured'),
-                      _buildDetailRow('Rules', '${state.rules.length} active'),
+                      _buildDetailRow(
+                        'Readings',
+                        '${state.variables.length} defined',
+                      ),
+                      _buildDetailRow(
+                        'Instruments',
+                        '${state.objects.length} configured',
+                      ),
+                      _buildDetailRow(
+                        'Interactions',
+                        '${state.rules.length} active',
+                      ),
                     ],
                   ),
 
                   const SizedBox(height: 32),
-                  
+
                   // Action Buttons
                   Wrap(
                     spacing: 16,
@@ -66,25 +84,39 @@ class PublishWorkspacePanel extends StatelessWidget {
                       OutlinedButton.icon(
                         onPressed: () {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Draft saved successfully!')),
+                            const SnackBar(
+                              content: Text('Draft saved successfully!'),
+                            ),
                           );
                         },
                         icon: const Icon(Icons.save_rounded),
                         label: const Text('Save Draft'),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 24,
+                          ),
                         ),
                       ),
                       FilledButton.icon(
-                        onPressed: isValid ? () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Publishing will be supported in the next milestone!')),
-                          );
-                        } : null,
+                        onPressed: isValid
+                            ? () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Sharing will be supported in the next milestone!',
+                                    ),
+                                  ),
+                                );
+                              }
+                            : null,
                         icon: const Icon(Icons.publish_rounded),
-                        label: const Text('Publish Experiment'),
+                        label: const Text('Share Experiment'),
                         style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 16,
+                            horizontal: 24,
+                          ),
                           backgroundColor: const Color(0xFF0B6E4F),
                         ),
                       ),
@@ -100,18 +132,32 @@ class PublishWorkspacePanel extends StatelessWidget {
                 const Padding(
                   padding: EdgeInsets.all(12.0),
                   child: Text(
-                    'Pre-Publish Diagnostics',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                    'Readiness Checks',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
                   ),
                 ),
                 const Divider(height: 1, color: Color(0xFFE2E8F0)),
-                isMobile 
-                  ? SizedBox(height: 300, child: BuilderValidationPanel(controller: controller))
-                  : Expanded(child: BuilderValidationPanel(controller: controller)),
+                isMobile
+                    ? SizedBox(
+                        height: 300,
+                        child: BuilderValidationPanel(controller: controller),
+                      )
+                    : Expanded(
+                        child: BuilderValidationPanel(controller: controller),
+                      ),
                 const Divider(height: 1, color: Color(0xFFE2E8F0)),
                 isMobile
-                  ? SizedBox(height: 300, child: ManifestPreviewPanel(controller: controller))
-                  : Expanded(child: ManifestPreviewPanel(controller: controller)),
+                    ? SizedBox(
+                        height: 300,
+                        child: ManifestPreviewPanel(controller: controller),
+                      )
+                    : Expanded(
+                        child: ManifestPreviewPanel(controller: controller),
+                      ),
               ],
             );
 
@@ -142,7 +188,11 @@ class PublishWorkspacePanel extends StatelessWidget {
     );
   }
 
-  Widget _buildSummaryCard({required String title, required IconData icon, required List<Widget> children}) {
+  Widget _buildSummaryCard({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
     return Card(
       elevation: 0,
       shape: RoundedRectangleBorder(
@@ -160,7 +210,11 @@ class PublishWorkspacePanel extends StatelessWidget {
                 const SizedBox(width: 8),
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
                 ),
               ],
             ),
@@ -182,7 +236,10 @@ class PublishWorkspacePanel extends StatelessWidget {
             width: 100,
             child: Text(
               label,
-              style: const TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+              style: const TextStyle(
+                color: Color(0xFF64748B),
+                fontWeight: FontWeight.w500,
+              ),
             ),
           ),
           Expanded(

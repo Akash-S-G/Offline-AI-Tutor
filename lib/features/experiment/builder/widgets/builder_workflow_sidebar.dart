@@ -1,13 +1,7 @@
 import 'package:flutter/material.dart';
 import '../controllers/experiment_builder_controller.dart';
 
-enum BuilderWorkflowStep {
-  create,
-  design,
-  logic,
-  preview,
-  publish,
-}
+enum BuilderWorkflowStep { create, design, logic, preview, publish }
 
 class BuilderWorkflowSidebar extends StatelessWidget {
   final BuilderWorkflowStep currentStep;
@@ -31,14 +25,14 @@ class BuilderWorkflowSidebar extends StatelessWidget {
         builder: (context, _) {
           final state = controller.state;
           final isValid = controller.validationResult?.isValid ?? false;
-          
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Padding(
                 padding: EdgeInsets.all(24.0),
                 child: Text(
-                  'Workflow',
+                  'Creator',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -51,36 +45,40 @@ class BuilderWorkflowSidebar extends StatelessWidget {
                   children: [
                     _buildStepItem(
                       step: BuilderWorkflowStep.create,
-                      title: '1. Create',
-                      subtitle: 'AI Generator & Drafts',
+                      title: '1. Overview',
+                      subtitle: 'Start, assistant, saved labs',
                       icon: Icons.auto_awesome_rounded,
-                      isComplete: state.scene.name.isNotEmpty && state.scene.name != 'Untitled',
+                      isComplete:
+                          state.scene.name.isNotEmpty &&
+                          state.scene.name != 'Untitled',
                     ),
                     _buildStepItem(
                       step: BuilderWorkflowStep.design,
-                      title: '2. Design',
-                      subtitle: 'Scene, Objects & Variables',
+                      title: '2. Components',
+                      subtitle: 'Scene, instruments, readings',
                       icon: Icons.design_services_rounded,
-                      isComplete: state.objects.isNotEmpty || state.variables.isNotEmpty,
+                      isComplete:
+                          state.objects.isNotEmpty ||
+                          state.variables.isNotEmpty,
                     ),
                     _buildStepItem(
                       step: BuilderWorkflowStep.logic,
-                      title: '3. Logic',
-                      subtitle: 'Rules & Interactions',
+                      title: '3. Interactions',
+                      subtitle: 'Cause and effect',
                       icon: Icons.account_tree_rounded,
                       isComplete: state.rules.isNotEmpty,
                     ),
                     _buildStepItem(
                       step: BuilderWorkflowStep.preview,
-                      title: '4. Preview',
-                      subtitle: 'Simulation & Runtime',
+                      title: '4. Simulation',
+                      subtitle: 'Launch and test',
                       icon: Icons.play_circle_fill_rounded,
                       isComplete: controller.executionPackage != null,
                     ),
                     _buildStepItem(
                       step: BuilderWorkflowStep.publish,
-                      title: '5. Publish',
-                      subtitle: 'Validation & Export',
+                      title: '5. Share',
+                      subtitle: 'Check and export',
                       icon: Icons.publish_rounded,
                       isComplete: isValid,
                     ),
@@ -102,7 +100,7 @@ class BuilderWorkflowSidebar extends StatelessWidget {
     required bool isComplete,
   }) {
     final isSelected = currentStep == step;
-    
+
     Color getStatusColor() {
       if (isSelected) return const Color(0xFF3B82F6); // Blue
       if (isComplete) return const Color(0xFF10B981); // Green
@@ -118,13 +116,12 @@ class BuilderWorkflowSidebar extends StatelessWidget {
           decoration: BoxDecoration(
             border: Border(
               left: BorderSide(
-                color: isSelected ? const Color(0xFF3B82F6) : Colors.transparent,
+                color: isSelected
+                    ? const Color(0xFF3B82F6)
+                    : Colors.transparent,
                 width: 4,
               ),
-              bottom: const BorderSide(
-                color: Color(0xFF1E293B),
-                width: 1,
-              ),
+              bottom: const BorderSide(color: Color(0xFF1E293B), width: 1),
             ),
             color: isSelected ? const Color(0xFF1E293B) : Colors.transparent,
           ),
@@ -151,8 +148,12 @@ class BuilderWorkflowSidebar extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        color: isSelected ? Colors.white : const Color(0xFFCBD5E1),
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                        color: isSelected
+                            ? Colors.white
+                            : const Color(0xFFCBD5E1),
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.w600,
                         fontSize: 15,
                       ),
                     ),
@@ -162,7 +163,9 @@ class BuilderWorkflowSidebar extends StatelessWidget {
                       style: TextStyle(
                         color: const Color(0xFF64748B),
                         fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                        fontWeight: isSelected
+                            ? FontWeight.w500
+                            : FontWeight.normal,
                       ),
                     ),
                   ],

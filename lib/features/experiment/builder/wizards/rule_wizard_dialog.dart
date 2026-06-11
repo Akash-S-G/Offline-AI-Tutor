@@ -69,27 +69,68 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
   }
 
   Widget _buildTypeSelection() {
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: RuleRegistry.definitions.length,
-      itemBuilder: (context, index) {
-        final def = RuleRegistry.definitions[index];
-        return ListTile(
-          leading: Icon(def.icon),
-          title: Text(def.title),
-          subtitle: Text(def.description),
-          selected: _selectedType == def,
-          selectedTileColor: Colors.blue.withValues(alpha: 0.1),
-          onTap: () {
-            setState(() {
-              _selectedType = def;
-              _nameController.text = '${def.title.replaceAll(' ', '')}Rule';
-              _applyDefaultTemplate();
-            });
-          },
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: RuleRegistry.definitions.map((def) {
+        return Card(
+          margin: const EdgeInsets.only(bottom: 8),
+          child: ListTile(
+            leading: Icon(def.icon),
+            title: Text(def.title),
+            subtitle: Text(def.description),
+            selected: _selectedType == def,
+            selectedTileColor: Colors.blue.withValues(alpha: 0.1),
+            onTap: () {
+              setState(() {
+                _selectedType = def;
+                _nameController.text = '${def.title.replaceAll(' ', '')}Rule';
+                _applyDefaultTemplate();
+              });
+            },
+          ),
         );
-      },
+      }).toList(),
+    );
+  }
+
+  String get _stepTitle {
+    switch (_currentStep) {
+      case 0:
+        return 'Choose Logic Type';
+      case 1:
+        return 'Name Rule';
+      default:
+        return 'Configure Logic';
+    }
+  }
+
+  Widget _buildCurrentStep() {
+    switch (_currentStep) {
+      case 0:
+        return _buildTypeSelection();
+      case 1:
+        return _buildBasicConfig();
+      default:
+        return _buildLogicConfig();
+    }
+  }
+
+  Widget _buildStepHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(_stepTitle, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(value: (_currentStep + 1) / 3),
+          const SizedBox(height: 8),
+          Text(
+            'Step ${_currentStep + 1} of 3',
+            style: const TextStyle(color: Colors.grey),
+          ),
+        ],
+      ),
     );
   }
 
@@ -204,37 +245,12 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
         body: SafeArea(
           child: Column(
             children: [
+              _buildStepHeader(),
               Expanded(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.only(bottom: 24),
-                  child: Stepper(
-                    currentStep: _currentStep,
-                    controlsBuilder: (context, details) =>
-                        const SizedBox.shrink(),
-                    steps: [
-                      Step(
-                        title: const Text('Rule Type'),
-                        content: _buildTypeSelection(),
-                        isActive: _currentStep >= 0,
-                        state: _currentStep > 0
-                            ? StepState.complete
-                            : StepState.indexed,
-                      ),
-                      Step(
-                        title: const Text('Identity'),
-                        content: _buildBasicConfig(),
-                        isActive: _currentStep >= 1,
-                        state: _currentStep > 1
-                            ? StepState.complete
-                            : StepState.indexed,
-                      ),
-                      Step(
-                        title: const Text('Logic'),
-                        content: _buildLogicConfig(),
-                        isActive: _currentStep >= 2,
-                      ),
-                    ],
-                  ),
+                  key: const PageStorageKey<String>('rule_wizard_step_scroll'),
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                  child: _buildCurrentStep(),
                 ),
               ),
               Padding(

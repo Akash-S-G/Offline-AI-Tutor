@@ -20,7 +20,10 @@ class ChapterExperimentsSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final templates = CurriculumExperimentMapper.getExperimentsForChapter(chapter, subject);
+    final templates = CurriculumExperimentMapper.getExperimentsForChapter(
+      chapter,
+      subject,
+    );
 
     if (templates.isEmpty) {
       return const SizedBox.shrink(); // Hide if no related experiments
@@ -44,7 +47,10 @@ class ChapterExperimentsSection extends StatelessWidget {
     );
   }
 
-  Widget _buildExperimentCard(BuildContext context, Map<String, dynamic> template) {
+  Widget _buildExperimentCard(
+    BuildContext context,
+    Map<String, dynamic> template,
+  ) {
     final metadata = template['metadata'] as Map<String, dynamic>? ?? {};
     final scene = template['scene'] as Map<String, dynamic>? ?? {};
 
@@ -74,7 +80,10 @@ class ChapterExperimentsSection extends StatelessWidget {
                     color: const Color(0xFF3B82F6).withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.science_rounded, color: Color(0xFF3B82F6)),
+                  child: const Icon(
+                    Icons.science_rounded,
+                    color: Color(0xFF3B82F6),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -107,9 +116,17 @@ class ChapterExperimentsSection extends StatelessWidget {
             const SizedBox(height: 16),
             Row(
               children: [
-                _buildBadge(Icons.schedule_rounded, estimatedTime, const Color(0xFF8B5CF6)),
+                _buildBadge(
+                  Icons.schedule_rounded,
+                  estimatedTime,
+                  const Color(0xFF8B5CF6),
+                ),
                 const SizedBox(width: 12),
-                _buildBadge(Icons.leaderboard_rounded, difficulty, const Color(0xFFEF4444)),
+                _buildBadge(
+                  Icons.leaderboard_rounded,
+                  difficulty,
+                  const Color(0xFFEF4444),
+                ),
               ],
             ),
             const SizedBox(height: 16),
@@ -119,7 +136,7 @@ class ChapterExperimentsSection extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => _handleCustomize(context, template),
                     icon: const Icon(Icons.edit_rounded, size: 18),
-                    label: const Text('Customize'),
+                    label: const Text('Edit Template'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF475569),
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
@@ -132,7 +149,7 @@ class ChapterExperimentsSection extends StatelessWidget {
                   child: FilledButton.icon(
                     onPressed: () => _handleLaunch(context, template),
                     icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                    label: const Text('Launch Experiment'),
+                    label: const Text('Start'),
                     style: FilledButton.styleFrom(
                       backgroundColor: const Color(0xFF3B82F6),
                     ),
@@ -152,30 +169,46 @@ class ChapterExperimentsSection extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: color),
         const SizedBox(width: 4),
-        Text(text, style: TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w600)),
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: 12,
+            color: color,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
       ],
     );
   }
 
   void _handleLaunch(BuildContext context, Map<String, dynamic> template) {
     final manifest = CurriculumExperimentMapper.mapTemplateToManifest(
-      template, 
+      template,
       chapterId: chapter.packId,
     );
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => ExperimentDetailsScreen(manifest: manifest),
+        builder: (_) => ExperimentDetailsScreen(
+          manifest: manifest,
+          executionPayload: template,
+        ),
       ),
     );
   }
 
-  Future<void> _handleCustomize(BuildContext context, Map<String, dynamic> template) async {
+  Future<void> _handleCustomize(
+    BuildContext context,
+    Map<String, dynamic> template,
+  ) async {
     try {
       final sceneData = template['scene'] as Map<String, dynamic>? ?? {};
       final templateName = sceneData['name'] ?? 'Customized Experiment';
-      final draftName = '$templateName (Draft ${const Uuid().v4().substring(0, 4)})';
+      final draftName =
+          '$templateName (Draft ${const Uuid().v4().substring(0, 4)})';
 
-      final draftManager = BuilderDraftManager(SharedPreferencesBuilderDraftRepository());
+      final draftManager = BuilderDraftManager(
+        SharedPreferencesBuilderDraftRepository(),
+      );
       await draftManager.createDraft(draftName, template);
 
       if (context.mounted) {

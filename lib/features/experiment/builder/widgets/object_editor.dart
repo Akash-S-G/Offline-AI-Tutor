@@ -18,6 +18,13 @@ class ObjectEditor extends StatefulWidget {
 
 class _ObjectEditorState extends State<ObjectEditor> {
   String _query = '';
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +46,7 @@ class _ObjectEditorState extends State<ObjectEditor> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Objects (${widget.controller.state.objects.length})',
+                      'Instruments (${widget.controller.state.objects.length})',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -51,7 +58,7 @@ class _ObjectEditorState extends State<ObjectEditor> {
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: Text(compact ? 'Add' : 'Add Object'),
+                    label: Text(compact ? 'Add' : 'Add Instrument'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
@@ -74,7 +81,7 @@ class _ObjectEditorState extends State<ObjectEditor> {
               ),
             ),
             BuilderSearchBar(
-              hintText: 'Search Objects',
+              hintText: 'Search Instruments',
               onChanged: (value) => setState(() => _query = value),
             ),
             const Divider(height: 1),
@@ -82,10 +89,12 @@ class _ObjectEditorState extends State<ObjectEditor> {
               child: widget.controller.state.objects.isEmpty
                   ? _buildEmptyState(context)
                   : objects.isEmpty
-                  ? const Center(child: Text('No matching objects'))
+                  ? const Center(child: Text('No matching instruments'))
                   : ListView.builder(
+                      key: const PageStorageKey<String>('builder_objects_list'),
+                      controller: _scrollController,
                       physics: const AlwaysScrollableScrollPhysics(),
-                      primary: true,
+                      primary: false,
                       padding: const EdgeInsets.only(bottom: 96),
                       itemCount: objects.length,
                       itemBuilder: (context, index) {
@@ -308,9 +317,10 @@ class _ObjectEditorState extends State<ObjectEditor> {
   Widget _buildEmptyState(BuildContext context) {
     return EmptyStateCard(
       icon: Icons.widgets_rounded,
-      title: 'No Objects Yet',
-      message: 'Objects represent visual components in the experiment scene.',
-      primaryLabel: 'Create Object',
+      title: 'No Instruments Yet',
+      message:
+          'Instruments show controls, readings, and visuals in the experiment.',
+      primaryLabel: 'Create Instrument',
       onPrimary: () async {
         final newObj = await showDialog<BuilderObject>(
           context: context,
