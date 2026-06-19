@@ -1,0 +1,10 @@
+{
+  "scene": "simple_machines",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "simple_machines"
+  ],
+  "effects": [],
+  "ui": []
+}

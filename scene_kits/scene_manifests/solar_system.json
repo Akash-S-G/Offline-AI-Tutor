@@ -1,0 +1,10 @@
+{
+  "scene": "solar_system",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "planets"
+  ],
+  "effects": [],
+  "ui": []
+}

@@ -26,15 +26,28 @@ class DatabaseAutoRepairService {
       // 1. Repair FTS Table & Index if missing or out of sync
       if (ftsTableExists == 0) {
         print('[DB] Repairing missing rag_chunks_fts table...');
-        await db.execute('''
-          CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts 
-          USING fts4(id, chapter_id, content)
-        ''');
+        try {
+          await db.execute('''
+            CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts 
+            USING fts4(id, chapter_id, content)
+          ''');
+        } catch (e) {
+          try {
+            await db.execute('''
+              CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts 
+              USING fts3(id, chapter_id, content)
+            ''');
+          } catch (e2) {
+            print('[DB] FTS not supported, skipping FTS repair');
+          }
+        }
         ftsCount = 0;
       }
       
-      // If we have chunks but no FTS index rows, rebuild the index
-      if (chunksCount > 0 && ftsCount == 0) {
+      // If we have chunks but no FTS index rows, rebuild the index (if FTS table exists)
+      final ftsTableExistsNow = Sqflite.firstIntValue(await db.rawQuery(
+          "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rag_chunks_fts'")) ?? 0;
+      if (chunksCount > 0 && ftsCount == 0 && ftsTableExistsNow > 0) {
         print('[DB] Rebuilding FTS index from $chunksCount chunks...');
         await db.execute('INSERT INTO rag_chunks_fts(id, chapter_id, content) SELECT id, chapter_id, content FROM rag_chunks');
       }

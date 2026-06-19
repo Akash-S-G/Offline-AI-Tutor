@@ -1,0 +1,10 @@
+{
+  "scene": "wave",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "wave_characteristics"
+  ],
+  "effects": [],
+  "ui": []
+}

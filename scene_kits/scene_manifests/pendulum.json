@@ -1,0 +1,10 @@
+{
+  "scene": "pendulum",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "pendulum"
+  ],
+  "effects": [],
+  "ui": []
+}

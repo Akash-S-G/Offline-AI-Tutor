@@ -161,30 +161,43 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   }
 
   Future<void> _loadInitial() async {
-    final courses = await widget.courseRepository.getCourses();
-    if (courses.isEmpty) {
-      setState(() {
-        _loading = false;
-      });
-      return;
+    try {
+      final courses = await widget.courseRepository.getCourses();
+      if (courses.isEmpty) {
+        if (mounted) {
+          setState(() {
+            _loading = false;
+          });
+        }
+        return;
+      }
+
+      final selectedCourse = courses.first;
+      final subjects = await widget.courseRepository.getSubjects(selectedCourse.id);
+      final selectedSubject = subjects.isEmpty ? null : subjects.first;
+      final chapters = selectedSubject == null
+          ? <Chapter>[]
+          : await widget.courseRepository.getChapters(selectedSubject.id);
+
+      if (mounted) {
+        setState(() {
+          _courses = courses;
+          _selectedCourse = selectedCourse;
+          _subjects = subjects;
+          _selectedSubject = selectedSubject;
+          _chapters = chapters;
+          _selectedChapter = chapters.isEmpty ? null : chapters.first;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading initial data: $e');
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
-
-    final selectedCourse = courses.first;
-    final subjects = await widget.courseRepository.getSubjects(selectedCourse.id);
-    final selectedSubject = subjects.isEmpty ? null : subjects.first;
-    final chapters = selectedSubject == null
-        ? <Chapter>[]
-        : await widget.courseRepository.getChapters(selectedSubject.id);
-
-    setState(() {
-      _courses = courses;
-      _selectedCourse = selectedCourse;
-      _subjects = subjects;
-      _selectedSubject = selectedSubject;
-      _chapters = chapters;
-      _selectedChapter = chapters.isEmpty ? null : chapters.first;
-      _loading = false;
-    });
   }
 
   Future<void> _onCourseChanged(Course? course) async {

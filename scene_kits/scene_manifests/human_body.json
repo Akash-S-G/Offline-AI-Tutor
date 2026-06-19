@@ -1,0 +1,11 @@
+{
+  "scene": "human_body",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "human_skeleton",
+    "internal_organs"
+  ],
+  "effects": [],
+  "ui": []
+}

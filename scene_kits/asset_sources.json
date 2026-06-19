@@ -1,0 +1,90 @@
+{
+  "sources": {
+    "notes": "Open-license SVG assets for IDP Experiment Engine scene families. All assets sourced from Wikimedia Commons under CC-BY-SA or Public Domain. Searched via direct query.",
+    "motion": {
+      "strategy": "Found in commons search: File:Forces_pushing_ball.svg (s3.amazonaws.com)",
+      "assets": [
+        {"name": "ball", "provider": "wikimedia", "query": "rolling ball forces motion"},
+        {"name": "track", "provider": "wikimedia", "query": "ramp inclined plane track"},
+        {"name": "ruler", "provider": "lucide", "id": "ruler"},
+        {"name": "timer", "provider": "lucide", "id": "timer"}
+      ]
+    },
+    "pendulum": {
+      "assets": [
+        {"name": "pendulum", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/d/d2/Pendulum.svg", "local": "actors/pendulum.svg", "size": "8.7KB"}
+      ]
+    },
+    "circuit": {
+      "strategy": "Wait for next build run — not enough high-quality educational SVGs found in initial search. Consider generating with Inkscape.",
+      "assets": [
+        {"name": "battery", "provider": "lucide", "id": "battery"},
+        {"name": "bulb", "provider": "lucide", "id": "lightbulb"},
+        {"name": "wire", "provider": "lucide", "id": "minus"},
+        {"name": "switch", "provider": "lucide", "id": "toggle-right"}
+      ]
+    },
+    "wave": {
+      "assets": [
+        {"name": "wave_characteristics", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/1/1e/Wave_characteristics.svg", "local": "actors/wave_characteristics.svg", "size": "3.0KB"}
+      ]
+    },
+    "mirror": {
+      "assets": [
+        {"name": "concave_mirror_raydiagram", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/d/d2/Concavemirror_raydiagram_2F.svg", "local": "actors/concave_mirror_raydiagram.svg", "size": "12KB"},
+        {"name": "ray_diagram_concave", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/d/de/Ray_diagram_concave.svg", "local": "actors/ray_diagram_concave.svg", "size": "30KB"},
+        {"name": "convex_mirror_raydiagram", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/a/af/Convexmirror_raydiagram.svg", "local": "actors/convex_mirror_raydiagram.svg", "size": "12KB"}
+      ]
+    },
+    "lens": {
+      "assets": [
+        {"name": "convex_lens_diagram", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/9/9c/Convex_lens_diagram.svg", "local": "actors/convex_lens_diagram.svg", "size": "13KB"}
+      ]
+    },
+    "water_cycle": {
+      "assets": [
+        {"name": "water_cycle_diagram", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/8/85/Water_cycle_diagram.svg", "local": "background/water_cycle_diagram.svg", "size": "218KB"}
+      ]
+    },
+    "plant_growth": {
+      "strategy": "No high-quality educational SVG found yet in initial search.",
+      "assets": []
+    },
+    "heart_rate": {
+      "assets": [
+        {"name": "ecg_vector", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/9/94/ECG_Vector.svg", "local": "actors/ecg_vector.svg", "size": "11KB"}
+      ]
+    },
+    "human_body": {
+      "assets": [
+        {"name": "human_skeleton", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/6/6f/Human_skeleton.svg", "local": "actors/human_skeleton.svg", "size": "779KB", "note": "Detailed educational SVG. >300KB but kept for quality."},
+        {"name": "internal_organs", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/e/e3/Internal_organs.svg", "local": "actors/internal_organs.svg", "size": "2134KB", "note": "Detailed educational SVG. >300KB but kept for quality."}
+      ]
+    },
+    "food_chain": {
+      "assets": [
+        {"name": "food_chain", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/7/71/FoodChain.svg", "local": "actors/food_chain.svg", "size": "734KB", "note": "Detailed educational SVG. >300KB but kept for quality."}
+      ]
+    },
+    "solar_system": {
+      "assets": [
+        {"name": "planets", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/c/cb/Planets2013.svg", "local": "actors/planets.svg", "size": "295KB"}
+      ]
+    },
+    "matter": {
+      "assets": [
+        {"name": "states_of_matter", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/1/13/Solid_liquid_gas.svg", "local": "actors/states_of_matter.svg", "size": "59KB"}
+      ]
+    },
+    "chemical_reaction": {
+      "assets": [
+        {"name": "beaker", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/c/c3/Beaker.svg", "local": "actors/beaker.svg", "size": "4.0KB"}
+      ]
+    },
+    "simple_machines": {
+      "assets": [
+        {"name": "simple_machines", "provider": "wikimedia", "file_url": "https://upload.wikimedia.org/wikipedia/commons/f/f4/Simple_machines.svg", "local": "actors/simple_machines.svg", "size": "20KB"}
+      ]
+    }
+  }
+}

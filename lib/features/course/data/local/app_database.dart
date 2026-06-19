@@ -153,11 +153,24 @@ class AppDatabase {
   }
 
   Future<void> _createRagFtsArtifacts(Database db) async {
-    // Re-enabled FTS4 table for fast RAG lookups
-    await db.execute('''
-      CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts 
-      USING fts4(id, chapter_id, content)
-    ''');
+    // Re-enabled FTS4 table for fast RAG lookups, fallback to FTS3, or ignore
+    try {
+      await db.execute('''
+        CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts 
+        USING fts4(id, chapter_id, content)
+      ''');
+      print('[FTS] AppDatabase FTS_MODULE=fts4 STATUS=ok');
+    } catch (e) {
+      try {
+        await db.execute('''
+          CREATE VIRTUAL TABLE IF NOT EXISTS rag_chunks_fts 
+          USING fts3(id, chapter_id, content)
+        ''');
+        print('[FTS] AppDatabase FTS_MODULE=fts3 STATUS=ok');
+      } catch (e2) {
+        print('[FTS] AppDatabase FTS_MODULE=none STATUS=degraded error=\$e2');
+      }
+    }
   }
 
   Future<void> _createRagV2Tables(Database db) async {

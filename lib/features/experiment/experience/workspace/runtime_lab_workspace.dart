@@ -28,11 +28,13 @@ import '../lab_v2/widgets/laboratory_dock.dart';
 import '../lab_v2/widgets/visual_guidance_overlay.dart';
 import 'lab_right_panel.dart';
 import 'lab_workspace_analytics.dart';
+import '../scenes/scene_definition_v3.dart';
 
 class RuntimeLabWorkspace extends StatefulWidget {
   final RuntimeWorld world;
   final RuntimeExperience experience;
   final RuntimeExperienceEngine engine;
+  final SceneDefinitionV3 sceneDefinition;
   final VoidCallback onRecordObservation;
   final VoidCallback onRun;
   final VoidCallback? onPause;
@@ -65,6 +67,7 @@ class RuntimeLabWorkspace extends StatefulWidget {
     required this.world,
     required this.experience,
     required this.engine,
+    required this.sceneDefinition,
     required this.onRecordObservation,
     required this.onRun,
     this.onPause,
@@ -169,6 +172,7 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
                         ExperimentStage(
                           world: widget.world,
                           environmentMode: _environmentMode(),
+                          sceneDefinition: widget.sceneDefinition,
                         ),
                         ExperimentHud(
                           title:

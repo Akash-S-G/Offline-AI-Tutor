@@ -208,6 +208,8 @@ class RuntimeVariableExecutor {
   };
 
   static const Set<String> _computedTypes = {
+    'computed',
+    'formula',
     'average',
     'minimum',
     'maximum',

@@ -43,6 +43,8 @@ import '../../investigation/trials/experiment_trial_manager.dart';
 import '../widgets/native_graph_view.dart';
 import '../runtime_workspace/runtime_orientation_lock.dart';
 import '../runtime_workspace/runtime_view_mode.dart';
+import '../../experience/scenes/experiment_scene_service.dart';
+import '../../experience/scenes/scene_definition_v3.dart';
 
 class ExperimentPlayerScreen extends StatefulWidget {
   final ExperimentManifest manifest;
@@ -82,6 +84,9 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
   ConclusionGenerator? _conclusionGenerator;
   InvestigationTimeline? _investigationTimeline;
 
+  final ExperimentSceneService _sceneService = ExperimentSceneService();
+  SceneDefinitionV3? _sceneDefinition;
+
   @override
   void initState() {
     super.initState();
@@ -89,6 +94,16 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
     _controller.addListener(_onStateChanged);
     _initOrchestrator();
     _initProgressTracking();
+    _loadScene();
+  }
+
+  Future<void> _loadScene() async {
+    await _sceneService.initialize();
+    if (mounted) {
+      setState(() {
+        _sceneDefinition = _sceneService.resolveScene(widget.manifest.title, 'generic');
+      });
+    }
   }
 
   Future<void> _initProgressTracking() async {
@@ -223,7 +238,7 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
   Widget build(BuildContext context) {
     final world = _controller.world;
     return Scaffold(
-      body: world == null
+      body: world == null || _sceneDefinition == null
           ? const Center(child: Text('Loading Experiment...'))
           : _experience == null || _experienceEngine == null
           ? const Center(child: Text('Preparing experience...'))
@@ -231,6 +246,7 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
               world: world,
               experience: _experience!,
               engine: _experienceEngine!,
+              sceneDefinition: _sceneDefinition!,
               onRecordObservation: _recordObservation,
               onRun: () {
                 _progressRepo?.markExperimentStarted(

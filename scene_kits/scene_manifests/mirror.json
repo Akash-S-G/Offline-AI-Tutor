@@ -1,0 +1,12 @@
+{
+  "scene": "mirror",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "concave_mirror_raydiagram",
+    "ray_diagram_concave",
+    "convex_mirror_raydiagram"
+  ],
+  "effects": [],
+  "ui": []
+}

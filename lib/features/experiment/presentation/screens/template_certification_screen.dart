@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart';
 import '../../builder/templates/experiment_templates.dart';
 import '../../runtime/runtime_world.dart';
 import '../../runtime/runtime_profiles.dart';
@@ -21,7 +23,15 @@ class _TemplateCertificationScreenState extends State<TemplateCertificationScree
   }
 
   Future<void> _runCertification() async {
-    for (final template in ExperimentTemplates.allTemplates) {
+    final List<Map<String, dynamic>> templatesToTest = List.from(ExperimentTemplates.allTemplates);
+    try {
+      final String jsonString = await rootBundle.loadString('assets/experiment_blueprints/water_cycle.json');
+      templatesToTest.add(jsonDecode(jsonString) as Map<String, dynamic>);
+    } catch (e) {
+      print('Failed to load water_cycle.json: $e');
+    }
+
+    for (final template in templatesToTest) {
       final name = template['scene']?['name'] ?? 'Unknown';
       try {
         final world = RuntimeWorld();

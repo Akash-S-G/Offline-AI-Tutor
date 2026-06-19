@@ -129,9 +129,11 @@ class ContentPackArchiveService {
     final ragBefore = Sqflite.firstIntValue(
       await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'),
     );
-    final ftsBefore = Sqflite.firstIntValue(
+    final ftsTableExists = Sqflite.firstIntValue(await db.rawQuery(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rag_chunks_fts'")) ?? 0;
+    final ftsBefore = ftsTableExists > 0 ? Sqflite.firstIntValue(
       await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
-    );
+    ) : 0;
     print('PACKS_BEFORE=$packsBefore');
     print('ITEMS_BEFORE=$itemsBefore');
     print('RAG_BEFORE=$ragBefore');
@@ -442,11 +444,11 @@ class ContentPackArchiveService {
           await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'),
         ) ??
         0;
-    final ftsAfter =
-        Sqflite.firstIntValue(
+    final ftsAfter = ftsTableExists > 0 ?
+        (Sqflite.firstIntValue(
           await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
         ) ??
-        0;
+        0) : 0;
 
     print('PACKS_AFTER=$packsAfter');
     print('ITEMS_AFTER=$itemsAfter');

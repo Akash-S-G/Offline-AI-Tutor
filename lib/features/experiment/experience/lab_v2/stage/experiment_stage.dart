@@ -6,25 +6,24 @@ import '../interactions/cause_effect_overlay.dart';
 import '../interactions/spotlight_controller.dart';
 import 'experiment_theatre.dart';
 import 'live_graph_dock.dart';
-import 'scene_definition_resolver.dart';
+import '../../scenes/scene_definition_v3.dart';
 
 class ExperimentStage extends StatelessWidget {
   final RuntimeWorld world;
   final String environmentMode;
   final bool showGraphDock;
-  final SceneDefinitionResolver resolver;
+  final SceneDefinitionV3 sceneDefinition;
 
   const ExperimentStage({
     super.key,
     required this.world,
     required this.environmentMode,
     this.showGraphDock = true,
-    this.resolver = const SceneDefinitionResolver(),
+    required this.sceneDefinition,
   });
 
   @override
   Widget build(BuildContext context) {
-    final scene = resolver.resolve(world);
     return Positioned.fill(
       top: 48,
       bottom: 62,
@@ -36,7 +35,7 @@ class ExperimentStage extends StatelessWidget {
             ExperimentTheatre(
               world: world,
               environmentMode: environmentMode,
-              scene: scene,
+              sceneDefinition: sceneDefinition,
             ),
             if (showGraphDock) LiveGraphDock(world: world),
             CauseEffectOverlay(eventBus: world.eventBus, hidden: false),

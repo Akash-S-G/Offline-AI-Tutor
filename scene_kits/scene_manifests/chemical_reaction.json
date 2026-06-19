@@ -1,0 +1,10 @@
+{
+  "scene": "chemical_reaction",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "beaker"
+  ],
+  "effects": [],
+  "ui": []
+}

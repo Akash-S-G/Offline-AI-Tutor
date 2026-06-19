@@ -1,9 +1,18 @@
+import 'dart:convert';
+import 'package:flutter/services.dart';
+
 import 'runtime_world.dart';
 import 'runtime_validator.dart';
 import 'runtime_profiles.dart';
 import 'runtime_object_factory.dart';
 
 class RuntimeLoader {
+  static Future<RuntimeWorld> loadBlueprintFromAsset(String assetPath) async {
+    final jsonString = await rootBundle.loadString(assetPath);
+    final manifest = jsonDecode(jsonString) as Map<String, dynamic>;
+    return loadFromManifest(manifest);
+  }
+
   static RuntimeWorld loadFromManifest(Map<String, dynamic> manifest) {
     final normalizedManifest = _normalizeManifest(manifest);
 

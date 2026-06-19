@@ -1,0 +1,154 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Antigravity",
+    "category": "science",
+    "difficulty": "Easy",
+    "grade": "Grade 8",
+    "subject": "Science",
+    "estimatedTime": "15 mins"
+  },
+  "scene": {
+    "sceneId": "water_cycle_mvp",
+    "name": "Water Cycle Interactive Lab",
+    "description": "Observe evaporation, cloud formation, and rainfall.",
+    "tags": ["water", "weather", "evaporation"],
+    "visualPreset": "waterCycle",
+    "variables": [
+      {
+        "id": "var_temperature",
+        "name": "Temperature",
+        "type": "number",
+        "value": 25.0,
+        "description": "Environmental temperature (Celsius)"
+      },
+      {
+        "id": "var_humidity",
+        "name": "Humidity",
+        "type": "number",
+        "value": 50.0,
+        "description": "Air humidity (%)"
+      },
+      {
+        "id": "var_wind",
+        "name": "Wind Speed",
+        "type": "number",
+        "value": 10.0,
+        "description": "Wind speed (km/h)"
+      },
+      {
+        "id": "var_evaporation",
+        "name": "Evaporation Rate",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Rate of evaporation",
+        "metadata": {
+          "formula": "(var_temperature * 0.5) + (var_wind * 0.2)",
+          "dependencies": ["var_temperature", "var_wind"]
+        }
+      },
+      {
+        "id": "var_cloud_density",
+        "name": "Cloud Density",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Amount of clouds",
+        "metadata": {
+          "formula": "var_evaporation + (var_humidity * 0.8)",
+          "dependencies": ["var_evaporation", "var_humidity"]
+        }
+      },
+      {
+        "id": "var_rainfall",
+        "name": "Rainfall",
+        "type": "boolean",
+        "value": false,
+        "description": "Is it raining?"
+      }
+    ],
+    "objects": [
+      {
+        "objectId": "ctrl_temp",
+        "name": "Temperature",
+        "objectType": "slider",
+        "properties": { "linked_variable": "var_temperature" },
+        "state": { "label": "Temperature", "value": 25.0, "min": 0.0, "max": 100.0 }
+      },
+      {
+        "objectId": "ctrl_humidity",
+        "name": "Humidity",
+        "objectType": "slider",
+        "properties": { "linked_variable": "var_humidity" },
+        "state": { "label": "Humidity", "value": 50.0, "min": 0.0, "max": 100.0 }
+      },
+      {
+        "objectId": "ctrl_wind",
+        "name": "Wind",
+        "objectType": "slider",
+        "properties": { "linked_variable": "var_wind" },
+        "state": { "label": "Wind", "value": 10.0, "min": 0.0, "max": 100.0 }
+      }
+    ],
+    "rules": [
+      {
+        "ruleId": "rule_rain_start",
+        "name": "Trigger Rainfall",
+        "trigger": "variableChanged",
+        "condition": { 
+          "variableId": "var_cloud_density",
+          "operator": ">",
+          "value": 80.0
+        },
+        "action": {
+           "type": "set_variable",
+           "payload": {
+               "variableId": "var_rainfall",
+               "value": true
+           }
+        }
+      },
+      {
+        "ruleId": "rule_rain_stop",
+        "name": "Stop Rainfall",
+        "trigger": "variableChanged",
+        "condition": { 
+          "variableId": "var_cloud_density",
+          "operator": "<=",
+          "value": 80.0
+        },
+        "action": {
+           "type": "set_variable",
+           "payload": {
+               "variableId": "var_rainfall",
+               "value": false
+           }
+        }
+      }
+    ],
+    "mission": {
+      "id": "mission_water_cycle",
+      "title": "Water Cycle Mission",
+      "description": "Learn the basics of the water cycle.",
+      "tasks": [
+        { "id": "task_1", "title": "Increase temperature above 40C", "condition": "var_temperature > 40" },
+        { "id": "task_2", "title": "Observe evaporation (Evaporation > 20)", "condition": "var_evaporation > 20" },
+        { "id": "task_3", "title": "Record cloud density", "condition": "var_cloud_density > 50" },
+        { "id": "task_4", "title": "Trigger rainfall (Cloud Density > 80)", "condition": "var_rainfall == true" }
+      ]
+    },
+    "assessment": {
+      "id": "assess_water_cycle",
+      "title": "Water Cycle Assessment",
+      "questions": [
+        { "id": "q1", "type": "multiple_choice", "question": "What happens to water when it is heated by the sun?", "options": ["It condenses", "It evaporates", "It freezes", "It precipitates"], "correctAnswer": "It evaporates" },
+        { "id": "q2", "type": "multiple_choice", "question": "What process forms clouds?", "options": ["Evaporation", "Condensation", "Precipitation", "Transpiration"], "correctAnswer": "Condensation" },
+        { "id": "q3", "type": "multiple_choice", "question": "When does precipitation occur?", "options": ["When clouds get too heavy with water droplets", "When the sun shines", "When the wind blows", "When water evaporates"], "correctAnswer": "When clouds get too heavy with water droplets" },
+        { "id": "q4", "type": "multiple_choice", "question": "Which of these is NOT a form of precipitation?", "options": ["Rain", "Snow", "Fog", "Hail"], "correctAnswer": "Fog" },
+        { "id": "q5", "type": "multiple_choice", "question": "What is the main energy source for the water cycle?", "options": ["The Moon", "The Sun", "Wind", "Earth's core"], "correctAnswer": "The Sun" },
+        { "id": "q6", "type": "true_false", "question": "The water cycle is a continuous process.", "correctAnswer": "True" },
+        { "id": "q7", "type": "true_false", "question": "Water can only exist in a liquid state.", "correctAnswer": "False" },
+        { "id": "q8", "type": "reflection", "question": "Explain how temperature and humidity work together to create rain.", "correctAnswer": "" }
+      ]
+    }
+  }
+}

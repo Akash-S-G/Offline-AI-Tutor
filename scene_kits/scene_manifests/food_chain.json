@@ -1,0 +1,10 @@
+{
+  "scene": "food_chain",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "food_chain"
+  ],
+  "effects": [],
+  "ui": []
+}

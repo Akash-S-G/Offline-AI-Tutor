@@ -1,0 +1,10 @@
+{
+  "scene": "lens",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "convex_lens_diagram"
+  ],
+  "effects": [],
+  "ui": []
+}

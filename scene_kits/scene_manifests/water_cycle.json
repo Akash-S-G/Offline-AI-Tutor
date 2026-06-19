@@ -1,0 +1,10 @@
+{
+  "scene": "water_cycle",
+  "version": "1.0",
+  "background": [
+    "water_cycle_diagram"
+  ],
+  "actors": [],
+  "effects": [],
+  "ui": []
+}

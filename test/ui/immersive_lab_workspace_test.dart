@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:offline_tutor_app/features/experiment/experience/scenes/scene_definition_v3.dart';
 import 'package:offline_tutor_app/features/experiment/experience/engine/runtime_experience_engine.dart';
 import 'package:offline_tutor_app/features/experiment/experience/lab_v2/widgets/instrument_controls.dart';
 import 'package:offline_tutor_app/features/experiment/experience/models/runtime_experience.dart';
@@ -51,7 +52,7 @@ void main() {
           body: SizedBox(
             width: 1000,
             height: 620,
-            child: RuntimeLabWorkspace(
+            child: RuntimeLabWorkspace(sceneDefinition: const SceneDefinitionV3(sceneId: 'test', backgroundAssets: [], actorAssets: [], effectAssets: [], theme: 'default'),
               world: world,
               experience: experience,
               engine: engine,

@@ -1,0 +1,10 @@
+{
+  "scene": "heart_rate",
+  "version": "1.0",
+  "background": [],
+  "actors": [
+    "ecg_vector"
+  ],
+  "effects": [],
+  "ui": []
+}

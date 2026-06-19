@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="100%" height="100%" viewBox="-25 -140 527 305">
+<title>Wave Characteristics</title>
+<defs>
+	<marker id="EndArrow" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="strokeWidth" orient="auto" markerWidth="10" markerHeight="10">
+		<polyline points="10,5 0,10 4,5 0,0 10,5" fill="black"/>
+	</marker>
+	<marker id="StartArrow" viewBox="0 0 10 10" refX="0" refY="5" markerUnits="strokeWidth" orient="auto" markerWidth="10" markerHeight="10">
+		<polyline points="0,5 10,0 6,5 10,10 0,5" fill="black"/>
+	</marker>
+</defs>
+<g style="stroke:black;stroke-width:1;fill:none">
+	<rect x="0" y="-120" width="500" height="220"/>
+	<g marker-end="url(#EndArrow)" marker-start="url(#StartArrow)">
+		<line x1="50" x2="250" y1="-90" y2="-90"/>
+		<line x1="450" x2="450" y1="0" y2="-75"/>
+	</g>
+	<path d="M0,0 H500" stroke-dasharray="10,4"/>
+	<path id="zero" d="M120,-10 v20"/>
+	<use xlink:href="#zero" transform="translate(120)"/>
+	<use xlink:href="#zero" transform="translate(240)"/>
+	<use xlink:href="#zero" transform="translate(360)"/>
+</g>
+
+<path d="M0,0 q50,-150 100,0 t100,0 t100,0 t100,0 t100,0" style="stroke:red;stroke-width:2;fill:none"/>
+<switch><text font-size="20" fill="black" x="-10" y="70" transform="rotate(-90,-10,70)" id="trsvg8-es" systemLanguage="es"><tspan id="trsvg1-es">Elongaci&#xF3;n &#x27F6;</tspan></text><text font-size="20" fill="black" x="-10" y="70" transform="rotate(-90,-10,70)" id="trsvg8-ca" systemLanguage="ca"><tspan id="trsvg1-ca">elongaci&#xF3; &#x27F6;</tspan></text><text font-size="20" fill="black" x="-10" y="70" transform="rotate(-90,-10,70)" id="trsvg8"><tspan id="trsvg1">displacement &#x27F6;</tspan></text></switch>
+<switch><text font-size="20" fill="black" id="trsvg9-es" systemLanguage="es"><tspan x="220" y="-125" id="trsvg2-es">Onda</tspan><tspan x="210" y="120" id="trsvg3-es">Distancia &#x27F6;</tspan><tspan x="145" y="-93" id="trsvg4-es">&#x3BB;</tspan><tspan x="455" y="-30" id="trsvg5-es">y</tspan><tspan x="10" y="140" id="trsvg6-es">&#x3BB; = longitud de onda</tspan>
+	<tspan x="10" y="160" id="trsvg7-es">y = amplitud</tspan>
+</text><text font-size="20" fill="black" id="trsvg9-ca" systemLanguage="ca"><tspan x="220" y="-125" id="trsvg2-ca">Ona</tspan><tspan x="210" y="120" id="trsvg3-ca">dist&#xE0;ncia &#x27F6;</tspan><tspan x="145" y="-93" id="trsvg4-ca">&#x3BB;</tspan><tspan x="455" y="-30" id="trsvg5-ca">y</tspan><tspan x="10" y="140" id="trsvg6-ca">&#x3BB; = longitud d'ona</tspan>
+	<tspan x="10" y="160" id="trsvg7-ca">y = amplitud</tspan>
+</text><text font-size="20" fill="black" id="trsvg9"><tspan x="220" y="-125" id="trsvg2">Wave</tspan><tspan x="210" y="120" id="trsvg3">distance &#x27F6;</tspan><tspan x="145" y="-93" id="trsvg4">&#x3BB;</tspan><tspan x="455" y="-30" id="trsvg5">y</tspan><tspan x="10" y="140" id="trsvg6">&#x3BB; = wavelength</tspan>
+	<tspan x="10" y="160" id="trsvg7">y = amplitude</tspan>
+</text></switch>
+</svg>

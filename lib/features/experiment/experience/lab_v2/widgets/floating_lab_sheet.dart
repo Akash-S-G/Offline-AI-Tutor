@@ -41,10 +41,10 @@ class FloatingLabSheet extends StatelessWidget {
             ),
             child: Column(
               children: [
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
                 Container(
                   width: 44,
-                  height: 5,
+                  height: 4,
                   decoration: BoxDecoration(
                     color: const Color(0xFF94A3B8),
                     borderRadius: BorderRadius.circular(99),

@@ -1,0 +1,109 @@
+{
+  "metadata": {
+    "version": "1.0",
+    "description": "IDP Experiment Engine - Scene Kit Asset Registry",
+    "source": "Wikimedia Commons (open-license SVGs)",
+    "generated_at": "2026-06-19T22:31:00Z",
+    "total_scenes": 15,
+    "total_assets": 15
+  },
+  "scenes": {
+    "chemical_reaction": {
+      "background": [],
+      "actors": ["actors/beaker.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "food_chain": {
+      "background": [],
+      "actors": ["actors/food_chain.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "heart_rate": {
+      "background": [],
+      "actors": ["actors/ecg_vector.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "human_body": {
+      "background": [],
+      "actors": [
+        "actors/human_skeleton.svg",
+        "actors/internal_organs.svg"
+      ],
+      "effects": [],
+      "ui": []
+    },
+    "lens": {
+      "background": [],
+      "actors": ["actors/convex_lens_diagram.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "matter": {
+      "background": [],
+      "actors": ["actors/states_of_matter.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "mirror": {
+      "background": [],
+      "actors": [
+        "actors/concave_mirror_raydiagram.svg",
+        "actors/ray_diagram_concave.svg",
+        "actors/convex_mirror_raydiagram.svg"
+      ],
+      "effects": [],
+      "ui": []
+    },
+    "pendulum": {
+      "background": [],
+      "actors": ["actors/pendulum.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "simple_machines": {
+      "background": [],
+      "actors": ["actors/simple_machines.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "solar_system": {
+      "background": [],
+      "actors": ["actors/planets.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "water_cycle": {
+      "background": ["background/water_cycle_diagram.svg"],
+      "actors": [],
+      "effects": [],
+      "ui": []
+    },
+    "wave": {
+      "background": [],
+      "actors": ["actors/wave_characteristics.svg"],
+      "effects": [],
+      "ui": []
+    },
+    "circuit": {
+      "background": [],
+      "actors": [],
+      "effects": [],
+      "ui": []
+    },
+    "motion": {
+      "background": [],
+      "actors": [],
+      "effects": [],
+      "ui": []
+    },
+    "plant_growth": {
+      "background": [],
+      "actors": [],
+      "effects": [],
+      "ui": []
+    }
+  }
+}
