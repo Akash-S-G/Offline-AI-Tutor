@@ -27,19 +27,21 @@ class ExperimentHud extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final progress = guidedEngine?.state.progress ?? 0;
-    final task = guidedEngine?.state.currentTask?.title;
+    final completed = guidedEngine?.state.completedTasks.length ?? 0;
+    final total = guidedEngine?.mission?.tasks.length ?? 0;
+    final missionText = total == 0 ? 'Mission' : 'Mission $completed/$total';
     return Positioned(
-      top: 8,
-      left: 16,
-      right: 16,
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 48,
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F172A).withValues(alpha: 0.88),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0xFF334155)),
+        decoration: const BoxDecoration(
+          color: Color(0xF20F172A),
+          border: Border(bottom: BorderSide(color: Color(0xFF334155))),
         ),
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8),
           child: Row(
             children: [
               if (onExit != null)
@@ -50,49 +52,26 @@ class ExperimentHud extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                 ),
               Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w900,
-                        fontSize: 14,
-                      ),
-                    ),
-                    if (task != null)
-                      Text(
-                        task,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: Color(0xFFCBD5E1),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              SizedBox(
-                width: 96,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(99),
-                  child: LinearProgressIndicator(
-                    value: progress.clamp(0, 1).toDouble(),
-                    minHeight: 6,
-                    backgroundColor: Colors.white.withValues(alpha: 0.18),
-                    valueColor: const AlwaysStoppedAnimation<Color>(
-                      Color(0xFF22C55E),
-                    ),
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 15,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
+              Text(
+                missionText,
+                style: const TextStyle(
+                  color: Color(0xFFCBD5E1),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 12,
+                ),
+              ),
+              const SizedBox(width: 12),
               Text(
                 '${(progress * 100).toStringAsFixed(0)}%',
                 style: const TextStyle(

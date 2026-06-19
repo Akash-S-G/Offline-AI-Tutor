@@ -14,6 +14,7 @@ import '../../investigation/conclusions/conclusion_engine.dart';
 import '../../investigation/trials/experiment_trial_manager.dart';
 import '../../investigation/widgets/trial_history_panel.dart';
 import '../services/runtime_label_formatter.dart';
+import '../lab_v2/widgets/findings_panel.dart';
 import 'lab_workspace_analytics.dart';
 
 class LabRightPanel extends StatefulWidget {
@@ -62,18 +63,18 @@ class _LabRightPanelState extends State<LabRightPanel>
   @override
   void initState() {
     super.initState();
-    _controller = TabController(length: 6, vsync: this)
+    _controller = TabController(length: 4, vsync: this)
       ..addListener(() {
-        if (_controller.index == 1) widget.analytics.graphViews++;
+        if (_controller.index == 0) widget.analytics.graphViews++;
       });
-    _controller.index = widget.selectedTabIndex.clamp(0, 5);
+    _controller.index = widget.selectedTabIndex.clamp(0, 3);
   }
 
   @override
   void didUpdateWidget(covariant LabRightPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.selectedTabIndex != widget.selectedTabIndex) {
-      _controller.animateTo(widget.selectedTabIndex.clamp(0, 5));
+      _controller.animateTo(widget.selectedTabIndex.clamp(0, 3));
     }
   }
 
@@ -94,11 +95,9 @@ class _LabRightPanelState extends State<LabRightPanel>
             isScrollable: true,
             labelColor: const Color(0xFF0F172A),
             tabs: const [
-              Tab(text: 'Readings'),
-              Tab(text: 'Visuals'),
+              Tab(text: 'Findings'),
               Tab(text: 'Observations'),
-              Tab(text: 'Check'),
-              Tab(text: 'Results'),
+              Tab(text: 'Assessment'),
               Tab(text: 'Report'),
             ],
           ),
@@ -106,8 +105,13 @@ class _LabRightPanelState extends State<LabRightPanel>
             child: TabBarView(
               controller: _controller,
               children: [
-                _ReadingsTab(world: widget.world, formatter: _formatter),
-                _GraphsTab(world: widget.world, formatter: _formatter),
+                FindingsPanel(
+                  world: widget.world,
+                  guidedEngine: widget.guidedEngine,
+                  trialManager: widget.trialManager,
+                  conclusionEngine: widget.conclusionEngine,
+                  formatter: _formatter,
+                ),
                 _NotesTab(
                   world: widget.world,
                   onRecordObservation: widget.onRecordObservation,
@@ -115,126 +119,44 @@ class _LabRightPanelState extends State<LabRightPanel>
                 widget.guidedEngine == null
                     ? const Center(child: Text('No mission questions.'))
                     : ExperimentQuestionPanel(engine: widget.guidedEngine!),
-                widget.trialManager == null ||
-                        widget.comparisonEngine == null ||
-                        widget.conclusionEngine == null
-                    ? const Center(child: Text('Trials unavailable.'))
-                    : TrialHistoryPanel(
-                        trialManager: widget.trialManager!,
-                        comparisonEngine: widget.comparisonEngine!,
-                        conclusionEngine: widget.conclusionEngine!,
-                        onFeedback: widget.onFeedback,
-                      ),
                 widget.assessment == null || widget.assessmentAnalytics == null
                     ? const Center(child: Text('Assessment unavailable.'))
-                    : ReportPanel(
-                        guidedEngine: widget.guidedEngine,
-                        trialManager: widget.trialManager,
-                        comparisonEngine: widget.comparisonEngine,
-                        conclusionEngine: widget.conclusionEngine,
-                        assessment: widget.assessment!,
-                        learningOutcomes: widget.learningOutcomes,
-                        analytics: widget.assessmentAnalytics!,
-                        onAssessmentComplete: widget.onAssessmentComplete,
-                        onOutcomesEvaluated: widget.onOutcomesEvaluated,
-                        onFeedback: widget.onFeedback,
+                    : ListView(
+                        children: [
+                          if (widget.trialManager != null &&
+                              widget.comparisonEngine != null &&
+                              widget.conclusionEngine != null)
+                            SizedBox(
+                              height: 260,
+                              child: TrialHistoryPanel(
+                                trialManager: widget.trialManager!,
+                                comparisonEngine: widget.comparisonEngine!,
+                                conclusionEngine: widget.conclusionEngine!,
+                                onFeedback: widget.onFeedback,
+                              ),
+                            ),
+                          SizedBox(
+                            height: 480,
+                            child: ReportPanel(
+                              guidedEngine: widget.guidedEngine,
+                              trialManager: widget.trialManager,
+                              comparisonEngine: widget.comparisonEngine,
+                              conclusionEngine: widget.conclusionEngine,
+                              assessment: widget.assessment!,
+                              learningOutcomes: widget.learningOutcomes,
+                              analytics: widget.assessmentAnalytics!,
+                              onAssessmentComplete: widget.onAssessmentComplete,
+                              onOutcomesEvaluated: widget.onOutcomesEvaluated,
+                              onFeedback: widget.onFeedback,
+                            ),
+                          ),
+                        ],
                       ),
               ],
             ),
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ReadingsTab extends StatelessWidget {
-  final RuntimeWorld world;
-  final RuntimeLabelFormatter formatter;
-
-  const _ReadingsTab({required this.world, required this.formatter});
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: world.variables,
-      builder: (context, _) {
-        final variables = world.variables.allRuntimeVariables.values.toList();
-        return ListView.separated(
-          padding: const EdgeInsets.all(14),
-          itemBuilder: (context, index) {
-            final variable = variables[index];
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    formatter.format(variable.name),
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${variable.value}',
-                    style: const TextStyle(fontSize: 18),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            );
-          },
-          separatorBuilder: (_, _) => const SizedBox(height: 8),
-          itemCount: variables.length,
-        );
-      },
-    );
-  }
-}
-
-class _GraphsTab extends StatelessWidget {
-  final RuntimeWorld world;
-  final RuntimeLabelFormatter formatter;
-
-  const _GraphsTab({required this.world, required this.formatter});
-
-  @override
-  Widget build(BuildContext context) {
-    final graphs = world.objects.allObjectStates
-        .where(
-          (state) => {
-            'lineGraph',
-            'scatterPlot',
-            'barChart',
-            'oscilloscope',
-            'spectrumAnalyzer',
-            'vectorVisualizer',
-          }.contains(state.objectType),
-        )
-        .toList(growable: false);
-    if (graphs.isEmpty) {
-      return const Center(child: Text('No graphs for this experiment yet.'));
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.all(14),
-      itemBuilder: (context, index) {
-        final graph = graphs[index];
-        return ListTile(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          tileColor: Colors.white,
-          leading: const Icon(Icons.show_chart),
-          title: Text(formatter.format(graph.objectId)),
-          subtitle: Text(formatter.format(graph.objectType)),
-        );
-      },
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemCount: graphs.length,
     );
   }
 }

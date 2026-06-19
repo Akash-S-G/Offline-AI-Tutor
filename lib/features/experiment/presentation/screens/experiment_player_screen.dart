@@ -539,6 +539,7 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
                 ExperimentStatusBanner(state: _controller.state),
                 _buildRuntimeStatusIndicator(),
                 _buildRuntimeHealthCard(),
+                _buildVisualizationRuntimePanel(),
                 _buildLastErrorPanel(),
                 _buildActiveWarningsPanel(),
                 _buildRuntimeInspector(),
@@ -584,6 +585,78 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
             style: const TextStyle(fontSize: 12, color: Colors.grey),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildVisualizationRuntimePanel() {
+    final world = _controller.world;
+    final state = world?.visualizationState;
+    if (world == null || state == null) return const SizedBox.shrink();
+    final recentNarration = _controller.events
+        .where((event) => event.message == 'VisualNarrationShown')
+        .take(3)
+        .map((event) => event.metadata?['message']?.toString() ?? event.message)
+        .toList(growable: false);
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Row(
+              children: [
+                Icon(Icons.auto_awesome_rounded, color: Colors.deepPurple),
+                SizedBox(width: 8),
+                Text(
+                  'Visualization Runtime',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                _inspectorChip('Profile', state.activeProfile.presetId),
+                _inspectorChip('Environment', state.activeEnvironment.name),
+                _inspectorChip('Particles', '${state.particlesSpawned}'),
+                _inspectorChip('Animations', '${state.activeAnimations}'),
+                _inspectorChip(
+                  'Profiles Loaded',
+                  '${world.analytics.visualizationProfilesLoaded}',
+                ),
+                _inspectorChip(
+                  'Visual Responses',
+                  '${world.analytics.visualResponsesTriggered}',
+                ),
+                _inspectorChip(
+                  'Narration',
+                  '${world.analytics.narrationEventsShown}',
+                ),
+              ],
+            ),
+            if (recentNarration.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              const Text(
+                'Recent Narration Events',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              ...recentNarration.map(
+                (message) => Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    message,
+                    style: const TextStyle(color: Color(0xFF475569)),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

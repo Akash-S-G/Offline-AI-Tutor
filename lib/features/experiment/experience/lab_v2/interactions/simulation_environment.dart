@@ -24,13 +24,22 @@ class SimulationEnvironment extends StatelessWidget {
     switch (mode.toLowerCase()) {
       case 'space':
         return const [Color(0xFF020617), Color(0xFF172554)];
+      case 'nature':
       case 'outdoor':
         return const [Color(0xFFDBEAFE), Color(0xFFDCFCE7)];
+      case 'physics_room':
+      case 'physics':
+        return const [Color(0xFFEFF6FF), Color(0xFFF8FAFC)];
+      case 'chemistry_bench':
+      case 'chemistry':
+        return const [Color(0xFFFFF7ED), Color(0xFFE0F2FE)];
+      case 'laboratory':
+      case 'lab':
+        return const [Color(0xFFE2E8F0), Color(0xFFF8FAFC)];
       case 'microscope':
         return const [Color(0xFFE0F2FE), Color(0xFFFAE8FF)];
       case 'classroom':
         return const [Color(0xFFEFF6FF), Color(0xFFFFFBEB)];
-      case 'lab':
       default:
         return const [Color(0xFFE2E8F0), Color(0xFFF8FAFC)];
     }

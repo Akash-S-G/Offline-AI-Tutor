@@ -36,6 +36,8 @@ import 'visual_templates/registry/runtime_visual_template_registry.dart';
 import 'visual_templates/runtime/runtime_visual_template_engine.dart';
 import '../visual_presets/composer/simulation_scene_composer.dart';
 import '../visual_presets/registry/visual_preset_registry.dart';
+import '../visualization_first/runtime/runtime_visualization_state.dart';
+import '../visualization_first/runtime/visualization_runtime_coordinator.dart';
 
 class RuntimeWorld {
   late final VariableStore variables;
@@ -64,6 +66,7 @@ class RuntimeWorld {
   late final VisualPresetRegistry visualPresetRegistry;
   late final SimulationSceneComposer sceneComposer;
   late final RuntimeSessionManager sessions;
+  late final VisualizationRuntimeCoordinator visualizationRuntime;
   late final RuleEngine rules;
   late final RuntimeEventBus eventBus;
   late final SimulationClock clock;
@@ -71,6 +74,8 @@ class RuntimeWorld {
 
   RuntimeProfile profile = RuntimeProfile.general;
   Map<String, dynamic> metadata = {};
+  RuntimeVisualizationState? visualizationState;
+  double _visualElapsed = 0;
 
   RuntimeWorld({RuntimeSessionRepository? sessionRepository}) {
     eventBus = RuntimeEventBus();
@@ -149,6 +154,11 @@ class RuntimeWorld {
       repository: sessionRepository ?? const FileRuntimeSessionRepository(),
       eventBus: eventBus,
     );
+    visualizationRuntime = VisualizationRuntimeCoordinator(
+      eventBus: eventBus,
+      canvas: simulationCanvas,
+      animationEngine: animationEngine,
+    );
     clock = SimulationClock();
     analytics = RuntimeAnalytics();
     rules = RuleEngine(variables, eventBus, objects);
@@ -192,18 +202,23 @@ class RuntimeWorld {
     animationEngine.initialize(_animations(curriculumMetadata));
     visualTemplates.initialize();
     _composeVisualPreset(curriculumMetadata);
+    visualizationState = visualizationRuntime.initialize(curriculumMetadata);
     rules.initialize(rulesJson);
     clock.reset();
     analytics.recordLaunch();
   }
 
   void tick(double dt) {
+    _visualElapsed += dt;
+    animationEngine.tick(
+      dt,
+      clock.isRunning ? clock.elapsedTime : _visualElapsed,
+    );
     if (clock.isRunning) {
       clock.tick(dt);
       analytics.addTimeSpent(dt);
       experimentState.tick(dt);
       variableExecutor.tick(dt);
-      animationEngine.tick(dt, clock.elapsedTime);
       observationScheduler.tick(dt);
       rules.evaluateContinuousRules(dt);
     }
@@ -295,6 +310,7 @@ class RuntimeWorld {
     measurementCollector.dispose();
     objectLifecycle.dispose();
     visualTemplates.dispose();
+    visualizationRuntime.dispose();
     animationEngine.dispose();
     visualBindings.dispose();
     simulationCanvas.dispose();

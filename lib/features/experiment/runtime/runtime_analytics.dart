@@ -81,6 +81,13 @@ class RuntimeAnalytics {
   int _presetActorsGenerated = 0;
   int _presetAnimationsGenerated = 0;
   int _presetFailures = 0;
+  int _visualizationProfilesLoaded = 0;
+  int _idleAnimationsStarted = 0;
+  int _particlesSpawned = 0;
+  int _environmentsRendered = 0;
+  int _visualResponsesTriggered = 0;
+  int _narrationEventsShown = 0;
+  int _focusEventsTriggered = 0;
   double _completedRuntimeTotal = 0;
   final Set<String> _measurementVariablesTracked = {};
   DateTime? _lastInteractionTime;
@@ -167,6 +174,13 @@ class RuntimeAnalytics {
   int get presetActorsGenerated => _presetActorsGenerated;
   int get presetAnimationsGenerated => _presetAnimationsGenerated;
   int get presetFailures => _presetFailures;
+  int get visualizationProfilesLoaded => _visualizationProfilesLoaded;
+  int get idleAnimationsStarted => _idleAnimationsStarted;
+  int get particlesSpawned => _particlesSpawned;
+  int get environmentsRendered => _environmentsRendered;
+  int get visualResponsesTriggered => _visualResponsesTriggered;
+  int get narrationEventsShown => _narrationEventsShown;
+  int get focusEventsTriggered => _focusEventsTriggered;
   double get averageRuntime => _experimentsCompleted == 0
       ? 0
       : _completedRuntimeTotal / _experimentsCompleted;
@@ -367,6 +381,22 @@ class RuntimeAnalytics {
         }
       } else if (event.message == 'PresetFailed') {
         _presetFailures++;
+      } else if (event.message == 'VisualizationProfileLoaded') {
+        _visualizationProfilesLoaded++;
+      } else if (event.message == 'IdleAnimationsStarted') {
+        final count = event.metadata?['count'];
+        _idleAnimationsStarted += count is num ? count.toInt() : 1;
+      } else if (event.message == 'ParticlesSpawned') {
+        final count = event.metadata?['count'];
+        _particlesSpawned += count is num ? count.toInt() : 1;
+      } else if (event.message == 'EnvironmentRendered') {
+        _environmentsRendered++;
+      } else if (event.message == 'VisualResponseTriggered') {
+        _visualResponsesTriggered++;
+      } else if (event.message == 'VisualNarrationShown') {
+        _narrationEventsShown++;
+      } else if (event.message == 'VisualFocusTriggered') {
+        _focusEventsTriggered++;
       }
     });
   }

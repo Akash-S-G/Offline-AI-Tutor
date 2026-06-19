@@ -1,6 +1,7 @@
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 
-import '../../runtime/simulation/renderers/runtime_canvas_renderer.dart';
+import '../../runtime/runtime_event.dart';
 import '../../runtime/runtime_world.dart';
 import '../../guided_runtime/engine/guided_experiment_engine.dart';
 import '../../guided_runtime/widgets/task_completion_banner.dart';
@@ -14,17 +15,16 @@ import '../../investigation/conclusions/conclusion_engine.dart';
 import '../../investigation/trials/experiment_trial_manager.dart';
 import '../engine/runtime_experience_engine.dart';
 import '../models/runtime_experience.dart';
-import '../lab_v2/interactions/cause_effect_overlay.dart';
 import '../lab_v2/interactions/experiment_activity_feed.dart';
-import '../lab_v2/interactions/experiment_narrator.dart';
 import '../lab_v2/interactions/insight_card.dart';
-import '../lab_v2/interactions/journey_progress.dart';
-import '../lab_v2/interactions/simulation_environment.dart';
+import '../lab_v2/stage/experiment_stage.dart';
+import '../lab_v2/stage/scene_definition_resolver.dart';
 import '../lab_v2/widgets/completion_dialog.dart';
 import '../lab_v2/widgets/experiment_hud.dart';
+import '../lab_v2/widgets/experiment_intro_overlay.dart';
 import '../lab_v2/widgets/floating_lab_sheet.dart';
 import '../lab_v2/widgets/fullscreen_lab_mode.dart';
-import '../lab_v2/widgets/instrument_controls.dart';
+import '../lab_v2/widgets/laboratory_dock.dart';
 import '../lab_v2/widgets/visual_guidance_overlay.dart';
 import 'lab_right_panel.dart';
 import 'lab_workspace_analytics.dart';
@@ -97,11 +97,15 @@ class RuntimeLabWorkspace extends StatefulWidget {
   State<RuntimeLabWorkspace> createState() => _RuntimeLabWorkspaceState();
 }
 
-class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
+class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
+    with SingleTickerProviderStateMixin {
   final DraggableScrollableController _sheetController =
       DraggableScrollableController();
+  late final Ticker _ticker;
+  Duration _lastFrame = Duration.zero;
   bool _showCompletionBanner = false;
   bool _completionDismissed = false;
+  bool _showIntro = true;
   int _lastCompletedTasks = 0;
   int _selectedSheetTab = 0;
 
@@ -109,7 +113,12 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
   void initState() {
     super.initState();
     widget.analytics.workspaceSessions++;
+    _ticker = createTicker(_onFrame)..start();
     _attachGuidedEngine();
+    _emitEnvironmentRendered();
+    Future<void>.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _showIntro = false);
+    });
   }
 
   @override
@@ -119,11 +128,16 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
       oldWidget.guidedEngine?.removeListener(_onGuidedStateChanged);
       _attachGuidedEngine();
     }
+    if (oldWidget.world != widget.world) {
+      _lastFrame = Duration.zero;
+      _emitEnvironmentRendered();
+    }
   }
 
   @override
   void dispose() {
     _sheetController.dispose();
+    _ticker.dispose();
     widget.guidedEngine?.removeListener(_onGuidedStateChanged);
     super.dispose();
   }
@@ -152,17 +166,9 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        Positioned.fill(
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              SimulationEnvironment(mode: _environmentMode()),
-                              RuntimeCanvasView(
-                                canvas: widget.world.simulationCanvas,
-                                backgroundColor: Colors.transparent,
-                              ),
-                            ],
-                          ),
+                        ExperimentStage(
+                          world: widget.world,
+                          environmentMode: _environmentMode(),
                         ),
                         ExperimentHud(
                           title:
@@ -175,26 +181,9 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
                           onExit: widget.onExit,
                           onToggleDeveloper: widget.onToggleDeveloper,
                         ),
-                        Positioned(
-                          left: 16,
-                          top: 60,
-                          child: JourneyProgress(
-                            guidedEngine: widget.guidedEngine,
-                            compact: false,
-                          ),
-                        ),
-                        ExperimentNarrator(
-                          eventBus: widget.world.eventBus,
-                          guidedEngine: widget.guidedEngine,
-                          hidden: false,
-                        ),
                         VisualGuidanceOverlay(
                           guidedEngine: widget.guidedEngine,
                           hidden: true,
-                        ),
-                        CauseEffectOverlay(
-                          eventBus: widget.world.eventBus,
-                          hidden: false,
                         ),
                         ExperimentActivityFeed(
                           eventBus: widget.world.eventBus,
@@ -204,26 +193,23 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
                           eventBus: widget.world.eventBus,
                           hidden: true,
                         ),
-                        _buildToolCluster(),
-                        InstrumentControls(
-                          objectRegistry: widget.world.objects,
-                          eventBus: widget.world.eventBus,
+                        LaboratoryDock(
                           onRun: widget.onRun,
                           onPause: widget.onPause,
                           onResume: widget.onResume,
                           onStop: widget.onStop,
-                          onRecordObservation: _captureMeasurement,
                           onReset: widget.onReset,
-                          compact: true,
+                          onObserve: () => _openSheetTab(1),
+                          onMeasure: _captureMeasurement,
+                          onOpenInvestigation: () => _openSheetTab(0),
                           isRunning: widget.isRunning,
                           isPaused: widget.isPaused,
                           isPreparing: widget.isPreparing,
-                          onInteraction: () =>
-                              widget.analytics.controlInteractions++,
                         ),
                         FloatingLabSheet(
                           hidden: false,
                           controller: _sheetController,
+                          bottomInset: 58,
                           child: LabRightPanel(
                             world: widget.world,
                             onRecordObservation: _captureMeasurement,
@@ -261,6 +247,15 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
                             setState(() => _completionDismissed = true);
                           },
                         ),
+                        ExperimentIntroOverlay(
+                          title:
+                              widget.guidedEngine?.mission?.title ??
+                              widget.experience.title,
+                          goal: _introGoal(),
+                          bullets: _introBullets(),
+                          visible: _showIntro,
+                          onSkip: () => setState(() => _showIntro = false),
+                        ),
                       ],
                     ),
                   ),
@@ -288,66 +283,15 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
     widget.onFeedback?.call('Measurement Saved');
   }
 
-  Widget _buildToolCluster() {
-    return Positioned(
-      left: 18,
-      bottom: 38,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: const Color(0xFF0F172A).withValues(alpha: 0.88),
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(color: const Color(0xFF334155)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x44000000),
-              blurRadius: 18,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _toolButton(
-                icon: Icons.show_chart,
-                tooltip: 'Graphs',
-                tabIndex: 1,
-              ),
-              _toolButton(
-                icon: Icons.note_alt_outlined,
-                tooltip: 'Notes',
-                tabIndex: 2,
-              ),
-              _toolButton(
-                icon: Icons.science_outlined,
-                tooltip: 'Trials',
-                tabIndex: 4,
-              ),
-              _toolButton(
-                icon: Icons.assignment_outlined,
-                tooltip: 'Assessment',
-                tabIndex: 3,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _toolButton({
-    required IconData icon,
-    required String tooltip,
-    required int tabIndex,
-  }) {
-    return IconButton(
-      tooltip: tooltip,
-      visualDensity: VisualDensity.compact,
-      onPressed: () => _openSheetTab(tabIndex),
-      icon: Icon(icon, color: Colors.white, size: 20),
-    );
+  void _onFrame(Duration elapsed) {
+    if (_lastFrame == Duration.zero) {
+      _lastFrame = elapsed;
+      return;
+    }
+    final dt = (elapsed - _lastFrame).inMicroseconds / 1000000;
+    _lastFrame = elapsed;
+    if (dt <= 0 || dt > 0.1) return;
+    widget.world.tick(dt);
   }
 
   void _openSheetTab(int tabIndex) {
@@ -368,6 +312,11 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
   }
 
   String _environmentMode() {
+    final visualEnvironment =
+        widget.world.visualizationState?.activeEnvironment.id;
+    if (visualEnvironment != null && visualEnvironment.isNotEmpty) {
+      return visualEnvironment;
+    }
     final metadata = widget.world.metadata;
     return metadata['environment']?.toString() ??
         metadata['environmentMode']?.toString() ??
@@ -376,21 +325,53 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
         'lab';
   }
 
+  String _introGoal() {
+    final scene = const SceneDefinitionResolver().resolve(widget.world);
+    final description = widget.world.metadata['description']?.toString();
+    if (description != null && description.isNotEmpty) return description;
+    return 'Investigate how ${scene.primaryVariable.toLowerCase()} changes ${scene.primaryOutcome.toLowerCase()}.';
+  }
+
+  List<String> _introBullets() {
+    final scene = const SceneDefinitionResolver().resolve(widget.world);
+    final currentTask = widget.guidedEngine?.state.currentTask?.title;
+    return [
+      'Watch the ${scene.primaryObject.toLowerCase()} in the experiment stage.',
+      'Change instruments and look for cause and effect.',
+      if (currentTask != null)
+        currentTask
+      else
+        'Collect evidence before making a conclusion.',
+    ];
+  }
+
+  void _emitEnvironmentRendered() {
+    final environment = _environmentMode();
+    widget.world.eventBus.emit(
+      RuntimeEvent(
+        id: 'EnvironmentRendered_${DateTime.now().microsecondsSinceEpoch}',
+        timestamp: DateTime.now(),
+        type: RuntimeEventType.custom,
+        message: 'EnvironmentRendered',
+        metadata: {'environment': environment},
+      ),
+    );
+  }
+
   double _estimateVisibleCanvasPercentage(BoxConstraints constraints) {
     final height = constraints.maxHeight;
     final width = constraints.maxWidth;
     if (!height.isFinite || !width.isFinite || height <= 0 || width <= 0) {
       return 0.82;
     }
-    const hudHeight = 52.0;
+    const hudHeight = 48.0;
+    const dockHeight = 58.0;
     final collapsedSheetHeight = height * 0.05;
-    final controlDockArea = 320.0.clamp(0, width) * 56;
-    final toolClusterArea = 210.0.clamp(0, width) * 50;
+    final graphDockArea = width * 0.24 * (height - hudHeight - dockHeight);
     final developerArea = widget.developerMode ? width * height * 0.35 : 0.0;
     final coveredArea =
-        (hudHeight + collapsedSheetHeight) * width +
-        controlDockArea +
-        toolClusterArea +
+        (hudHeight + dockHeight + collapsedSheetHeight) * width +
+        graphDockArea +
         developerArea;
     final visible = 1 - (coveredArea / (width * height));
     return visible.clamp(0, 1).toDouble();
@@ -402,6 +383,25 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace> {
     _lastCompletedTasks = completed;
     if (!mounted) return;
     setState(() => _showCompletionBanner = true);
+    final task = widget.guidedEngine?.state.currentTask;
+    final focusTargets =
+        widget.world.visualizationState?.activeProfile.focusTargets ?? const [];
+    if (task != null) {
+      widget.world.eventBus.emit(
+        RuntimeEvent(
+          id: 'VisualFocusTriggered_${DateTime.now().microsecondsSinceEpoch}',
+          timestamp: DateTime.now(),
+          type: RuntimeEventType.custom,
+          message: 'VisualFocusTriggered',
+          metadata: {
+            'targetId': focusTargets.isEmpty ? null : focusTargets.first,
+            'targetCategory': 'task',
+            'reason': task.title,
+            'durationMs': 3000,
+          },
+        ),
+      );
+    }
     Future<void>.delayed(const Duration(seconds: 2), () {
       if (mounted) setState(() => _showCompletionBanner = false);
     });

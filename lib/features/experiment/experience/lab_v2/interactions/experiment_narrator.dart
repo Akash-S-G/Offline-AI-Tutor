@@ -131,6 +131,8 @@ class _ExperimentNarratorState extends State<ExperimentNarrator> {
     switch (event.message) {
       case 'SliderChanged':
         return '${_pretty(label ?? 'Control')} changed to ${_format(value)}. Watch the experiment respond.';
+      case 'VisualNarrationShown':
+        return event.metadata?['message']?.toString();
       case 'ToggleChanged':
         return '${_pretty(label ?? 'Switch')} changed state.';
       case 'ObservationRecorded':

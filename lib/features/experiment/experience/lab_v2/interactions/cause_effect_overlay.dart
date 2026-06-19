@@ -105,7 +105,8 @@ class _CauseEffectOverlayState extends State<CauseEffectOverlay> {
   }
 
   void _onEvent(RuntimeEvent event) {
-    if (event.message != 'SliderChanged' &&
+    if (event.message != 'VisualResponseTriggered' &&
+        event.message != 'SliderChanged' &&
         event.message != 'ToggleChanged' &&
         event.message != 'ButtonPressed') {
       return;
@@ -114,10 +115,13 @@ class _CauseEffectOverlayState extends State<CauseEffectOverlay> {
     setState(() {
       _pulse++;
       final label =
+          event.metadata?['response']?.toString() ??
           event.metadata?['label']?.toString() ??
           event.metadata?['objectId']?.toString() ??
           'Control';
-      _label = '${label.replaceAll('_', ' ')} affected the lab';
+      _label = event.message == 'VisualResponseTriggered'
+          ? label
+          : '${label.replaceAll('_', ' ')} affected the lab';
     });
   }
 }

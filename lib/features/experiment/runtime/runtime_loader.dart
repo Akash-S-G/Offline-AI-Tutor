@@ -47,6 +47,10 @@ class RuntimeLoader {
       if (sceneData['animations'] != null)
         'animations': sceneData['animations'],
     };
+    metadata['visualPreset'] ??= _inferVisualPreset(
+      sceneData,
+      manifestMetadata,
+    );
     final variablesJson = List<Map<String, dynamic>>.from(
       sceneData['variables'] ?? [],
     );
@@ -90,5 +94,36 @@ class RuntimeLoader {
         'rules': manifest['rules'] ?? const [],
       },
     };
+  }
+
+  static String? _inferVisualPreset(
+    Map<String, dynamic> sceneData,
+    Map<String, dynamic> metadata,
+  ) {
+    final text =
+        [
+              sceneData['visualPreset'],
+              sceneData['sceneId'],
+              sceneData['name'],
+              sceneData['description'],
+              metadata['visualPreset'],
+              metadata['category'],
+              metadata['subject'],
+            ]
+            .whereType<Object>()
+            .map((value) => value.toString().toLowerCase())
+            .join(' ');
+    if (text.contains('pendulum')) return 'pendulum';
+    if (text.contains('free_fall') ||
+        text.contains('free fall') ||
+        text.contains('gravity')) {
+      return 'freeFall';
+    }
+    if (text.contains('heart') || text.contains('pulse')) return 'heartRate';
+    if (text.contains('plant') || text.contains('growth')) return 'plantGrowth';
+    if (text.contains('water_cycle') || text.contains('water cycle')) {
+      return 'waterCycle';
+    }
+    return null;
   }
 }
