@@ -28,6 +28,7 @@ class ObjectDefinition {
   final String title;
   final String description;
   final IconData icon;
+  final String exampleUsage;
   final List<VariableCategory> supportedVariableCategories;
 
   const ObjectDefinition({
@@ -35,6 +36,7 @@ class ObjectDefinition {
     required this.title,
     required this.description,
     required this.icon,
+    required this.exampleUsage,
     required this.supportedVariableCategories,
   });
 }
@@ -47,6 +49,7 @@ class ObjectRegistry {
       title: 'Line Graph',
       description: 'Visualize changing values over time',
       icon: Icons.show_chart,
+      exampleUsage: 'Track temperature changes during a reaction.',
       supportedVariableCategories: [VariableCategory.sensor, VariableCategory.computed, VariableCategory.timer],
     ),
     ObjectDefinition(
@@ -54,6 +57,7 @@ class ObjectRegistry {
       title: 'Bar Chart',
       description: 'Compare categorical quantities',
       icon: Icons.bar_chart,
+      exampleUsage: 'Compare the mass of different samples.',
       supportedVariableCategories: [VariableCategory.sensor, VariableCategory.computed],
     ),
     ObjectDefinition(
@@ -61,6 +65,7 @@ class ObjectRegistry {
       title: 'Scatter Plot',
       description: 'Visualize relationships between two variables',
       icon: Icons.scatter_plot,
+      exampleUsage: 'Plot distance vs time to find speed.',
       supportedVariableCategories: [VariableCategory.sensor, VariableCategory.computed],
     ),
 
@@ -70,6 +75,7 @@ class ObjectRegistry {
       title: 'Text Display',
       description: 'Show text content',
       icon: Icons.text_snippet,
+      exampleUsage: 'Show instructions or status messages.',
       supportedVariableCategories: [VariableCategory.userInput, VariableCategory.constant],
     ),
     ObjectDefinition(
@@ -77,6 +83,7 @@ class ObjectRegistry {
       title: 'Numeric Display',
       description: 'Display a large numeric value',
       icon: Icons.pin,
+      exampleUsage: 'Show the exact current speed.',
       supportedVariableCategories: [VariableCategory.sensor, VariableCategory.computed, VariableCategory.timer],
     ),
     ObjectDefinition(
@@ -84,6 +91,7 @@ class ObjectRegistry {
       title: 'Data Table',
       description: 'Show values in a tabular format',
       icon: Icons.table_chart,
+      exampleUsage: 'Log measurements side-by-side.',
       supportedVariableCategories: [VariableCategory.sensor, VariableCategory.computed],
     ),
 
@@ -93,6 +101,7 @@ class ObjectRegistry {
       title: 'Button',
       description: 'Trigger an action or rule',
       icon: Icons.smart_button,
+      exampleUsage: 'Click to start the countdown.',
       supportedVariableCategories: [VariableCategory.userInput],
     ),
     ObjectDefinition(
@@ -100,6 +109,7 @@ class ObjectRegistry {
       title: 'Slider UI',
       description: 'Interactive control for numeric values',
       icon: Icons.linear_scale,
+      exampleUsage: 'Drag to adjust the applied force.',
       supportedVariableCategories: [VariableCategory.userInput],
     ),
     ObjectDefinition(
@@ -107,6 +117,7 @@ class ObjectRegistry {
       title: 'Toggle Switch',
       description: 'Interactive boolean switch',
       icon: Icons.toggle_on,
+      exampleUsage: 'Flip to turn the heat on or off.',
       supportedVariableCategories: [VariableCategory.userInput],
     ),
 
@@ -116,6 +127,7 @@ class ObjectRegistry {
       title: 'Gauge',
       description: 'Display live sensor values on a dial',
       icon: Icons.speed,
+      exampleUsage: 'Monitor pressure with a needle dial.',
       supportedVariableCategories: [VariableCategory.sensor, VariableCategory.computed],
     ),
     ObjectDefinition(
@@ -123,6 +135,7 @@ class ObjectRegistry {
       title: 'Counter',
       description: 'Incremental value tracker',
       icon: Icons.plus_one,
+      exampleUsage: 'Count the number of collisions.',
       supportedVariableCategories: [VariableCategory.userInput, VariableCategory.timer],
     ),
     ObjectDefinition(
@@ -130,6 +143,7 @@ class ObjectRegistry {
       title: 'Progress Bar',
       description: 'Visualize completion percentage',
       icon: Icons.hourglass_full,
+      exampleUsage: 'Show remaining battery life.',
       supportedVariableCategories: [VariableCategory.sensor, VariableCategory.timer],
     ),
 
@@ -139,6 +153,7 @@ class ObjectRegistry {
       title: 'Oscilloscope',
       description: 'Visualize signal waveforms',
       icon: Icons.waves,
+      exampleUsage: 'Observe sound wave frequencies.',
       supportedVariableCategories: [VariableCategory.sensor],
     ),
     ObjectDefinition(
@@ -146,6 +161,7 @@ class ObjectRegistry {
       title: 'Spectrum Analyzer',
       description: 'Frequency domain visualizer',
       icon: Icons.graphic_eq,
+      exampleUsage: 'Analyze light emission spectrum.',
       supportedVariableCategories: [VariableCategory.sensor],
     ),
     ObjectDefinition(
@@ -153,6 +169,7 @@ class ObjectRegistry {
       title: 'Vector Visualizer',
       description: 'Display 3D motion/force vectors',
       icon: Icons.open_with,
+      exampleUsage: 'Show direction and magnitude of gravity.',
       supportedVariableCategories: [VariableCategory.sensor, VariableCategory.computed],
     ),
   ];

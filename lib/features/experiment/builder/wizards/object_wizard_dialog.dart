@@ -132,9 +132,11 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Text(
-                    'Example: link to a live value',
-                    style: TextStyle(fontSize: 11, color: Colors.grey),
+                  Text(
+                    'Example: ${def.exampleUsage}',
+                    style: const TextStyle(fontSize: 11, color: Colors.grey),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -342,16 +344,13 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog(
-      insetPadding: EdgeInsets.zero,
-      backgroundColor: Colors.transparent,
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.92,
-        minChildSize: 0.6,
-        maxChildSize: 0.98,
-        expand: false,
-        builder: (context, scrollController) {
-          return Material(
+    return DraggableScrollableSheet(
+      initialChildSize: 0.92,
+      minChildSize: 0.6,
+      maxChildSize: 0.98,
+      expand: false,
+      builder: (context, scrollController) {
+        return Material(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: SafeArea(
               top: false,
@@ -427,7 +426,6 @@ class _ObjectWizardDialogState extends State<ObjectWizardDialog> {
             ),
           );
         },
-      ),
-    );
+      );
   }
 }

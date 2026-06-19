@@ -64,9 +64,11 @@ class _ObjectEditorState extends State<ObjectEditor> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () async {
-                      final newObj = await showDialog<BuilderObject>(
+                      final newObj = await showModalBottomSheet<BuilderObject>(
                         context: context,
-                        barrierDismissible: false,
+                        isScrollControlled: true,
+                        useSafeArea: true,
+                        backgroundColor: Colors.transparent,
                         builder: (context) => ObjectWizardDialog(
                           availableVariables: widget.controller.state.variables,
                         ),
@@ -322,9 +324,11 @@ class _ObjectEditorState extends State<ObjectEditor> {
           'Instruments show controls, readings, and visuals in the experiment.',
       primaryLabel: 'Create Instrument',
       onPrimary: () async {
-        final newObj = await showDialog<BuilderObject>(
+        final newObj = await showModalBottomSheet<BuilderObject>(
           context: context,
-          barrierDismissible: false,
+          isScrollControlled: true,
+          useSafeArea: true,
+          backgroundColor: Colors.transparent,
           builder: (context) => ObjectWizardDialog(
             availableVariables: widget.controller.state.variables,
           ),

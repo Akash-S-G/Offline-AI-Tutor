@@ -225,6 +225,7 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
                             onOutcomesEvaluated: widget.onOutcomesEvaluated,
                             onFeedback: widget.onFeedback,
                             selectedTabIndex: _selectedSheetTab,
+                            developerPanel: widget.developerMode ? widget.developerPanel : null,
                           ),
                         ),
                         Align(
@@ -259,15 +260,6 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
                       ],
                     ),
                   ),
-                  if (widget.developerMode && widget.developerPanel != null)
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: FractionallySizedBox(
-                        widthFactor: 0.35,
-                        heightFactor: 1,
-                        child: widget.developerPanel!,
-                      ),
-                    ),
                 ],
               ),
             );

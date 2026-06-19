@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'experiment_catalog_screen.dart';
 import 'experiment_history_screen.dart';
 import 'lab_reports_screen.dart';
+import 'template_certification_screen.dart';
 import '../../builder/screens/experiment_builder_screen.dart';
 
 class ExperimentHubScreen extends StatelessWidget {
@@ -36,6 +37,12 @@ class ExperimentHubScreen extends StatelessWidget {
                       ),
                     ),
                   );
+                case _AdvancedLabAction.verification:
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const TemplateCertificationScreen(),
+                    ),
+                  );
               }
             },
             itemBuilder: (context) => const [
@@ -46,6 +53,10 @@ class ExperimentHubScreen extends StatelessWidget {
               PopupMenuItem(
                 value: _AdvancedLabAction.history,
                 child: Text('Investigation History'),
+              ),
+              PopupMenuItem(
+                value: _AdvancedLabAction.verification,
+                child: Text('Template Verification'),
               ),
             ],
           ),
@@ -165,7 +176,7 @@ class ExperimentHubScreen extends StatelessWidget {
   }
 }
 
-enum _AdvancedLabAction { creator, history }
+enum _AdvancedLabAction { creator, history, verification }
 
 class _HeroPanel extends StatelessWidget {
   final VoidCallback onExplore;

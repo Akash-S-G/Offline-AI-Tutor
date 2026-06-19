@@ -1,0 +1,205 @@
+{
+  "motion": {
+    "background": {
+      "road": "experiment_scenes/motion/background/road.svg"
+    },
+    "actors": {
+      "ball": "experiment_scenes/motion/actors/ball.svg",
+      "car": "experiment_scenes/motion/actors/car.svg",
+      "ramp": "experiment_scenes/motion/actors/ramp.svg",
+      "timer": "experiment_scenes/motion/actors/timer.svg"
+    },
+    "effects": {
+      "speed_lines": "experiment_scenes/motion/effects/speed_lines.svg"
+    }
+  },
+  "heart_rate": {
+    "background": {
+      "monitor": "experiment_scenes/heart_rate/background/monitor.svg"
+    },
+    "actors": {
+      "ecg": "experiment_scenes/heart_rate/actors/ecg.svg",
+      "heart": "experiment_scenes/heart_rate/actors/heart.svg"
+    },
+    "effects": {
+      "pulse": "experiment_scenes/heart_rate/effects/pulse.svg"
+    }
+  },
+  "simple_machines": {
+    "background": {
+      "workshop": "experiment_scenes/simple_machines/background/workshop.svg"
+    },
+    "actors": {
+      "lever": "experiment_scenes/simple_machines/actors/lever.svg",
+      "pulley": "experiment_scenes/simple_machines/actors/pulley.svg",
+      "wedge": "experiment_scenes/simple_machines/actors/wedge.svg",
+      "weight": "experiment_scenes/simple_machines/actors/weight.svg"
+    },
+    "effects": {
+      "force": "experiment_scenes/simple_machines/effects/force.svg"
+    }
+  },
+  "mirror": {
+    "background": {
+      "table": "experiment_scenes/mirror/background/table.svg"
+    },
+    "actors": {
+      "laser": "experiment_scenes/mirror/actors/laser.svg",
+      "mirror": "experiment_scenes/mirror/actors/mirror.svg"
+    },
+    "effects": {
+      "reflection": "experiment_scenes/mirror/effects/reflection.svg"
+    }
+  },
+  "solar_system": {
+    "background": {
+      "space": "experiment_scenes/solar_system/background/space.svg"
+    },
+    "actors": {
+      "earth": "experiment_scenes/solar_system/actors/earth.svg",
+      "moon": "experiment_scenes/solar_system/actors/moon.svg",
+      "planet": "experiment_scenes/solar_system/actors/planet.svg",
+      "sun": "experiment_scenes/solar_system/actors/sun.svg"
+    },
+    "effects": {
+      "orbit": "experiment_scenes/solar_system/effects/orbit.svg",
+      "star": "experiment_scenes/solar_system/effects/star.svg"
+    }
+  },
+  "plant_growth": {
+    "background": {
+      "garden": "experiment_scenes/plant_growth/background/garden.svg"
+    },
+    "actors": {
+      "plant": "experiment_scenes/plant_growth/actors/plant.svg",
+      "soil": "experiment_scenes/plant_growth/actors/soil.svg",
+      "sun": "experiment_scenes/plant_growth/actors/sun.svg",
+      "water": "experiment_scenes/plant_growth/actors/water.svg"
+    },
+    "effects": {
+      "growth": "experiment_scenes/plant_growth/effects/growth.svg"
+    }
+  },
+  "water_cycle": {
+    "background": {
+      "mountain": "experiment_scenes/water_cycle/background/mountain.svg",
+      "sky": "experiment_scenes/water_cycle/background/sky.svg"
+    },
+    "actors": {
+      "cloud": "experiment_scenes/water_cycle/actors/cloud.svg",
+      "rain": "experiment_scenes/water_cycle/actors/rain.svg",
+      "sun": "experiment_scenes/water_cycle/actors/sun.svg",
+      "vapor": "experiment_scenes/water_cycle/actors/vapor.svg"
+    },
+    "effects": {
+      "evaporation": "experiment_scenes/water_cycle/effects/evaporation.svg",
+      "ripple": "experiment_scenes/water_cycle/effects/ripple.svg"
+    }
+  },
+  "circuit": {
+    "background": {
+      "table": "experiment_scenes/circuit/background/table.svg"
+    },
+    "actors": {
+      "ammeter": "experiment_scenes/circuit/actors/ammeter.svg",
+      "battery": "experiment_scenes/circuit/actors/battery.svg",
+      "bulb": "experiment_scenes/circuit/actors/bulb.svg",
+      "resistor": "experiment_scenes/circuit/actors/resistor.svg",
+      "switch": "experiment_scenes/circuit/actors/switch.svg",
+      "wire": "experiment_scenes/circuit/actors/wire.svg"
+    },
+    "effects": {
+      "glow": "experiment_scenes/circuit/effects/glow.svg"
+    }
+  },
+  "food_chain": {
+    "background": {
+      "forest": "experiment_scenes/food_chain/background/forest.svg"
+    },
+    "actors": {
+      "fox": "experiment_scenes/food_chain/actors/fox.svg",
+      "grass": "experiment_scenes/food_chain/actors/grass.svg",
+      "rabbit": "experiment_scenes/food_chain/actors/rabbit.svg",
+      "sun": "experiment_scenes/food_chain/actors/sun.svg"
+    },
+    "effects": {
+      "energy_flow": "experiment_scenes/food_chain/effects/energy_flow.svg"
+    }
+  },
+  "matter": {
+    "background": {
+      "lab": "experiment_scenes/matter/background/lab.svg"
+    },
+    "actors": {
+      "ice": "experiment_scenes/matter/actors/ice.svg",
+      "steam": "experiment_scenes/matter/actors/steam.svg",
+      "water": "experiment_scenes/matter/actors/water.svg"
+    },
+    "effects": {
+      "molecules": "experiment_scenes/matter/effects/molecules.svg"
+    }
+  },
+  "human_body": {
+    "background": {
+      "clinic": "experiment_scenes/human_body/background/clinic.svg"
+    },
+    "actors": {
+      "brain": "experiment_scenes/human_body/actors/brain.svg",
+      "lungs": "experiment_scenes/human_body/actors/lungs.svg",
+      "skeleton": "experiment_scenes/human_body/actors/skeleton.svg"
+    },
+    "effects": {
+      "blood_flow": "experiment_scenes/human_body/effects/blood_flow.svg"
+    }
+  },
+  "chemical_reaction": {
+    "background": {
+      "bench": "experiment_scenes/chemical_reaction/background/bench.svg"
+    },
+    "actors": {
+      "burner": "experiment_scenes/chemical_reaction/actors/burner.svg",
+      "flask": "experiment_scenes/chemical_reaction/actors/flask.svg"
+    },
+    "effects": {
+      "bubbling": "experiment_scenes/chemical_reaction/effects/bubbling.svg",
+      "heat": "experiment_scenes/chemical_reaction/effects/heat.svg"
+    }
+  },
+  "wave": {
+    "background": {},
+    "actors": {
+      "oscilloscope": "experiment_scenes/wave/actors/oscilloscope.svg",
+      "speaker": "experiment_scenes/wave/actors/speaker.svg"
+    },
+    "effects": {
+      "soundwave": "experiment_scenes/wave/effects/soundwave.svg"
+    }
+  },
+  "pendulum": {
+    "background": {
+      "physics_lab": "experiment_scenes/pendulum/background/physics_lab.svg"
+    },
+    "actors": {
+      "angle_scale": "experiment_scenes/pendulum/actors/angle_scale.svg",
+      "bob": "experiment_scenes/pendulum/actors/bob.svg",
+      "pendulum": "experiment_scenes/pendulum/actors/pendulum.svg",
+      "rod": "experiment_scenes/pendulum/actors/rod.svg",
+      "support": "experiment_scenes/pendulum/actors/support.svg"
+    },
+    "effects": {
+      "swing_arc": "experiment_scenes/pendulum/effects/swing_arc.svg",
+      "trail": "experiment_scenes/pendulum/effects/trail.svg"
+    }
+  },
+  "lens": {
+    "background": {},
+    "actors": {
+      "concave": "experiment_scenes/lens/actors/concave.svg",
+      "convex": "experiment_scenes/lens/actors/convex.svg",
+      "laser": "experiment_scenes/lens/actors/laser.svg"
+    },
+    "effects": {
+      "focal_point": "experiment_scenes/lens/effects/focal_point.svg"
+    }
+  }
+}

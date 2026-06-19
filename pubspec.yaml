@@ -51,3 +51,4 @@ flutter:
   assets:
     - .env
     - assets/experiment_scenes/
+    - assets/asset_registry.json

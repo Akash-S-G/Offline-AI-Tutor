@@ -4,6 +4,7 @@ import '../models/builder_rule.dart';
 import 'builder_search_bar.dart';
 import 'empty_state_card.dart';
 import 'rule_runtime_config_editors.dart';
+import '../domain/rule_action_registry.dart';
 import '../wizards/rule_wizard_dialog.dart';
 
 class RuleEditor extends StatefulWidget {
@@ -63,12 +64,13 @@ class _RuleEditorState extends State<RuleEditor> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () async {
-                      final newRule = await showDialog<BuilderRule>(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => RuleWizardDialog(
-                          availableVariables: widget.controller.state.variables,
-                          availableObjects: widget.controller.state.objects,
+                      final newRule = await Navigator.of(context).push<BuilderRule>(
+                        MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder: (context) => RuleWizardDialog(
+                            availableVariables: widget.controller.state.variables,
+                            availableObjects: widget.controller.state.objects,
+                          ),
                         ),
                       );
 
@@ -116,12 +118,13 @@ class _RuleEditorState extends State<RuleEditor> {
       message: 'Interactions define cause and effect in your experiment.',
       primaryLabel: 'Create Interaction',
       onPrimary: () async {
-        final newRule = await showDialog<BuilderRule>(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => RuleWizardDialog(
-            availableVariables: widget.controller.state.variables,
-            availableObjects: widget.controller.state.objects,
+        final newRule = await Navigator.of(context).push<BuilderRule>(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (context) => RuleWizardDialog(
+              availableVariables: widget.controller.state.variables,
+              availableObjects: widget.controller.state.objects,
+            ),
           ),
         );
         if (newRule != null && mounted) widget.controller.addRule(newRule);
@@ -214,13 +217,14 @@ class _RuleEditorState extends State<RuleEditor> {
                       ),
                       child: Center(
                         child: Text(
-                          trigger,
+                          _humanizeTrigger(trigger),
                           style: const TextStyle(
                             color: Color(0xFF2563EB),
                             fontWeight: FontWeight.bold,
                             fontSize: 11,
                           ),
-                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          overflow: TextOverflow.visible,
                         ),
                       ),
                     ),
@@ -283,17 +287,39 @@ class _RuleEditorState extends State<RuleEditor> {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(
-                        actions
-                            .map(
-                              (action) =>
-                                  action['type']?.toString() ?? 'action',
-                            )
-                            .join('\n'),
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFF1E293B),
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: actions.map((action) {
+                          final type = action['type']?.toString() ?? 'action';
+                          final def = RuleActionRegistry.byId(type);
+                          final label = def?.label ?? type;
+                          final value = action['value']?.toString();
+                          final message = action['message']?.toString();
+                          
+                          var detail = '';
+                          if (value != null) detail = ' → $value';
+                          if (message != null && message.isNotEmpty) detail = ' "$message"';
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Icon(Icons.play_arrow, size: 14, color: Colors.grey),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    '$label$detail',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: Color(0xFF1E293B),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ),
                   ],
@@ -396,5 +422,20 @@ class _RuleEditorState extends State<RuleEditor> {
 
   List<Map<String, dynamic>> _actionsFor(BuilderRule rule) {
     return rule.actions;
+  }
+
+  String _humanizeTrigger(String raw) {
+    switch (raw) {
+      case 'variableChanged': return 'When Variable Changes';
+      case 'thresholdCrossed': return 'When Threshold Crossed';
+      case 'buttonPressed': return 'When Button Pressed';
+      case 'toggleChanged': return 'When Toggle Changed';
+      case 'intervalTriggered': return 'On Interval';
+      case 'countdownFinished': return 'When Countdown Finishes';
+      case 'experimentStarted': return 'When Experiment Starts';
+      case 'experimentPaused': return 'When Experiment Paused';
+      case 'experimentCompleted': return 'When Experiment Completes';
+      default: return raw;
+    }
   }
 }

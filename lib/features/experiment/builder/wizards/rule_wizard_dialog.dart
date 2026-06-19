@@ -233,62 +233,60 @@ class _RuleWizardDialogState extends State<RuleWizardDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Dialog.fullscreen(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Add Logic Rule'),
-          leading: IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.of(context).pop(),
-          ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Add Logic Rule'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: () => Navigator.of(context).pop(),
         ),
-        body: SafeArea(
-          child: Column(
-            children: [
-              _buildStepHeader(),
-              Expanded(
-                child: SingleChildScrollView(
-                  key: const PageStorageKey<String>('rule_wizard_step_scroll'),
-                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
-                  child: _buildCurrentStep(),
-                ),
+      ),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildStepHeader(),
+            Expanded(
+              child: SingleChildScrollView(
+                key: const PageStorageKey<String>('rule_wizard_step_scroll'),
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+                child: _buildCurrentStep(),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          if (_currentStep > 0) {
-                            setState(() => _currentStep -= 1);
-                          } else {
-                            Navigator.of(context).pop();
-                          }
-                        },
-                        child: Text(_currentStep == 0 ? 'Cancel' : 'Back'),
-                      ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        if (_currentStep > 0) {
+                          setState(() => _currentStep -= 1);
+                        } else {
+                          Navigator.of(context).pop();
+                        }
+                      },
+                      child: Text(_currentStep == 0 ? 'Cancel' : 'Back'),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: _canProceed
-                            ? () {
-                                if (_currentStep < 2) {
-                                  setState(() => _currentStep += 1);
-                                } else {
-                                  _createRule();
-                                }
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _canProceed
+                          ? () {
+                              if (_currentStep < 2) {
+                                setState(() => _currentStep += 1);
+                              } else {
+                                _createRule();
                               }
-                            : null,
-                        child: Text(_currentStep == 2 ? 'Create' : 'Next'),
-                      ),
+                            }
+                          : null,
+                      child: Text(_currentStep == 2 ? 'Create' : 'Next'),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

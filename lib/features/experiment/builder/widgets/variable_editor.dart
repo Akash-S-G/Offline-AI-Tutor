@@ -63,11 +63,12 @@ class _VariableEditorState extends State<VariableEditor> {
                       foregroundColor: Colors.white,
                     ),
                     onPressed: () async {
-                      final newVar = await showDialog<BuilderVariable>(
-                        context: context,
-                        barrierDismissible: false,
-                        builder: (context) => VariableWizardDialog(
-                          availableVariables: widget.controller.state.variables,
+                      final newVar = await Navigator.of(context).push<BuilderVariable>(
+                        MaterialPageRoute(
+                          fullscreenDialog: true,
+                          builder: (context) => VariableWizardDialog(
+                            availableVariables: widget.controller.state.variables,
+                          ),
                         ),
                       );
 
@@ -313,11 +314,12 @@ class _VariableEditorState extends State<VariableEditor> {
       message: 'Readings track values that change during the experiment.',
       primaryLabel: 'Create Reading',
       onPrimary: () async {
-        final newVar = await showDialog<BuilderVariable>(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => VariableWizardDialog(
-            availableVariables: widget.controller.state.variables,
+        final newVar = await Navigator.of(context).push<BuilderVariable>(
+          MaterialPageRoute(
+            fullscreenDialog: true,
+            builder: (context) => VariableWizardDialog(
+              availableVariables: widget.controller.state.variables,
+            ),
           ),
         );
         if (newVar != null && mounted) widget.controller.addVariable(newVar);

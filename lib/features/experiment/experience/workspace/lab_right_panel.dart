@@ -32,6 +32,7 @@ class LabRightPanel extends StatefulWidget {
   final ValueChanged<List<LearningOutcomeResult>>? onOutcomesEvaluated;
   final ValueChanged<String>? onFeedback;
   final int selectedTabIndex;
+  final Widget? developerPanel;
 
   const LabRightPanel({
     super.key,
@@ -49,6 +50,7 @@ class LabRightPanel extends StatefulWidget {
     this.onOutcomesEvaluated,
     this.onFeedback,
     this.selectedTabIndex = 0,
+    this.developerPanel,
   });
 
   @override
@@ -63,18 +65,20 @@ class _LabRightPanelState extends State<LabRightPanel>
   @override
   void initState() {
     super.initState();
-    _controller = TabController(length: 4, vsync: this)
+    final tabCount = widget.developerPanel != null ? 5 : 4;
+    _controller = TabController(length: tabCount, vsync: this)
       ..addListener(() {
         if (_controller.index == 0) widget.analytics.graphViews++;
       });
-    _controller.index = widget.selectedTabIndex.clamp(0, 3);
+    _controller.index = widget.selectedTabIndex.clamp(0, tabCount - 1);
   }
 
   @override
   void didUpdateWidget(covariant LabRightPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final tabCount = widget.developerPanel != null ? 5 : 4;
     if (oldWidget.selectedTabIndex != widget.selectedTabIndex) {
-      _controller.animateTo(widget.selectedTabIndex.clamp(0, 3));
+      _controller.animateTo(widget.selectedTabIndex.clamp(0, tabCount - 1));
     }
   }
 
@@ -94,11 +98,12 @@ class _LabRightPanelState extends State<LabRightPanel>
             controller: _controller,
             isScrollable: true,
             labelColor: const Color(0xFF0F172A),
-            tabs: const [
-              Tab(text: 'Findings'),
-              Tab(text: 'Observations'),
-              Tab(text: 'Assessment'),
-              Tab(text: 'Report'),
+            tabs: [
+              const Tab(text: 'Findings'),
+              const Tab(text: 'Observations'),
+              const Tab(text: 'Assessment'),
+              const Tab(text: 'Report'),
+              if (widget.developerPanel != null) const Tab(text: 'Diagnostics'),
             ],
           ),
           Expanded(
@@ -152,6 +157,7 @@ class _LabRightPanelState extends State<LabRightPanel>
                           ),
                         ],
                       ),
+                if (widget.developerPanel != null) widget.developerPanel!,
               ],
             ),
           ),

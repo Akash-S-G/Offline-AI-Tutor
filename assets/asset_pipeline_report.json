@@ -1,0 +1,709 @@
+{
+  "timestamp": "2026-06-19T15:25:12.273806+00:00",
+  "summary": {
+    "total_attempted": 88,
+    "downloaded": 85,
+    "failed": 3,
+    "duplicates": 0
+  },
+  "downloaded": [
+    {
+      "scene": "circuit",
+      "category": "background",
+      "name": "table.svg",
+      "size": 332,
+      "sha256": "806e2810a1dc693e5dcc22298c6bab50ca5ba16f090d5c61e8ca4b22fdeaa4e3",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/table.svg"
+    },
+    {
+      "scene": "circuit",
+      "category": "actors",
+      "name": "battery.svg",
+      "size": 357,
+      "sha256": "9ef66bd46e676bbcf1e8befca8e904b93be9214abccea4f8a4d20432a0c5ccf8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/battery-full.svg"
+    },
+    {
+      "scene": "circuit",
+      "category": "actors",
+      "name": "bulb.svg",
+      "size": 371,
+      "sha256": "e33bbec15b1e64cca958e086850f951c0dc2201cd5778bb3695fda3cb6ea457d",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/lightbulb.svg"
+    },
+    {
+      "scene": "circuit",
+      "category": "actors",
+      "name": "switch.svg",
+      "size": 296,
+      "sha256": "5646102cff917abbf07b4b9710654265eea55c2fa9da3a1efdce231263f58044",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/toggle-right.svg"
+    },
+    {
+      "scene": "circuit",
+      "category": "actors",
+      "name": "wire.svg",
+      "size": 232,
+      "sha256": "a0c743ab6dbf545d8a6e19ef3874f48ede686ce68d25e231bd81f540d97b1f19",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/minus.svg"
+    },
+    {
+      "scene": "circuit",
+      "category": "actors",
+      "name": "resistor.svg",
+      "size": 379,
+      "sha256": "6dd11565c1b7dfd277840499505ec96c2cc9201aa2a003beacb25225602b6831",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/zap.svg"
+    },
+    {
+      "scene": "circuit",
+      "category": "actors",
+      "name": "ammeter.svg",
+      "size": 278,
+      "sha256": "d7710543a5085c5a61d0bbac1da8b89ef28e541b38ed739357991dff33d475b5",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/gauge.svg"
+    },
+    {
+      "scene": "circuit",
+      "category": "effects",
+      "name": "glow.svg",
+      "size": 485,
+      "sha256": "a3955c8b0425fcc5c9ba12d2bdd77fe53b2cd5dd05e7742a56f342e996fb2ef8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/sun.svg"
+    },
+    {
+      "scene": "solar_system",
+      "category": "background",
+      "name": "space.svg",
+      "size": 567,
+      "sha256": "f5499f33f09d7158151e9bd2ec0faf79ff8fb57292f84fdd7286d96d0f0424d8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/sparkles.svg"
+    },
+    {
+      "scene": "solar_system",
+      "category": "actors",
+      "name": "sun.svg",
+      "size": 485,
+      "sha256": "a3955c8b0425fcc5c9ba12d2bdd77fe53b2cd5dd05e7742a56f342e996fb2ef8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/sun.svg"
+    },
+    {
+      "scene": "solar_system",
+      "category": "actors",
+      "name": "earth.svg",
+      "size": 331,
+      "sha256": "82c6b8fa0b8e8d775ec9becd86f74a4e50bff7bee4c81f7362de45348504f14d",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/globe.svg"
+    },
+    {
+      "scene": "solar_system",
+      "category": "actors",
+      "name": "moon.svg",
+      "size": 334,
+      "sha256": "205b959e940d5841f0ce1d09c933153da9d9c94130a54d5cc0c68c2af1d403da",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/moon.svg"
+    },
+    {
+      "scene": "solar_system",
+      "category": "actors",
+      "name": "planet.svg",
+      "size": 244,
+      "sha256": "3a991bd47beaf9874fba6fdf87bbba442970a89b5e6aa391558bc8b0a00a0513",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/circle.svg"
+    },
+    {
+      "scene": "solar_system",
+      "category": "effects",
+      "name": "orbit.svg",
+      "size": 418,
+      "sha256": "e2b8b7d7f82044181860cbc2dab9b7e8d3c4778fbbce9a62f5c4038175f4faf4",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/orbit.svg"
+    },
+    {
+      "scene": "solar_system",
+      "category": "effects",
+      "name": "star.svg",
+      "size": 588,
+      "sha256": "c59da86b889569387db28e69ad00a89f96af22863ad9eea9aa12c4876a14338c",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/star.svg"
+    },
+    {
+      "scene": "water_cycle",
+      "category": "background",
+      "name": "sky.svg",
+      "size": 341,
+      "sha256": "abd7873286db59916b8364500bfa692de04184bb80c8ba8dca06be3fed0c5f29",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/cloudy.svg"
+    },
+    {
+      "scene": "water_cycle",
+      "category": "background",
+      "name": "mountain.svg",
+      "size": 248,
+      "sha256": "fced3dd3ffb1472e62a13d92e72633e9c68a4655da3d8aa801bc65a041fe64be",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/mountain.svg"
+    },
+    {
+      "scene": "water_cycle",
+      "category": "actors",
+      "name": "sun.svg",
+      "size": 485,
+      "sha256": "a3955c8b0425fcc5c9ba12d2bdd77fe53b2cd5dd05e7742a56f342e996fb2ef8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/sun.svg"
+    },
+    {
+      "scene": "water_cycle",
+      "category": "actors",
+      "name": "cloud.svg",
+      "size": 275,
+      "sha256": "28a34022ed00177eb1f218eea5d2b7af30d09b529187fe32219e4dd8ea2b9740",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/cloud.svg"
+    },
+    {
+      "scene": "water_cycle",
+      "category": "actors",
+      "name": "rain.svg",
+      "size": 351,
+      "sha256": "4230ba9d28d0a02c088ec0b21079b63aed9f2b7ee8493588adf34ee144bc307b",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/cloud-rain.svg"
+    },
+    {
+      "scene": "water_cycle",
+      "category": "actors",
+      "name": "vapor.svg",
+      "size": 261,
+      "sha256": "8c22c25874c80bb062bef985d207d8f1d4a4d7847237d0a8cf720a3235968518",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/arrow-up.svg"
+    },
+    {
+      "scene": "water_cycle",
+      "category": "effects",
+      "name": "ripple.svg",
+      "size": 314,
+      "sha256": "96a6b16628825a1a207a77e9a5818f74c3e74ea3664783ff5c2a44e6347b90df",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/target.svg"
+    },
+    {
+      "scene": "water_cycle",
+      "category": "effects",
+      "name": "evaporation.svg",
+      "size": 336,
+      "sha256": "eb35f6f00125b779a993c21ee761432faf8fc3210272c94448f63e2196d419b7",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/wind.svg"
+    },
+    {
+      "scene": "pendulum",
+      "category": "background",
+      "name": "physics_lab.svg",
+      "size": 545,
+      "sha256": "62afdf63b5020448cba93267343a91c16ee4dffc7969e46b223ee531cf0bcd1c",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/building.svg"
+    },
+    {
+      "scene": "pendulum",
+      "category": "actors",
+      "name": "pendulum.svg",
+      "size": 313,
+      "sha256": "d15411438095bac7cab0cf91f18cadfbde2ca752284c06b4b3642c4695b1774e",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/arrow-up-down.svg"
+    },
+    {
+      "scene": "pendulum",
+      "category": "actors",
+      "name": "rod.svg",
+      "size": 232,
+      "sha256": "a0c743ab6dbf545d8a6e19ef3874f48ede686ce68d25e231bd81f540d97b1f19",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/minus.svg"
+    },
+    {
+      "scene": "pendulum",
+      "category": "actors",
+      "name": "bob.svg",
+      "size": 279,
+      "sha256": "b3ea13d44ab830f45fa83a701ef187e28f4b9606c86a54606c4bd753158185c4",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/disc.svg"
+    },
+    {
+      "scene": "pendulum",
+      "category": "actors",
+      "name": "angle_scale.svg",
+      "size": 278,
+      "sha256": "d7710543a5085c5a61d0bbac1da8b89ef28e541b38ed739357991dff33d475b5",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/gauge.svg"
+    },
+    {
+      "scene": "pendulum",
+      "category": "actors",
+      "name": "support.svg",
+      "size": 285,
+      "sha256": "d44032ba6c8d27fa6b1589831a4cf5e22acf3b1e7bb7852913c1bf323b1fd7de",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/arrow-down-to-line.svg"
+    },
+    {
+      "scene": "pendulum",
+      "category": "effects",
+      "name": "swing_arc.svg",
+      "size": 289,
+      "sha256": "46f99abb37f82f822d0cb13eebc35e63ffc55a4c35bbd48a8538eb45763abcf9",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/move-horizontal.svg"
+    },
+    {
+      "scene": "pendulum",
+      "category": "effects",
+      "name": "trail.svg",
+      "size": 324,
+      "sha256": "a98ff758157910b9fc9d42d5d5dc80c2f4e037afa5f8ea4dee5f5649f03d438d",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/history.svg"
+    },
+    {
+      "scene": "plant_growth",
+      "category": "background",
+      "name": "garden.svg",
+      "size": 355,
+      "sha256": "b52cb61737d117046c8e9a6c6cbfffa4b88c90129d5f8d07c1369b62a8288714",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/tree-deciduous.svg"
+    },
+    {
+      "scene": "plant_growth",
+      "category": "actors",
+      "name": "sun.svg",
+      "size": 485,
+      "sha256": "a3955c8b0425fcc5c9ba12d2bdd77fe53b2cd5dd05e7742a56f342e996fb2ef8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/sun.svg"
+    },
+    {
+      "scene": "plant_growth",
+      "category": "actors",
+      "name": "plant.svg",
+      "size": 397,
+      "sha256": "cf4cd97166b3239348dfe2a94dad045bf788883c32292b16fd8c953f619a4f7b",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/sprout.svg"
+    },
+    {
+      "scene": "plant_growth",
+      "category": "actors",
+      "name": "soil.svg",
+      "size": 510,
+      "sha256": "ce16d0a955e3581cda17f6b2fd5c5bc2034b405f9cecc31c8ebb8495b4afc1bb",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/layers.svg"
+    },
+    {
+      "scene": "plant_growth",
+      "category": "actors",
+      "name": "water.svg",
+      "size": 472,
+      "sha256": "7cc0e91aa44f42f9c39e566f87dd0affd621cf4c103ad5fdbc69a475170917ae",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/droplets.svg"
+    },
+    {
+      "scene": "plant_growth",
+      "category": "effects",
+      "name": "growth.svg",
+      "size": 261,
+      "sha256": "8c22c25874c80bb062bef985d207d8f1d4a4d7847237d0a8cf720a3235968518",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/arrow-up.svg"
+    },
+    {
+      "scene": "heart_rate",
+      "category": "background",
+      "name": "monitor.svg",
+      "size": 346,
+      "sha256": "d1a443233345724859de8e4fb48968ba91e885e12ddbd710701548bd91b39428",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/monitor.svg"
+    },
+    {
+      "scene": "heart_rate",
+      "category": "actors",
+      "name": "heart.svg",
+      "size": 373,
+      "sha256": "70af5f30be9fcb500b852556b38dcdf8c04a4ba81fd262534fb0336bd39b3b52",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/heart.svg"
+    },
+    {
+      "scene": "heart_rate",
+      "category": "actors",
+      "name": "ecg.svg",
+      "size": 346,
+      "sha256": "050fbcda05e13c2051cf857683645e19c6b180861ef4d0cc28a6f09ba1ea1666",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/activity.svg"
+    },
+    {
+      "scene": "heart_rate",
+      "category": "effects",
+      "name": "pulse.svg",
+      "size": 379,
+      "sha256": "6dd11565c1b7dfd277840499505ec96c2cc9201aa2a003beacb25225602b6831",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/zap.svg"
+    },
+    {
+      "scene": "motion",
+      "category": "background",
+      "name": "road.svg",
+      "size": 232,
+      "sha256": "a0c743ab6dbf545d8a6e19ef3874f48ede686ce68d25e231bd81f540d97b1f19",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/minus.svg"
+    },
+    {
+      "scene": "motion",
+      "category": "actors",
+      "name": "car.svg",
+      "size": 486,
+      "sha256": "6d70bc146ca53b9c140a859319df471616c1ee6758bfb31a346d549d1fe92211",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/car.svg"
+    },
+    {
+      "scene": "motion",
+      "category": "actors",
+      "name": "ball.svg",
+      "size": 244,
+      "sha256": "3a991bd47beaf9874fba6fdf87bbba442970a89b5e6aa391558bc8b0a00a0513",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/circle.svg"
+    },
+    {
+      "scene": "motion",
+      "category": "actors",
+      "name": "ramp.svg",
+      "size": 291,
+      "sha256": "07ef0fa398d74189b9d59ce313534a4b01fad705d52b36f8e4e8fc57a3437023",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/triangle.svg"
+    },
+    {
+      "scene": "motion",
+      "category": "actors",
+      "name": "timer.svg",
+      "size": 271,
+      "sha256": "e9d3e3acf4d1c280fcf8092293439dc0a4756a908ceb859de144b12451cd1cb9",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/clock.svg"
+    },
+    {
+      "scene": "motion",
+      "category": "effects",
+      "name": "speed_lines.svg",
+      "size": 380,
+      "sha256": "c98610ef43162ca32661429bbee8c263049a8277cefbceed932be46e986f682c",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/fast-forward.svg"
+    },
+    {
+      "scene": "wave",
+      "category": "actors",
+      "name": "oscilloscope.svg",
+      "size": 346,
+      "sha256": "050fbcda05e13c2051cf857683645e19c6b180861ef4d0cc28a6f09ba1ea1666",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/activity.svg"
+    },
+    {
+      "scene": "wave",
+      "category": "actors",
+      "name": "speaker.svg",
+      "size": 347,
+      "sha256": "89b12199bd24d0a1eac77bfcefc300625262016060ecdfc0092324cbf7eda7ce",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/speaker.svg"
+    },
+    {
+      "scene": "wave",
+      "category": "effects",
+      "name": "soundwave.svg",
+      "size": 437,
+      "sha256": "e55ef723902350caaabb68c8814ba57c4c2d237e0747a5f0520624e6f2f8c861",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/radio.svg"
+    },
+    {
+      "scene": "mirror",
+      "category": "background",
+      "name": "table.svg",
+      "size": 332,
+      "sha256": "806e2810a1dc693e5dcc22298c6bab50ca5ba16f090d5c61e8ca4b22fdeaa4e3",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/table.svg"
+    },
+    {
+      "scene": "mirror",
+      "category": "actors",
+      "name": "mirror.svg",
+      "size": 261,
+      "sha256": "bd979354f0ab184b95cecf03eedefe40c2dc65830ac6d7e60017b2b25a354acb",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/square.svg"
+    },
+    {
+      "scene": "mirror",
+      "category": "actors",
+      "name": "laser.svg",
+      "size": 422,
+      "sha256": "f8cf74e5bb8457223e2f1aaa48b2baa02525b2b4e478ae761d62a0d9160a854c",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/flashlight.svg"
+    },
+    {
+      "scene": "mirror",
+      "category": "effects",
+      "name": "reflection.svg",
+      "size": 379,
+      "sha256": "6dd11565c1b7dfd277840499505ec96c2cc9201aa2a003beacb25225602b6831",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/zap.svg"
+    },
+    {
+      "scene": "lens",
+      "category": "actors",
+      "name": "convex.svg",
+      "size": 360,
+      "sha256": "5bf90197dd7629cad64a2e48d1186a71559deb6121207d10e3dc5b19ebaffdcf",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/eye.svg"
+    },
+    {
+      "scene": "lens",
+      "category": "actors",
+      "name": "concave.svg",
+      "size": 504,
+      "sha256": "774bcd975c5de781a4ee778c76e5591bcdeb409955f7054847e7e6003da0a520",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/eye-off.svg"
+    },
+    {
+      "scene": "lens",
+      "category": "actors",
+      "name": "laser.svg",
+      "size": 422,
+      "sha256": "f8cf74e5bb8457223e2f1aaa48b2baa02525b2b4e478ae761d62a0d9160a854c",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/flashlight.svg"
+    },
+    {
+      "scene": "lens",
+      "category": "effects",
+      "name": "focal_point.svg",
+      "size": 314,
+      "sha256": "96a6b16628825a1a207a77e9a5818f74c3e74ea3664783ff5c2a44e6347b90df",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/target.svg"
+    },
+    {
+      "scene": "human_body",
+      "category": "background",
+      "name": "clinic.svg",
+      "size": 442,
+      "sha256": "d13d08f229cb151593c5e5a55a0c287b223f353acab6b2c805b5ca2a73958601",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/hospital.svg"
+    },
+    {
+      "scene": "human_body",
+      "category": "actors",
+      "name": "lungs.svg",
+      "size": 336,
+      "sha256": "eb35f6f00125b779a993c21ee761432faf8fc3210272c94448f63e2196d419b7",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/wind.svg"
+    },
+    {
+      "scene": "human_body",
+      "category": "actors",
+      "name": "brain.svg",
+      "size": 601,
+      "sha256": "1eb21ec91c19634cb46b241e423bc1ddee810919fab129954c3229c513207b07",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/brain.svg"
+    },
+    {
+      "scene": "human_body",
+      "category": "actors",
+      "name": "skeleton.svg",
+      "size": 299,
+      "sha256": "eae3b3b2400031ddd5ec869327d127a96014e5f63aa6e06658dd5d4e90661aa8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/user.svg"
+    },
+    {
+      "scene": "human_body",
+      "category": "effects",
+      "name": "blood_flow.svg",
+      "size": 346,
+      "sha256": "050fbcda05e13c2051cf857683645e19c6b180861ef4d0cc28a6f09ba1ea1666",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/activity.svg"
+    },
+    {
+      "scene": "food_chain",
+      "category": "background",
+      "name": "forest.svg",
+      "size": 441,
+      "sha256": "5bd0ff178d40b8c81dd38180dae0683aa9bc89c71b204167e06d2a3a0d506563",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/trees.svg"
+    },
+    {
+      "scene": "food_chain",
+      "category": "actors",
+      "name": "sun.svg",
+      "size": 485,
+      "sha256": "a3955c8b0425fcc5c9ba12d2bdd77fe53b2cd5dd05e7742a56f342e996fb2ef8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/sun.svg"
+    },
+    {
+      "scene": "food_chain",
+      "category": "actors",
+      "name": "grass.svg",
+      "size": 368,
+      "sha256": "a6cd15ecfaed579da29311eedc19302209e82515be83bfeca114183b0318a56f",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/leaf.svg"
+    },
+    {
+      "scene": "food_chain",
+      "category": "actors",
+      "name": "rabbit.svg",
+      "size": 503,
+      "sha256": "a2ba3f784d17ade190834ce239d8deabb0af917837bb36946d33a119078487fc",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/rabbit.svg"
+    },
+    {
+      "scene": "food_chain",
+      "category": "actors",
+      "name": "fox.svg",
+      "size": 711,
+      "sha256": "8817ced475f62c704e0641aaa522d8c587b75b16b3b533997916c91e9e5de06a",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/dog.svg"
+    },
+    {
+      "scene": "food_chain",
+      "category": "effects",
+      "name": "energy_flow.svg",
+      "size": 261,
+      "sha256": "288397fdb73bb4f783cf9eabb726ff47357df1d4e3f1201dd748090579f108b9",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/arrow-right.svg"
+    },
+    {
+      "scene": "matter",
+      "category": "background",
+      "name": "lab.svg",
+      "size": 312,
+      "sha256": "7227c5719ed9e738f84f674eaf96ee9adbc5ea285c479bd180e38355909f1448",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/beaker.svg"
+    },
+    {
+      "scene": "matter",
+      "category": "actors",
+      "name": "ice.svg",
+      "size": 596,
+      "sha256": "9b77c3f6fbd49a7669cc530f8e9d6216ff652457c16e27b2c4eb4d81ac7c4bdd",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/snowflake.svg"
+    },
+    {
+      "scene": "matter",
+      "category": "actors",
+      "name": "water.svg",
+      "size": 325,
+      "sha256": "abca4df60f91c605d945c6fe5ee0e6c919b53116d81e268f4581f8841bf24751",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/droplet.svg"
+    },
+    {
+      "scene": "matter",
+      "category": "actors",
+      "name": "steam.svg",
+      "size": 275,
+      "sha256": "28a34022ed00177eb1f218eea5d2b7af30d09b529187fe32219e4dd8ea2b9740",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/cloud.svg"
+    },
+    {
+      "scene": "matter",
+      "category": "effects",
+      "name": "molecules.svg",
+      "size": 824,
+      "sha256": "7e301f6c38337389f5a96675d14cb9d8ef8a613329e99c3dfcf7c635bdd1faae",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/boxes.svg"
+    },
+    {
+      "scene": "chemical_reaction",
+      "category": "background",
+      "name": "bench.svg",
+      "size": 332,
+      "sha256": "806e2810a1dc693e5dcc22298c6bab50ca5ba16f090d5c61e8ca4b22fdeaa4e3",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/table.svg"
+    },
+    {
+      "scene": "chemical_reaction",
+      "category": "actors",
+      "name": "flask.svg",
+      "size": 383,
+      "sha256": "a2ce857c159bef4c128a6d9f0b6dcbd6504ecf1a2a670ee220efd14fd032b561",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/flask-conical.svg"
+    },
+    {
+      "scene": "chemical_reaction",
+      "category": "actors",
+      "name": "burner.svg",
+      "size": 314,
+      "sha256": "cede1462a46a7a3b3daf9d101f0b59484b1d882a4c42a75670810a6d4f8d42fb",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/flame.svg"
+    },
+    {
+      "scene": "chemical_reaction",
+      "category": "effects",
+      "name": "bubbling.svg",
+      "size": 567,
+      "sha256": "f5499f33f09d7158151e9bd2ec0faf79ff8fb57292f84fdd7286d96d0f0424d8",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/sparkles.svg"
+    },
+    {
+      "scene": "chemical_reaction",
+      "category": "effects",
+      "name": "heat.svg",
+      "size": 266,
+      "sha256": "a56c95062445d52d95c51a77c4959d5a022539a0194205cc2ce2e9ce8f35847b",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/thermometer.svg"
+    },
+    {
+      "scene": "simple_machines",
+      "category": "background",
+      "name": "workshop.svg",
+      "size": 483,
+      "sha256": "db75caf31bd080726be0c2dab09372498b999cbdcf10c756f44636831f9529f5",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/hammer.svg"
+    },
+    {
+      "scene": "simple_machines",
+      "category": "actors",
+      "name": "lever.svg",
+      "size": 232,
+      "sha256": "a0c743ab6dbf545d8a6e19ef3874f48ede686ce68d25e231bd81f540d97b1f19",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/minus.svg"
+    },
+    {
+      "scene": "simple_machines",
+      "category": "actors",
+      "name": "pulley.svg",
+      "size": 244,
+      "sha256": "3a991bd47beaf9874fba6fdf87bbba442970a89b5e6aa391558bc8b0a00a0513",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/circle.svg"
+    },
+    {
+      "scene": "simple_machines",
+      "category": "actors",
+      "name": "wedge.svg",
+      "size": 291,
+      "sha256": "07ef0fa398d74189b9d59ce313534a4b01fad705d52b36f8e4e8fc57a3437023",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/triangle.svg"
+    },
+    {
+      "scene": "simple_machines",
+      "category": "actors",
+      "name": "weight.svg",
+      "size": 401,
+      "sha256": "511862693d914d2bf1947c9ccc513595f2a256541f5dd4f6f9ac8383cd41ac4f",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/box.svg"
+    },
+    {
+      "scene": "simple_machines",
+      "category": "effects",
+      "name": "force.svg",
+      "size": 262,
+      "sha256": "2b641c7a59d39450edfed72067fcc9940a1a316a737346af23b4b9103c0689f2",
+      "source_url": "https://raw.githubusercontent.com/lucide-icons/lucide/main/icons/arrow-down.svg"
+    }
+  ],
+  "failed": [
+    {
+      "scene": "water_cycle",
+      "name": "lake.svg",
+      "reason": "All sources failed"
+    },
+    {
+      "scene": "wave",
+      "name": "grid.svg",
+      "reason": "All sources failed"
+    },
+    {
+      "scene": "lens",
+      "name": "grid.svg",
+      "reason": "All sources failed"
+    }
+  ],
+  "duplicates": []
+}

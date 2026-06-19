@@ -1,0 +1,122 @@
+{
+  "scenes": {
+    "circuit": [
+      {"name": "table", "category": "background", "sources": [{"provider": "lucide", "id": "table"}]},
+      {"name": "battery", "category": "actors", "sources": [{"provider": "lucide", "id": "battery-full"}]},
+      {"name": "bulb", "category": "actors", "sources": [{"provider": "lucide", "id": "lightbulb"}]},
+      {"name": "switch", "category": "actors", "sources": [{"provider": "lucide", "id": "toggle-right"}]},
+      {"name": "wire", "category": "actors", "sources": [{"provider": "lucide", "id": "minus"}]},
+      {"name": "resistor", "category": "actors", "sources": [{"provider": "lucide", "id": "zap"}]},
+      {"name": "ammeter", "category": "actors", "sources": [{"provider": "lucide", "id": "gauge"}]},
+      {"name": "glow", "category": "effects", "sources": [{"provider": "lucide", "id": "sun"}]}
+    ],
+    "solar_system": [
+      {"name": "space", "category": "background", "sources": [{"provider": "lucide", "id": "sparkles"}]},
+      {"name": "sun", "category": "actors", "sources": [{"provider": "lucide", "id": "sun"}]},
+      {"name": "earth", "category": "actors", "sources": [{"provider": "lucide", "id": "globe"}]},
+      {"name": "moon", "category": "actors", "sources": [{"provider": "lucide", "id": "moon"}]},
+      {"name": "planet", "category": "actors", "sources": [{"provider": "lucide", "id": "circle"}]},
+      {"name": "orbit", "category": "effects", "sources": [{"provider": "lucide", "id": "orbit"}]},
+      {"name": "star", "category": "effects", "sources": [{"provider": "lucide", "id": "star"}]}
+    ],
+    "water_cycle": [
+      {"name": "sky", "category": "background", "sources": [{"provider": "lucide", "id": "cloudy"}]},
+      {"name": "mountain", "category": "background", "sources": [{"provider": "lucide", "id": "mountain"}]},
+      {"name": "lake", "category": "background", "sources": [{"provider": "lucide", "id": "waves"}]},
+      {"name": "sun", "category": "actors", "sources": [{"provider": "lucide", "id": "sun"}]},
+      {"name": "cloud", "category": "actors", "sources": [{"provider": "lucide", "id": "cloud"}]},
+      {"name": "rain", "category": "actors", "sources": [{"provider": "lucide", "id": "cloud-rain"}]},
+      {"name": "vapor", "category": "actors", "sources": [{"provider": "lucide", "id": "arrow-up"}]},
+      {"name": "ripple", "category": "effects", "sources": [{"provider": "lucide", "id": "target"}]},
+      {"name": "evaporation", "category": "effects", "sources": [{"provider": "lucide", "id": "wind"}]}
+    ],
+    "pendulum": [
+      {"name": "physics_lab", "category": "background", "sources": [{"provider": "lucide", "id": "building"}]},
+      {"name": "pendulum", "category": "actors", "sources": [{"provider": "lucide", "id": "arrow-up-down"}]},
+      {"name": "rod", "category": "actors", "sources": [{"provider": "lucide", "id": "minus"}]},
+      {"name": "bob", "category": "actors", "sources": [{"provider": "lucide", "id": "disc"}]},
+      {"name": "angle_scale", "category": "actors", "sources": [{"provider": "lucide", "id": "gauge"}]},
+      {"name": "support", "category": "actors", "sources": [{"provider": "lucide", "id": "arrow-down-to-line"}]},
+      {"name": "swing_arc", "category": "effects", "sources": [{"provider": "lucide", "id": "move-horizontal"}]},
+      {"name": "trail", "category": "effects", "sources": [{"provider": "lucide", "id": "history"}]}
+    ],
+    "plant_growth": [
+      {"name": "garden", "category": "background", "sources": [{"provider": "lucide", "id": "tree-deciduous"}]},
+      {"name": "sun", "category": "actors", "sources": [{"provider": "lucide", "id": "sun"}]},
+      {"name": "plant", "category": "actors", "sources": [{"provider": "lucide", "id": "sprout"}]},
+      {"name": "soil", "category": "actors", "sources": [{"provider": "lucide", "id": "layers"}]},
+      {"name": "water", "category": "actors", "sources": [{"provider": "lucide", "id": "droplets"}]},
+      {"name": "growth", "category": "effects", "sources": [{"provider": "lucide", "id": "arrow-up"}]}
+    ],
+    "heart_rate": [
+      {"name": "monitor", "category": "background", "sources": [{"provider": "lucide", "id": "monitor"}]},
+      {"name": "heart", "category": "actors", "sources": [{"provider": "lucide", "id": "heart"}]},
+      {"name": "ecg", "category": "actors", "sources": [{"provider": "lucide", "id": "activity"}]},
+      {"name": "pulse", "category": "effects", "sources": [{"provider": "lucide", "id": "zap"}]}
+    ],
+    "motion": [
+      {"name": "road", "category": "background", "sources": [{"provider": "lucide", "id": "minus"}]},
+      {"name": "car", "category": "actors", "sources": [{"provider": "lucide", "id": "car"}]},
+      {"name": "ball", "category": "actors", "sources": [{"provider": "lucide", "id": "circle"}]},
+      {"name": "ramp", "category": "actors", "sources": [{"provider": "lucide", "id": "triangle"}]},
+      {"name": "timer", "category": "actors", "sources": [{"provider": "lucide", "id": "clock"}]},
+      {"name": "speed_lines", "category": "effects", "sources": [{"provider": "lucide", "id": "fast-forward"}]}
+    ],
+    "wave": [
+      {"name": "grid", "category": "background", "sources": [{"provider": "lucide", "id": "grid"}]},
+      {"name": "oscilloscope", "category": "actors", "sources": [{"provider": "lucide", "id": "activity"}]},
+      {"name": "speaker", "category": "actors", "sources": [{"provider": "lucide", "id": "speaker"}]},
+      {"name": "soundwave", "category": "effects", "sources": [{"provider": "lucide", "id": "radio"}]}
+    ],
+    "mirror": [
+      {"name": "table", "category": "background", "sources": [{"provider": "lucide", "id": "table"}]},
+      {"name": "mirror", "category": "actors", "sources": [{"provider": "lucide", "id": "square"}]},
+      {"name": "laser", "category": "actors", "sources": [{"provider": "lucide", "id": "flashlight"}]},
+      {"name": "reflection", "category": "effects", "sources": [{"provider": "lucide", "id": "zap"}]}
+    ],
+    "lens": [
+      {"name": "grid", "category": "background", "sources": [{"provider": "lucide", "id": "grid"}]},
+      {"name": "convex", "category": "actors", "sources": [{"provider": "lucide", "id": "eye"}]},
+      {"name": "concave", "category": "actors", "sources": [{"provider": "lucide", "id": "eye-off"}]},
+      {"name": "laser", "category": "actors", "sources": [{"provider": "lucide", "id": "flashlight"}]},
+      {"name": "focal_point", "category": "effects", "sources": [{"provider": "lucide", "id": "target"}]}
+    ],
+    "human_body": [
+      {"name": "clinic", "category": "background", "sources": [{"provider": "lucide", "id": "hospital"}]},
+      {"name": "lungs", "category": "actors", "sources": [{"provider": "lucide", "id": "wind"}]},
+      {"name": "brain", "category": "actors", "sources": [{"provider": "lucide", "id": "brain"}]},
+      {"name": "skeleton", "category": "actors", "sources": [{"provider": "lucide", "id": "user"}]},
+      {"name": "blood_flow", "category": "effects", "sources": [{"provider": "lucide", "id": "activity"}]}
+    ],
+    "food_chain": [
+      {"name": "forest", "category": "background", "sources": [{"provider": "lucide", "id": "trees"}]},
+      {"name": "sun", "category": "actors", "sources": [{"provider": "lucide", "id": "sun"}]},
+      {"name": "grass", "category": "actors", "sources": [{"provider": "lucide", "id": "leaf"}]},
+      {"name": "rabbit", "category": "actors", "sources": [{"provider": "lucide", "id": "rabbit"}]},
+      {"name": "fox", "category": "actors", "sources": [{"provider": "lucide", "id": "dog"}]},
+      {"name": "energy_flow", "category": "effects", "sources": [{"provider": "lucide", "id": "arrow-right"}]}
+    ],
+    "matter": [
+      {"name": "lab", "category": "background", "sources": [{"provider": "lucide", "id": "beaker"}]},
+      {"name": "ice", "category": "actors", "sources": [{"provider": "lucide", "id": "snowflake"}]},
+      {"name": "water", "category": "actors", "sources": [{"provider": "lucide", "id": "droplet"}]},
+      {"name": "steam", "category": "actors", "sources": [{"provider": "lucide", "id": "cloud"}]},
+      {"name": "molecules", "category": "effects", "sources": [{"provider": "lucide", "id": "boxes"}]}
+    ],
+    "chemical_reaction": [
+      {"name": "bench", "category": "background", "sources": [{"provider": "lucide", "id": "table"}]},
+      {"name": "flask", "category": "actors", "sources": [{"provider": "lucide", "id": "flask-conical"}]},
+      {"name": "burner", "category": "actors", "sources": [{"provider": "lucide", "id": "flame"}]},
+      {"name": "bubbling", "category": "effects", "sources": [{"provider": "lucide", "id": "sparkles"}]},
+      {"name": "heat", "category": "effects", "sources": [{"provider": "lucide", "id": "thermometer"}]}
+    ],
+    "simple_machines": [
+      {"name": "workshop", "category": "background", "sources": [{"provider": "lucide", "id": "hammer"}]},
+      {"name": "lever", "category": "actors", "sources": [{"provider": "lucide", "id": "minus"}]},
+      {"name": "pulley", "category": "actors", "sources": [{"provider": "lucide", "id": "circle"}]},
+      {"name": "wedge", "category": "actors", "sources": [{"provider": "lucide", "id": "triangle"}]},
+      {"name": "weight", "category": "actors", "sources": [{"provider": "lucide", "id": "box"}]},
+      {"name": "force", "category": "effects", "sources": [{"provider": "lucide", "id": "arrow-down"}]}
+    ]
+  }
+}

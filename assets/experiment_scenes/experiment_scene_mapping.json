@@ -1,0 +1,80 @@
+{
+  "Uniform Motion": "motion",
+  "Acceleration": "motion",
+  "Free Fall": "motion",
+  "Velocity Time Graph": "motion",
+  "Projectile Motion": "motion",
+  "Friction on Incline": "motion",
+  
+  "Pendulum Motion": "pendulum",
+  "Simple Harmonic Motion": "pendulum",
+  "Time Period of Pendulum": "pendulum",
+  "Damped Oscillation": "pendulum",
+  
+  "Simple Circuit": "circuit",
+  "Series Circuit": "circuit",
+  "Parallel Circuit": "circuit",
+  "Ohm's Law": "circuit",
+  "Kirchhoff's Laws": "circuit",
+  "Wheatstone Bridge": "circuit",
+  
+  "Sound Waves": "wave",
+  "Doppler Effect": "wave",
+  "Interference of Waves": "wave",
+  "Standing Waves": "wave",
+  
+  "Plane Mirror Reflection": "mirror",
+  "Spherical Mirrors": "mirror",
+  "Multiple Reflections": "mirror",
+  
+  "Convex Lens Refraction": "lens",
+  "Concave Lens Refraction": "lens",
+  "Telescope Principle": "lens",
+  "Microscope Principle": "lens",
+  
+  "Water Cycle": "water_cycle",
+  "Evaporation": "water_cycle",
+  "Condensation": "water_cycle",
+  "Precipitation": "water_cycle",
+  
+  "Plant Growth": "plant_growth",
+  "Photosynthesis": "plant_growth",
+  "Transpiration": "plant_growth",
+  "Seed Germination": "plant_growth",
+  "Phototropism": "plant_growth",
+  
+  "Heart Rate": "heart_rate",
+  "Pulse Measurement": "heart_rate",
+  "Exercise and Heart Rate": "heart_rate",
+  
+  "Blood Circulation": "human_body",
+  "Respiratory System": "human_body",
+  "Skeletal System": "human_body",
+  "Digestive System": "human_body",
+  
+  "Food Chain": "food_chain",
+  "Energy Pyramid": "food_chain",
+  "Predator-Prey Dynamics": "food_chain",
+  
+  "Solar System": "solar_system",
+  "Day and Night": "solar_system",
+  "Moon Phases": "solar_system",
+  "Seasons": "solar_system",
+  "Eclipses": "solar_system",
+  
+  "States of Matter": "matter",
+  "Melting Point": "matter",
+  "Boiling Point": "matter",
+  "Sublimation": "matter",
+  "Density of Liquids": "matter",
+  
+  "Acid Base Reaction": "chemical_reaction",
+  "Exothermic Reaction": "chemical_reaction",
+  "Endothermic Reaction": "chemical_reaction",
+  "Oxidation": "chemical_reaction",
+  
+  "Levers": "simple_machines",
+  "Pulleys": "simple_machines",
+  "Inclined Plane": "simple_machines",
+  "Wedge and Screw": "simple_machines"
+}
