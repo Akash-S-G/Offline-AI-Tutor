@@ -3,7 +3,12 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "pendulum"
+    "clock.svg",
+    "pendulum.svg",
+    "pendulum_bob.svg",
+    "protractor.svg",
+    "support.svg",
+    "swing_arc.svg"
   ],
   "effects": [],
   "ui": []

@@ -2,7 +2,14 @@
   "scene": "plant_growth",
   "version": "1.0",
   "background": [],
-  "actors": [],
+  "actors": [
+    "leaf.svg",
+    "seed.svg",
+    "soil.svg",
+    "sprout.svg",
+    "sun.svg",
+    "water.svg"
+  ],
   "effects": [],
   "ui": []
 }

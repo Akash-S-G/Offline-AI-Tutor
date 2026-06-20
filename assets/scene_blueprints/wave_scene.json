@@ -1,0 +1,89 @@
+{
+  "id": "wave",
+  "family": "wave",
+  "backgrounds": [
+    {
+      "id": "bg_soundproof",
+      "asset": "soundproof_room.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ],
+  "actors": [
+    {
+      "id": "speaker",
+      "asset": "speaker.svg",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "oscilloscope",
+      "asset": "oscilloscope.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "tuning_fork",
+      "asset": "tuning_fork.svg",
+      "anchor": {
+        "x": 0.4,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "microphone",
+      "asset": "microphone.svg",
+      "anchor": {
+        "x": 0.6,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "freq_slider",
+      "type": "slider",
+      "target": "speaker",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.7
+      }
+    },
+    {
+      "id": "amp_slider",
+      "type": "slider",
+      "target": "speaker",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.8
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_soundwave",
+      "asset": "soundwave.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "eff_particles",
+      "asset": "particle_displacement.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ]
+}

@@ -2,9 +2,17 @@
   "scene": "water_cycle",
   "version": "1.0",
   "background": [
-    "water_cycle_diagram"
+    "mountain.svg",
+    "ocean.svg",
+    "sky.svg",
+    "water_cycle_diagram.svg"
   ],
-  "actors": [],
+  "actors": [
+    "arrow.svg",
+    "cloud.svg",
+    "rain.svg",
+    "sun.svg"
+  ],
   "effects": [],
   "ui": []
 }

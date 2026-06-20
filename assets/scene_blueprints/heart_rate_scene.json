@@ -1,0 +1,98 @@
+{
+  "id": "heart_rate",
+  "family": "heart_rate",
+  "backgrounds": [
+    {
+      "id": "bg_monitor",
+      "asset": "monitor.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "bg_clinic",
+      "asset": "clinic_room.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ],
+  "actors": [
+    {
+      "id": "heart",
+      "asset": "heart.svg",
+      "anchor": {
+        "x": 0.3,
+        "y": 0.4
+      }
+    },
+    {
+      "id": "ecg",
+      "asset": "ecg.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "human_outline",
+      "asset": "human_outline.svg",
+      "anchor": {
+        "x": 0.3,
+        "y": 0.5
+      },
+      "status": "missing"
+    },
+    {
+      "id": "treadmill",
+      "asset": "treadmill.svg",
+      "anchor": {
+        "x": 0.3,
+        "y": 0.8
+      },
+      "status": "missing"
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "intensity_slider",
+      "type": "slider",
+      "target": "treadmill",
+      "anchor": {
+        "x": 0.3,
+        "y": 0.9
+      }
+    },
+    {
+      "id": "rest_button",
+      "type": "button",
+      "target": "human_outline",
+      "anchor": {
+        "x": 0.1,
+        "y": 0.5
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_pulse",
+      "asset": "pulse.svg",
+      "anchor": {
+        "x": 0.3,
+        "y": 0.4
+      }
+    },
+    {
+      "id": "eff_blood_speed",
+      "asset": "blood_speed.svg",
+      "anchor": {
+        "x": 0.3,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+{
+  "id": "mirror",
+  "family": "mirror",
+  "backgrounds": [
+    {
+      "id": "bg_table",
+      "asset": "table.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      }
+    }
+  ],
+  "actors": [
+    {
+      "id": "laser",
+      "asset": "laser.svg",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "mirror_plane",
+      "asset": "mirror.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "mirror_curve",
+      "asset": "mirror_curve.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.5
+      },
+      "status": "missing"
+    },
+    {
+      "id": "protractor",
+      "asset": "protractor.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.5
+      }
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "laser_angle",
+      "type": "slider",
+      "target": "laser",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.7
+      }
+    },
+    {
+      "id": "mirror_curve_slider",
+      "type": "slider",
+      "target": "mirror_curve",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.7
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_reflection",
+      "asset": "reflection.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "eff_beam",
+      "asset": "light_beam.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ]
+}

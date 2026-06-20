@@ -2,7 +2,14 @@
   "scene": "motion",
   "version": "1.0",
   "background": [],
-  "actors": [],
+  "actors": [
+    "ball.svg",
+    "car.svg",
+    "pulley.svg",
+    "ramp.svg",
+    "ruler.svg",
+    "stopwatch.svg"
+  ],
   "effects": [],
   "ui": []
 }

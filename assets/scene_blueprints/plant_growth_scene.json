@@ -1,0 +1,106 @@
+{
+  "id": "plant_growth",
+  "family": "plant_growth",
+  "backgrounds": [
+    {
+      "id": "bg_garden",
+      "asset": "garden.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "bg_greenhouse",
+      "asset": "greenhouse.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ],
+  "actors": [
+    {
+      "id": "soil",
+      "asset": "soil.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      }
+    },
+    {
+      "id": "plant",
+      "asset": "plant.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "sun",
+      "asset": "sun.svg",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "watering_can",
+      "asset": "watering_can.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.4
+      },
+      "status": "missing"
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "water_btn",
+      "type": "button",
+      "target": "watering_can",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "sun_slider",
+      "type": "slider",
+      "target": "sun",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.3
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_growth",
+      "asset": "growth.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "eff_droplets",
+      "asset": "water_droplets.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    },
+    {
+      "id": "eff_wilt",
+      "asset": "wilting.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      },
+      "status": "missing"
+    }
+  ]
+}

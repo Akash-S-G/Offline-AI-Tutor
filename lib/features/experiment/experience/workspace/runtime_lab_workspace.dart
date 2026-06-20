@@ -15,18 +15,15 @@ import '../../investigation/conclusions/conclusion_engine.dart';
 import '../../investigation/trials/experiment_trial_manager.dart';
 import '../engine/runtime_experience_engine.dart';
 import '../models/runtime_experience.dart';
-import '../lab_v2/interactions/experiment_activity_feed.dart';
-import '../lab_v2/interactions/insight_card.dart';
+import '../lab_v2/interactions/experiment_narrator.dart';
+import '../lab_v2/interactions/journey_progress.dart';
+import '../lab_v2/widgets/floating_mission_card.dart';
 import '../lab_v2/stage/experiment_stage.dart';
 import '../lab_v2/stage/scene_definition_resolver.dart';
 import '../lab_v2/widgets/completion_dialog.dart';
 import '../lab_v2/widgets/experiment_hud.dart';
 import '../lab_v2/widgets/experiment_intro_overlay.dart';
-import '../lab_v2/widgets/floating_lab_sheet.dart';
 import '../lab_v2/widgets/fullscreen_lab_mode.dart';
-import '../lab_v2/widgets/laboratory_dock.dart';
-import '../lab_v2/widgets/visual_guidance_overlay.dart';
-import 'lab_right_panel.dart';
 import 'lab_workspace_analytics.dart';
 import '../scenes/scene_definition_v3.dart';
 
@@ -102,15 +99,12 @@ class RuntimeLabWorkspace extends StatefulWidget {
 
 class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
     with SingleTickerProviderStateMixin {
-  final DraggableScrollableController _sheetController =
-      DraggableScrollableController();
   late final Ticker _ticker;
   Duration _lastFrame = Duration.zero;
   bool _showCompletionBanner = false;
   bool _completionDismissed = false;
   bool _showIntro = true;
   int _lastCompletedTasks = 0;
-  int _selectedSheetTab = 0;
 
   @override
   void initState() {
@@ -139,7 +133,6 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
 
   @override
   void dispose() {
-    _sheetController.dispose();
     _ticker.dispose();
     widget.guidedEngine?.removeListener(_onGuidedStateChanged);
     super.dispose();
@@ -185,62 +178,29 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
                           onExit: widget.onExit,
                           onToggleDeveloper: widget.onToggleDeveloper,
                         ),
-                        VisualGuidanceOverlay(
-                          guidedEngine: widget.guidedEngine,
-                          hidden: true,
-                        ),
-                        ExperimentActivityFeed(
-                          eventBus: widget.world.eventBus,
-                          hidden: true,
-                        ),
-                        InsightCard(
-                          eventBus: widget.world.eventBus,
-                          hidden: true,
-                        ),
-                        LaboratoryDock(
-                          onRun: widget.onRun,
-                          onPause: widget.onPause,
-                          onResume: widget.onResume,
-                          onStop: widget.onStop,
-                          onReset: widget.onReset,
-                          onObserve: () => _openSheetTab(1),
-                          onMeasure: _captureMeasurement,
-                          onOpenInvestigation: () => _openSheetTab(0),
-                          isRunning: widget.isRunning,
-                          isPaused: widget.isPaused,
-                          isPreparing: widget.isPreparing,
-                        ),
-                        FloatingLabSheet(
-                          hidden: false,
-                          controller: _sheetController,
-                          bottomInset: 58,
-                          child: LabRightPanel(
-                            world: widget.world,
-                            onRecordObservation: _captureMeasurement,
-                            analytics: widget.analytics,
+                        if (widget.developerMode) ...[
+                          FloatingMissionCard(guidedEngine: widget.guidedEngine),
+                          ExperimentNarrator(
+                            eventBus: widget.world.eventBus,
                             guidedEngine: widget.guidedEngine,
-                            trialManager: widget.trialManager,
-                            comparisonEngine: widget.comparisonEngine,
-                            conclusionEngine: widget.conclusionEngine,
-                            assessment: widget.assessment,
-                            learningOutcomes: widget.learningOutcomes,
-                            assessmentAnalytics: widget.assessmentAnalytics,
-                            onAssessmentComplete: widget.onAssessmentComplete,
-                            onOutcomesEvaluated: widget.onOutcomesEvaluated,
-                            onFeedback: widget.onFeedback,
-                            selectedTabIndex: _selectedSheetTab,
-                            developerPanel: widget.developerMode ? widget.developerPanel : null,
                           ),
-                        ),
-                        Align(
-                          alignment: Alignment.topCenter,
-                          child: Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: TaskCompletionBanner(
-                              visible: _showCompletionBanner,
+                          Positioned(
+                            bottom: 140,
+                            left: 16,
+                            child: JourneyProgress(
+                              guidedEngine: widget.guidedEngine,
                             ),
                           ),
-                        ),
+                          Align(
+                            alignment: Alignment.topCenter,
+                            child: Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: TaskCompletionBanner(
+                                visible: _showCompletionBanner,
+                              ),
+                            ),
+                          ),
+                        ],
                         CompletionDialog(
                           visible:
                               (widget.guidedEngine?.state.missionCompleted ??
@@ -261,6 +221,8 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
                           visible: _showIntro,
                           onSkip: () => setState(() => _showIntro = false),
                         ),
+                        if (widget.developerMode && widget.developerPanel != null)
+                          widget.developerPanel!,
                       ],
                     ),
                   ),
@@ -290,15 +252,7 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
     widget.world.tick(dt);
   }
 
-  void _openSheetTab(int tabIndex) {
-    setState(() => _selectedSheetTab = tabIndex);
-    if (!_sheetController.isAttached) return;
-    _sheetController.animateTo(
-      0.42,
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-    );
-  }
+
 
   void _attachGuidedEngine() {
     final engine = widget.guidedEngine;

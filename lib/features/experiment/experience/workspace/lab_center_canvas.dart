@@ -6,7 +6,6 @@ import '../../guided_runtime/engine/guided_experiment_engine.dart';
 import '../../guided_runtime/widgets/guided_overlay.dart';
 import '../../investigation/trials/experiment_trial_manager.dart';
 import '../../investigation/widgets/current_trial_banner.dart';
-import 'floating_control_dock.dart';
 import 'focus_mode_overlay.dart';
 import 'measurement_capture_fab.dart';
 
@@ -64,14 +63,7 @@ class LabCenterCanvas extends StatelessWidget {
               right: 74,
               child: CurrentTrialBanner(trialManager: trialManager!),
             ),
-          if (!focusMode)
-            FloatingControlDock(
-              objectRegistry: world.objects,
-              eventBus: world.eventBus,
-              onRun: onRun,
-              onReset: onReset,
-              onInteraction: onControlInteraction,
-            ),
+
           if (!focusMode)
             Positioned(
               left: 20,

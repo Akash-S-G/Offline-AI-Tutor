@@ -117,7 +117,7 @@ class _ExperimentNarratorState extends State<ExperimentNarrator> {
 
   void _scheduleCollapse() {
     _collapseTimer?.cancel();
-    _collapseTimer = Timer(const Duration(seconds: 4), () {
+    _collapseTimer = Timer(const Duration(seconds: 3), () {
       if (mounted) setState(() => _expanded = false);
     });
   }

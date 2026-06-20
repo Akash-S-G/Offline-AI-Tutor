@@ -1,107 +1,233 @@
 {
   "metadata": {
-    "version": "1.0",
-    "description": "IDP Experiment Engine - Scene Kit Asset Registry",
-    "source": "Wikimedia Commons (open-license SVGs)",
-    "generated_at": "2026-06-19T22:31:00Z",
-    "total_scenes": 15,
-    "total_assets": 15
+    "version": "1.2",
+    "generated_at": "2026-06-20T11:36:42Z",
+    "description": "IDP Scene Kit Asset Registry"
   },
   "scenes": {
     "chemical_reaction": {
       "background": [],
-      "actors": ["actors/beaker.svg"],
+      "actors": [
+        "beaker.svg",
+        "burner.svg",
+        "flask.svg",
+        "mix.svg",
+        "test_tube.svg"
+      ],
       "effects": [],
+      "ui": []
+    },
+    "circuit": {
+      "background": [],
+      "actors": [
+        "ammeter.svg",
+        "battery.svg",
+        "bulb.svg",
+        "resistor.svg",
+        "switch.svg",
+        "voltmeter.svg",
+        "wire.svg"
+      ],
+      "effects": [
+        "bulb_glow.svg",
+        "current_arrows.svg",
+        "current_flow.svg"
+      ],
       "ui": []
     },
     "food_chain": {
       "background": [],
-      "actors": ["actors/food_chain.svg"],
+      "actors": [
+        "food_chain.svg",
+        "fox.svg",
+        "grass.svg",
+        "rabbit.svg",
+        "sun.svg"
+      ],
       "effects": [],
       "ui": []
     },
     "heart_rate": {
       "background": [],
-      "actors": ["actors/ecg_vector.svg"],
-      "effects": [],
+      "actors": [
+        "ecg_vector.svg",
+        "heart.svg",
+        "heart_beat.svg",
+        "human_outline.svg",
+        "pulse.svg",
+        "stethoscope.svg",
+        "treadmill.svg"
+      ],
+      "effects": [
+        "pulse_ring.svg"
+      ],
       "ui": []
     },
     "human_body": {
       "background": [],
       "actors": [
-        "actors/human_skeleton.svg",
-        "actors/internal_organs.svg"
+        "bones.svg",
+        "brain.svg",
+        "circulation.svg",
+        "heart.svg",
+        "human_skeleton.svg",
+        "internal_organs.svg",
+        "kidney.svg",
+        "lungs.svg"
       ],
       "effects": [],
       "ui": []
     },
     "lens": {
       "background": [],
-      "actors": ["actors/convex_lens_diagram.svg"],
-      "effects": [],
+      "actors": [
+        "concave_lens.svg",
+        "convex_lens_diagram.svg",
+        "lens.svg",
+        "magnifier.svg",
+        "prism.svg",
+        "screen.svg"
+      ],
+      "effects": [
+        "light_beam.svg"
+      ],
       "ui": []
     },
     "matter": {
       "background": [],
-      "actors": ["actors/states_of_matter.svg"],
-      "effects": [],
+      "actors": [
+        "atom.svg",
+        "gas.svg",
+        "heater_plate.svg",
+        "ice_cube.svg",
+        "liquid.svg",
+        "molecule.svg",
+        "molecule2.svg",
+        "solid.svg",
+        "states_of_matter.svg",
+        "thermometer.svg"
+      ],
+      "effects": [
+        "phase_transition.svg"
+      ],
       "ui": []
     },
     "mirror": {
       "background": [],
       "actors": [
-        "actors/concave_mirror_raydiagram.svg",
-        "actors/ray_diagram_concave.svg",
-        "actors/convex_mirror_raydiagram.svg"
+        "concave_mirror_raydiagram.svg",
+        "convex_mirror_raydiagram.svg",
+        "curved_mirror.svg",
+        "eye.svg",
+        "light.svg",
+        "mirror.svg",
+        "plane_mirror.svg",
+        "ray_diagram_concave.svg"
+      ],
+      "effects": [
+        "reflected_light_beam.svg"
+      ],
+      "ui": []
+    },
+    "motion": {
+      "background": [],
+      "actors": [
+        "ball.svg",
+        "car.svg",
+        "pulley.svg",
+        "ramp.svg",
+        "ruler.svg",
+        "stopwatch.svg"
       ],
       "effects": [],
       "ui": []
     },
     "pendulum": {
       "background": [],
-      "actors": ["actors/pendulum.svg"],
-      "effects": [],
-      "ui": []
-    },
-    "simple_machines": {
-      "background": [],
-      "actors": ["actors/simple_machines.svg"],
-      "effects": [],
-      "ui": []
-    },
-    "solar_system": {
-      "background": [],
-      "actors": ["actors/planets.svg"],
-      "effects": [],
-      "ui": []
-    },
-    "water_cycle": {
-      "background": ["background/water_cycle_diagram.svg"],
-      "actors": [],
-      "effects": [],
-      "ui": []
-    },
-    "wave": {
-      "background": [],
-      "actors": ["actors/wave_characteristics.svg"],
-      "effects": [],
-      "ui": []
-    },
-    "circuit": {
-      "background": [],
-      "actors": [],
-      "effects": [],
-      "ui": []
-    },
-    "motion": {
-      "background": [],
-      "actors": [],
+      "actors": [
+        "clock.svg",
+        "pendulum.svg",
+        "pendulum_bob.svg",
+        "protractor.svg",
+        "support.svg",
+        "swing_arc.svg"
+      ],
       "effects": [],
       "ui": []
     },
     "plant_growth": {
       "background": [],
-      "actors": [],
+      "actors": [
+        "leaf.svg",
+        "seed.svg",
+        "soil.svg",
+        "sprout.svg",
+        "sun.svg",
+        "water.svg",
+        "watering_can.svg"
+      ],
+      "effects": [
+        "water_droplets.svg"
+      ],
+      "ui": []
+    },
+    "simple_machines": {
+      "background": [],
+      "actors": [
+        "inclined_plane.svg",
+        "lever.svg",
+        "pulley.svg",
+        "screw.svg",
+        "simple_machines.svg",
+        "wedge.svg",
+        "wheel.svg"
+      ],
+      "effects": [],
+      "ui": []
+    },
+    "solar_system": {
+      "background": [],
+      "actors": [
+        "earth.svg",
+        "orbit.svg",
+        "planets.svg",
+        "star.svg",
+        "sun.svg"
+      ],
+      "effects": [],
+      "ui": []
+    },
+    "water_cycle": {
+      "background": [
+        "lake.svg",
+        "mountain.svg",
+        "ocean.svg",
+        "sky.svg",
+        "water_body.svg",
+        "water_cycle_diagram.svg"
+      ],
+      "actors": [
+        "arrow.svg",
+        "cloud.svg",
+        "rain.svg",
+        "sun.svg"
+      ],
+      "effects": [
+        "evaporation.svg",
+        "ripple.svg"
+      ],
+      "ui": []
+    },
+    "wave": {
+      "background": [],
+      "actors": [
+        "microphone.svg",
+        "oscilloscope.svg",
+        "sound.svg",
+        "speaker.svg",
+        "tuning_fork.svg",
+        "wave_characteristics.svg"
+      ],
       "effects": [],
       "ui": []
     }

@@ -3,7 +3,13 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "simple_machines"
+    "inclined_plane.svg",
+    "lever.svg",
+    "pulley.svg",
+    "screw.svg",
+    "simple_machines.svg",
+    "wedge.svg",
+    "wheel.svg"
   ],
   "effects": [],
   "ui": []

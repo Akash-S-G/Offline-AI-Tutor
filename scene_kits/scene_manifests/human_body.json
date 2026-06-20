@@ -3,8 +3,14 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "human_skeleton",
-    "internal_organs"
+    "bones.svg",
+    "brain.svg",
+    "circulation.svg",
+    "heart.svg",
+    "human_skeleton.svg",
+    "internal_organs.svg",
+    "kidney.svg",
+    "lungs.svg"
   ],
   "effects": [],
   "ui": []

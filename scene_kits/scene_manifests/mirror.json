@@ -3,9 +3,13 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "concave_mirror_raydiagram",
-    "ray_diagram_concave",
-    "convex_mirror_raydiagram"
+    "concave_mirror_raydiagram.svg",
+    "convex_mirror_raydiagram.svg",
+    "eye.svg",
+    "light.svg",
+    "mirror.svg",
+    "plane_mirror.svg",
+    "ray_diagram_concave.svg"
   ],
   "effects": [],
   "ui": []

@@ -1,0 +1,106 @@
+{
+  "id": "chemical_reaction",
+  "family": "chemical_reaction",
+  "backgrounds": [
+    {
+      "id": "bg_bench",
+      "asset": "bench.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      }
+    },
+    {
+      "id": "bg_fume_hood",
+      "asset": "fume_hood.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.4
+      },
+      "status": "missing"
+    }
+  ],
+  "actors": [
+    {
+      "id": "flask_main",
+      "asset": "flask.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "burner_heat",
+      "asset": "burner.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.75
+      }
+    },
+    {
+      "id": "chemical_bottles",
+      "asset": "bottles.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.6
+      },
+      "status": "missing"
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "temp_slider",
+      "type": "slider",
+      "target": "burner_heat",
+      "anchor": {
+        "x": 0.4,
+        "y": 0.75
+      }
+    },
+    {
+      "id": "dropper",
+      "type": "button",
+      "target": "flask_main",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.3
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_bubbling",
+      "asset": "bubbling.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.55
+      }
+    },
+    {
+      "id": "eff_heat",
+      "asset": "heat.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.7
+      }
+    },
+    {
+      "id": "eff_smoke",
+      "asset": "smoke.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.2
+      },
+      "status": "missing"
+    },
+    {
+      "id": "eff_color_change",
+      "asset": "color_change.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      },
+      "status": "missing"
+    }
+  ]
+}

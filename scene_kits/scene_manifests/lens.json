@@ -3,7 +3,11 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "convex_lens_diagram"
+    "concave_lens.svg",
+    "convex_lens_diagram.svg",
+    "lens.svg",
+    "magnifier.svg",
+    "prism.svg"
   ],
   "effects": [],
   "ui": []

@@ -1,0 +1,112 @@
+{
+  "id": "pendulum",
+  "family": "pendulum",
+  "backgrounds": [
+    {
+      "id": "bg_physics_lab",
+      "asset": "physics_lab.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  ],
+  "actors": [
+    {
+      "id": "support",
+      "asset": "support.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.1
+      }
+    },
+    {
+      "id": "rod",
+      "asset": "rod.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.3
+      }
+    },
+    {
+      "id": "bob",
+      "asset": "bob.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "angle_scale",
+      "asset": "angle_scale.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "stopwatch",
+      "asset": "stopwatch.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.2
+      }
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "bob_drag",
+      "type": "drag",
+      "target": "bob",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "length_slider",
+      "type": "slider",
+      "target": "rod",
+      "anchor": {
+        "x": 0.1,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "mass_slider",
+      "type": "slider",
+      "target": "bob",
+      "anchor": {
+        "x": 0.1,
+        "y": 0.7
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_arc",
+      "asset": "swing_arc.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "eff_trail",
+      "asset": "trail.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "eff_vector",
+      "asset": "velocity_vector.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      },
+      "status": "missing"
+    }
+  ]
+}

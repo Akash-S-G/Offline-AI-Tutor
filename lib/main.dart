@@ -8,6 +8,9 @@ import 'features/home/presentation/app_shell.dart';
 import 'features/network/application/pi_hub_discovery_coordinator.dart';
 import 'features/onboarding/application/background_prefetch_service.dart';
 import 'core/theme/idp_theme.dart';
+import 'features/experiment/runtime/behaviors/behavior_registry.dart';
+import 'features/experiment/runtime/effects/effect_registry.dart';
+import 'features/experiment/runtime/tools/measurement_registry.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +22,11 @@ Future<void> main() async {
   await BackgroundPrefetchService.initialize();
 
   CriticalBootstrap.configureDesktopSqlite();
+
+  // Initialize behavior, effect, and tool registries for all experiments
+  BehaviorRegistry.initialize();
+  EffectRegistry.initialize();
+  MeasurementRegistry.initialize();
 
   final startupCoordinator = StartupCoordinator(
     runtimeMode: CriticalBootstrap.resolveRuntimeMode(),

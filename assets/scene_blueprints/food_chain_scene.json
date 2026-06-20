@@ -1,0 +1,113 @@
+{
+  "id": "food_chain",
+  "family": "food_chain",
+  "backgrounds": [
+    {
+      "id": "bg_forest",
+      "asset": "forest.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.4
+      }
+    },
+    {
+      "id": "bg_soil",
+      "asset": "soil_layer.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "status": "missing"
+    }
+  ],
+  "actors": [
+    {
+      "id": "sun",
+      "asset": "sun.svg",
+      "anchor": {
+        "x": 0.1,
+        "y": 0.1
+      }
+    },
+    {
+      "id": "grass",
+      "asset": "grass.svg",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.8
+      }
+    },
+    {
+      "id": "rabbit",
+      "asset": "rabbit.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.7
+      }
+    },
+    {
+      "id": "fox",
+      "asset": "fox.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "decomposer",
+      "asset": "decomposer.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.9
+      },
+      "status": "missing"
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "sun_slider",
+      "type": "slider",
+      "target": "sun",
+      "anchor": {
+        "x": 0.1,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "rabbit_pop",
+      "type": "stepper",
+      "target": "rabbit",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.75
+      }
+    },
+    {
+      "id": "fox_pop",
+      "type": "stepper",
+      "target": "fox",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.65
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_energy",
+      "asset": "energy_flow.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "eff_growth",
+      "asset": "growth.svg",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.75
+      }
+    }
+  ]
+}

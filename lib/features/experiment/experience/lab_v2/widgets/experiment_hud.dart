@@ -26,10 +26,6 @@ class ExperimentHud extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final progress = guidedEngine?.state.progress ?? 0;
-    final completed = guidedEngine?.state.completedTasks.length ?? 0;
-    final total = guidedEngine?.mission?.tasks.length ?? 0;
-    final missionText = total == 0 ? 'Mission' : 'Mission $completed/$total';
     return Positioned(
       top: 0,
       left: 0,
@@ -37,8 +33,7 @@ class ExperimentHud extends StatelessWidget {
       height: 48,
       child: DecoratedBox(
         decoration: const BoxDecoration(
-          color: Color(0xF20F172A),
-          border: Border(bottom: BorderSide(color: Color(0xFF334155))),
+          color: Colors.transparent,
         ),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -60,24 +55,14 @@ class ExperimentHud extends StatelessWidget {
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
                     fontSize: 15,
+                    shadows: [
+                      Shadow(
+                        offset: Offset(0, 1),
+                        blurRadius: 3.0,
+                        color: Colors.black54,
+                      ),
+                    ],
                   ),
-                ),
-              ),
-              Text(
-                missionText,
-                style: const TextStyle(
-                  color: Color(0xFFCBD5E1),
-                  fontWeight: FontWeight.w800,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Text(
-                '${(progress * 100).toStringAsFixed(0)}%',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
                 ),
               ),
               if (onToggleDeveloper != null) ...[

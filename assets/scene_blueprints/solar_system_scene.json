@@ -1,0 +1,105 @@
+{
+  "id": "solar_system",
+  "family": "solar_system",
+  "backgrounds": [
+    {
+      "id": "bg_space",
+      "asset": "space.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "bg_milky_way",
+      "asset": "milky_way.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ],
+  "actors": [
+    {
+      "id": "sun",
+      "asset": "sun.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "earth",
+      "asset": "earth.svg",
+      "anchor": {
+        "x": 0.7,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "moon",
+      "asset": "moon.svg",
+      "anchor": {
+        "x": 0.75,
+        "y": 0.55
+      }
+    },
+    {
+      "id": "mars",
+      "asset": "mars.svg",
+      "anchor": {
+        "x": 0.85,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "time_slider",
+      "type": "slider",
+      "target": "sun",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      }
+    },
+    {
+      "id": "planet_sel",
+      "type": "selector",
+      "target": "earth",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.1
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_orbit",
+      "asset": "orbit.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "eff_star",
+      "asset": "star.svg",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "eff_flare",
+      "asset": "solar_flare.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ]
+}

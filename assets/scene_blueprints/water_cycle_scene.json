@@ -1,0 +1,104 @@
+{
+  "id": "water_cycle",
+  "family": "water_cycle",
+  "backgrounds": [
+    {
+      "id": "bg_sky",
+      "asset": "sky.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "bg_mountain",
+      "asset": "mountain.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "bg_lake",
+      "asset": "lake.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      },
+      "status": "missing"
+    }
+  ],
+  "actors": [
+    {
+      "id": "sun",
+      "asset": "sun.svg",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.2
+      }
+    },
+    {
+      "id": "cloud",
+      "asset": "cloud.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.3
+      }
+    },
+    {
+      "id": "rain",
+      "asset": "rain.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "temp_slider",
+      "type": "slider",
+      "target": "sun",
+      "anchor": {
+        "x": 0.2,
+        "y": 0.3
+      }
+    },
+    {
+      "id": "humidity_btn",
+      "type": "button",
+      "target": "cloud",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.2
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_evaporation",
+      "asset": "evaporation.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.7
+      }
+    },
+    {
+      "id": "eff_ripple",
+      "asset": "ripple.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      }
+    },
+    {
+      "id": "eff_snow",
+      "asset": "snow.svg",
+      "anchor": {
+        "x": 0.8,
+        "y": 0.4
+      },
+      "status": "missing"
+    }
+  ]
+}

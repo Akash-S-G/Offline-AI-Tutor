@@ -3,7 +3,11 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "beaker"
+    "beaker.svg",
+    "burner.svg",
+    "flask.svg",
+    "mix.svg",
+    "test_tube.svg"
   ],
   "effects": [],
   "ui": []

@@ -18,7 +18,7 @@ class ExperimentStage extends StatelessWidget {
     super.key,
     required this.world,
     required this.environmentMode,
-    this.showGraphDock = true,
+    this.showGraphDock = false,
     required this.sceneDefinition,
   });
 
@@ -38,8 +38,8 @@ class ExperimentStage extends StatelessWidget {
               sceneDefinition: sceneDefinition,
             ),
             if (showGraphDock) LiveGraphDock(world: world),
-            CauseEffectOverlay(eventBus: world.eventBus, hidden: false),
-            CauseEffectCard(eventBus: world.eventBus),
+            CauseEffectOverlay(eventBus: world.eventBus, hidden: true),
+            CauseEffectCard(eventBus: world.eventBus, hidden: true),
             SpotlightController(eventBus: world.eventBus),
           ],
         ),

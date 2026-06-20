@@ -1,0 +1,157 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Antigravity",
+    "category": "physics",
+    "difficulty": "Easy",
+    "grade": "Grade 8",
+    "subject": "Physics",
+    "estimatedTime": "15 mins"
+  },
+  "scene": {
+    "sceneId": "simple_circuit_lab",
+    "name": "Simple Circuit Laboratory",
+    "description": "Interactive laboratory for exploring Ohm's law, voltage, resistance, and current.",
+    "tags": ["physics", "circuit", "electricity", "ohms_law", "voltage"],
+    "visualPreset": "circuit",
+    "variables": [
+      {
+        "id": "var_voltage",
+        "name": "Voltage",
+        "type": "number",
+        "value": 5.0,
+        "description": "Voltage of the battery (Volts)"
+      },
+      {
+        "id": "var_resistance",
+        "name": "Resistance",
+        "type": "number",
+        "value": 10.0,
+        "description": "Resistance of the circuit (Ohms)"
+      },
+      {
+        "id": "var_switch_state",
+        "name": "Switch State",
+        "type": "number",
+        "value": 0.0,
+        "description": "State of the switch (0 = Open, 1 = Closed)"
+      },
+      {
+        "id": "var_current",
+        "name": "Current",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Electric current flowing through the circuit (Amperes)",
+        "metadata": {
+          "formula": "(var_voltage / var_resistance) * var_switch_state",
+          "dependencies": ["var_voltage", "var_resistance", "var_switch_state"]
+        }
+      },
+      {
+        "id": "var_brightness",
+        "name": "Brightness",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Brightness of the light bulb",
+        "metadata": {
+          "formula": "var_current * 10",
+          "dependencies": ["var_current"]
+        }
+      }
+    ],
+    "objects": [
+      {
+        "objectId": "ctrl_voltage",
+        "name": "Battery Voltage",
+        "objectType": "slider",
+        "properties": { "linked_variable": "var_voltage" },
+        "state": { "label": "Voltage (V)", "value": 5.0, "min": 1.0, "max": 24.0 }
+      },
+      {
+        "objectId": "ctrl_resistance",
+        "name": "Resistance",
+        "objectType": "slider",
+        "properties": { "linked_variable": "var_resistance" },
+        "state": { "label": "Resistance (Ω)", "value": 10.0, "min": 1.0, "max": 100.0 }
+      },
+      {
+        "objectId": "ctrl_switch",
+        "name": "Switch",
+        "objectType": "toggle",
+        "properties": { "linked_variable": "var_switch_state" },
+        "state": { "label": "Switch (0=Open, 1=Closed)", "value": 0.0, "min": 0.0, "max": 1.0 }
+      },
+      {
+        "objectId": "btn_reset",
+        "name": "Reset",
+        "objectType": "button",
+        "properties": { "action": "trigger_rule", "rule": "rule_reset" },
+        "state": { "label": "Reset" }
+      }
+    ],
+    "rules": [
+      {
+        "ruleId": "rule_reset",
+        "name": "Reset Circuit",
+        "trigger": "buttonClicked",
+        "condition": {
+          "variableId": "btn_reset",
+          "operator": "==",
+          "value": true
+        },
+        "action": {
+          "type": "set_variable",
+          "payload": {
+            "variableId": "var_switch_state",
+            "value": 0.0
+          }
+        }
+      }
+    ],
+    "mission": {
+      "id": "mission_simple_circuit",
+      "title": "Simple Circuit Mission",
+      "description": "Learn how voltage and resistance affect current in a simple circuit.",
+      "tasks": [
+        { "id": "task_1", "title": "Build circuit (Ensure resistance is set)", "condition": "var_resistance > 0" },
+        { "id": "task_2", "title": "Turn on switch", "condition": "var_switch_state == 1" },
+        { "id": "task_3", "title": "Increase brightness (Current > 1A)", "condition": "var_current > 1.0" },
+        { "id": "task_4", "title": "Reduce brightness (Current < 0.5A)", "condition": "var_current < 0.5 && var_switch_state == 1" },
+        { "id": "task_5", "title": "Record observations", "condition": "trials_saved > 0" }
+      ]
+    },
+    "assessment": {
+      "id": "assess_simple_circuit",
+      "title": "Simple Circuit Assessment",
+      "questions": [
+        { "id": "q1", "type": "multiple_choice", "question": "What is the relationship between voltage, current, and resistance?", "options": ["V = I / R", "V = I * R", "I = V * R", "R = V * I"], "correctAnswer": "V = I * R" },
+        { "id": "q2", "type": "multiple_choice", "question": "If you increase the resistance in a circuit while keeping the voltage constant, what happens to the current?", "options": ["It increases", "It decreases", "It stays the same", "It drops to zero"], "correctAnswer": "It decreases" },
+        { "id": "q3", "type": "multiple_choice", "question": "What happens to the brightness of a bulb if the voltage of the battery is doubled?", "options": ["It decreases", "It stays the same", "It increases", "The bulb turns off"], "correctAnswer": "It increases" },
+        { "id": "q4", "type": "multiple_choice", "question": "What is the purpose of a switch in an electrical circuit?", "options": ["To provide energy", "To resist current", "To open and close the circuit", "To measure voltage"], "correctAnswer": "To open and close the circuit" },
+        { "id": "q5", "type": "multiple_choice", "question": "Which component is responsible for providing the electromotive force (voltage)?", "options": ["Wire", "Switch", "Resistor", "Battery"], "correctAnswer": "Battery" },
+        { "id": "q6", "type": "true_false", "question": "Current can flow in an open circuit.", "correctAnswer": "False" },
+        { "id": "q7", "type": "true_false", "question": "Adding more resistance reduces the amount of current flowing through the circuit.", "correctAnswer": "True" },
+        { "id": "q8", "type": "reflection", "question": "Explain Ohm's Law and describe how changing the voltage or resistance affects the current in a simple circuit.", "correctAnswer": "" }
+      ]
+    },
+    "investigation": {
+      "title": "Compare current",
+      "trials": [
+        {
+          "id": "trial_1",
+          "title": "Trial 1",
+          "parameters": {
+            "var_resistance": 10.0
+          }
+        },
+        {
+          "id": "trial_2",
+          "title": "Trial 2",
+          "parameters": {
+            "var_resistance": 20.0
+          }
+        }
+      ]
+    }
+  }
+}

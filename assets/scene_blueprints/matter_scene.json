@@ -1,0 +1,105 @@
+{
+  "id": "matter",
+  "family": "matter",
+  "backgrounds": [
+    {
+      "id": "bg_lab",
+      "asset": "lab.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    }
+  ],
+  "actors": [
+    {
+      "id": "ice",
+      "asset": "ice.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "water",
+      "asset": "water.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "steam",
+      "asset": "steam.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.4
+      }
+    },
+    {
+      "id": "heater",
+      "asset": "heater.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      },
+      "status": "missing"
+    },
+    {
+      "id": "thermometer",
+      "asset": "thermometer.svg",
+      "anchor": {
+        "x": 0.7,
+        "y": 0.5
+      },
+      "status": "missing"
+    },
+    {
+      "id": "beaker",
+      "asset": "beaker.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "heat_slider",
+      "type": "slider",
+      "target": "heater",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.9
+      }
+    },
+    {
+      "id": "cool_btn",
+      "type": "button",
+      "target": "heater",
+      "anchor": {
+        "x": 0.4,
+        "y": 0.9
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_molecules",
+      "asset": "molecules.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.6
+      }
+    },
+    {
+      "id": "eff_phase_transition",
+      "asset": "phase_transition.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ]
+}

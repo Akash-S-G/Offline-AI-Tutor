@@ -3,7 +3,11 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "food_chain"
+    "food_chain.svg",
+    "fox.svg",
+    "grass.svg",
+    "rabbit.svg",
+    "sun.svg"
   ],
   "effects": [],
   "ui": []

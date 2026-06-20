@@ -3,7 +3,11 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "ecg_vector"
+    "ecg_vector.svg",
+    "heart.svg",
+    "heart_beat.svg",
+    "pulse.svg",
+    "stethoscope.svg"
   ],
   "effects": [],
   "ui": []

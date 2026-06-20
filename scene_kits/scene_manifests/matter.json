@@ -3,7 +3,14 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "states_of_matter"
+    "atom.svg",
+    "gas.svg",
+    "ice_cube.svg",
+    "liquid.svg",
+    "molecule.svg",
+    "molecule2.svg",
+    "solid.svg",
+    "states_of_matter.svg"
   ],
   "effects": [],
   "ui": []

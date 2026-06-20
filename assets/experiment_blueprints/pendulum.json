@@ -1,0 +1,224 @@
+{
+  "metadata": {
+    "version": "1.0.0",
+    "author": "Antigravity",
+    "category": "physics",
+    "difficulty": "Medium",
+    "grade": "Grade 11",
+    "subject": "Physics",
+    "estimatedTime": "20 mins"
+  },
+  "scene": {
+    "sceneId": "pendulum_motion_lab",
+    "name": "Pendulum Motion Laboratory",
+    "description": "Interactive laboratory for exploring pendulum motion, period, and mass dependence.",
+    "tags": ["physics", "pendulum", "oscillation", "gravity", "kinematics"],
+    "visualPreset": "pendulum",
+    "variables": [
+      {
+        "id": "var_length",
+        "name": "Length",
+        "type": "number",
+        "value": 1.0,
+        "description": "Length of the pendulum string (meters)"
+      },
+      {
+        "id": "var_mass",
+        "name": "Mass",
+        "type": "number",
+        "value": 1.0,
+        "description": "Mass of the bob (kg)"
+      },
+      {
+        "id": "var_angle",
+        "name": "Release Angle",
+        "type": "number",
+        "value": 30.0,
+        "description": "Initial release angle (degrees)"
+      },
+      {
+        "id": "var_period",
+        "name": "Period",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Time taken for one full oscillation (seconds)",
+        "metadata": {
+          "formula": "2 * 3.14159265359 * sqrt(var_length / 9.81)",
+          "dependencies": ["var_length"]
+        }
+      },
+      {
+        "id": "var_velocity",
+        "name": "Maximum Velocity",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Maximum swing velocity at the lowest point (m/s)",
+        "metadata": {
+          "formula": "(2 * 3.14159265359 * var_length * (var_angle / 360.0)) / var_period",
+          "dependencies": ["var_length", "var_angle", "var_period"]
+        }
+      },
+      {
+        "id": "var_is_swinging",
+        "name": "Is Swinging",
+        "type": "boolean",
+        "value": false,
+        "description": "Indicates if the pendulum has been released and is swinging"
+      }
+    ],
+
+    "behaviors": [
+      {
+        "type": "oscillation",
+        "params": {
+          "frequency": "sqrt(9.81 / var_length)",
+          "length_var": "var_length",
+          "angle_var": "var_angle",
+          "is_active_var": "var_is_swinging"
+        }
+      }
+    ],
+
+    "effects": [
+      { "type": "motion_trail" },
+      { "type": "glow" }
+    ],
+
+    "states": [
+      { "id": "idle",     "label": "Idle" },
+      { "id": "swinging", "label": "Swinging" },
+      { "id": "stopped",  "label": "Stopped" }
+    ],
+
+    "stateTransitions": [
+      { "from": "idle",     "to": "swinging", "condition": { "variable": "var_is_swinging", "operator": ">=", "value": 1 } },
+      { "from": "swinging", "to": "stopped",  "condition": { "variable": "var_is_swinging", "operator": "<",  "value": 1 } }
+    ],
+
+    "visualMappings": [
+      { "variable": "var_velocity",     "property": "trail_length",   "min": 0, "max": 5 },
+      { "variable": "var_velocity",     "property": "glow_intensity",  "min": 0, "max": 5 },
+      { "variable": "behavior_velocity_norm", "property": "glow_intensity", "min": 0, "max": 1 }
+    ],
+
+    "tools": ["stopwatch", "ruler"],
+
+    "objects": [
+      {
+        "objectId": "ctrl_length",
+        "name": "Length",
+        "objectType": "slider",
+        "properties": { "linked_variable": "var_length" },
+        "state": { "label": "Length (m)", "value": 1.0, "min": 0.1, "max": 5.0 }
+      },
+      {
+        "objectId": "ctrl_mass",
+        "name": "Mass",
+        "objectType": "slider",
+        "properties": { "linked_variable": "var_mass" },
+        "state": { "label": "Mass (kg)", "value": 1.0, "min": 0.1, "max": 10.0 }
+      },
+      {
+        "objectId": "ctrl_angle",
+        "name": "Angle",
+        "objectType": "slider",
+        "properties": { "linked_variable": "var_angle" },
+        "state": { "label": "Angle (deg)", "value": 30.0, "min": 0.0, "max": 90.0 }
+      },
+      {
+        "objectId": "btn_release",
+        "name": "Release",
+        "objectType": "button",
+        "properties": { "action": "trigger_rule", "rule": "rule_release" },
+        "state": { "label": "Release" }
+      },
+      {
+        "objectId": "btn_reset",
+        "name": "Reset",
+        "objectType": "button",
+        "properties": { "action": "trigger_rule", "rule": "rule_reset" },
+        "state": { "label": "Reset" }
+      }
+    ],
+    "rules": [
+      {
+        "ruleId": "rule_release",
+        "name": "Release Pendulum",
+        "trigger": "buttonClicked",
+        "condition": {
+          "variableId": "btn_release",
+          "operator": "==",
+          "value": true
+        },
+        "action": {
+          "type": "set_variable",
+          "payload": {
+            "variableId": "var_is_swinging",
+            "value": true
+          }
+        }
+      },
+      {
+        "ruleId": "rule_reset",
+        "name": "Reset Pendulum",
+        "trigger": "buttonClicked",
+        "condition": {
+          "variableId": "btn_reset",
+          "operator": "==",
+          "value": true
+        },
+        "action": {
+          "type": "set_variable",
+          "payload": {
+            "variableId": "var_is_swinging",
+            "value": false
+          }
+        }
+      }
+    ],
+    "mission": {
+      "id": "mission_pendulum_motion",
+      "title": "Pendulum Motion Mission",
+      "description": "Investigate the factors that affect the period of a simple pendulum.",
+      "tasks": [
+        { "id": "task_1", "title": "Mission 1 — Change length to 2.0 m",          "condition": "var_length >= 1.9" },
+        { "id": "task_2", "title": "Mission 2 — Release the pendulum",            "condition": "var_is_swinging == true" },
+        { "id": "task_3", "title": "Mission 3 — Measure period with stopwatch",   "condition": "var_period > 0.0" },
+        { "id": "task_4", "title": "Mission 4 — Compare two lengths",             "condition": "trials_saved >= 2" }
+      ]
+    },
+    "assessment": {
+      "id": "assess_pendulum_motion",
+      "title": "Pendulum Motion Assessment",
+      "questions": [
+        { "id": "q1", "type": "multiple_choice", "question": "What happens to the period of a pendulum when its length is quadrupled?", "options": ["It halves", "It stays the same", "It doubles", "It quadruples"], "correctAnswer": "It doubles" },
+        { "id": "q2", "type": "multiple_choice", "question": "How does the mass of the bob affect the period of a simple pendulum?", "options": ["Increasing mass increases the period", "Increasing mass decreases the period", "Mass has no effect on the period", "It depends on the initial angle"], "correctAnswer": "Mass has no effect on the period" },
+        { "id": "q3", "type": "multiple_choice", "question": "Where is the pendulum's velocity at its maximum?", "options": ["At the highest points of its swing", "At the lowest point (equilibrium position)", "Halfway between the highest and lowest points", "Velocity is constant throughout the swing"], "correctAnswer": "At the lowest point (equilibrium position)" },
+        { "id": "q4", "type": "multiple_choice", "question": "What provides the restoring force for a simple pendulum?", "options": ["Tension in the string", "Air resistance", "Gravity", "The mass of the bob"], "correctAnswer": "Gravity" },
+        { "id": "q5", "type": "multiple_choice", "question": "If you take a pendulum from Earth to the Moon, its period will:", "options": ["Increase", "Decrease", "Stay the same", "Become zero"], "correctAnswer": "Increase" },
+        { "id": "q6", "type": "true_false", "question": "For small angles, the period of a pendulum is independent of the release angle.", "correctAnswer": "True" },
+        { "id": "q7", "type": "true_false", "question": "The time taken for a pendulum to swing from one extreme to the other and back again is called its amplitude.", "correctAnswer": "False" },
+        { "id": "q8", "type": "reflection", "question": "Explain why a grandfather clock might run slow in the summer and fast in the winter, based on the physics of a pendulum.", "correctAnswer": "" }
+      ]
+    },
+    "investigation": {
+      "title": "Compare period",
+      "trials": [
+        {
+          "id": "trial_1",
+          "title": "Trial 1",
+          "parameters": {
+            "var_length": 1.0
+          }
+        },
+        {
+          "id": "trial_2",
+          "title": "Trial 2",
+          "parameters": {
+            "var_length": 2.0
+          }
+        }
+      ]
+    }
+  }
+}

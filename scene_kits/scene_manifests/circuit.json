@@ -2,7 +2,15 @@
   "scene": "circuit",
   "version": "1.0",
   "background": [],
-  "actors": [],
+  "actors": [
+    "ammeter.svg",
+    "battery.svg",
+    "bulb.svg",
+    "resistor.svg",
+    "switch.svg",
+    "voltmeter.svg",
+    "wire.svg"
+  ],
   "effects": [],
   "ui": []
 }

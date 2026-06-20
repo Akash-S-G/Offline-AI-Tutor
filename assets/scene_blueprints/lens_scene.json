@@ -1,0 +1,98 @@
+{
+  "id": "lens",
+  "family": "lens",
+  "backgrounds": [
+    {
+      "id": "bg_optics_bench",
+      "asset": "optics_bench.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.8
+      },
+      "status": "missing"
+    },
+    {
+      "id": "bg_dark_room",
+      "asset": "dark_room.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ],
+  "actors": [
+    {
+      "id": "laser",
+      "asset": "laser.svg",
+      "anchor": {
+        "x": 0.1,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "convex",
+      "asset": "convex.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "concave",
+      "asset": "concave.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "screen",
+      "asset": "screen.svg",
+      "anchor": {
+        "x": 0.9,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ],
+  "interactionZones": [
+    {
+      "id": "focal_length",
+      "type": "slider",
+      "target": "convex",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.7
+      }
+    },
+    {
+      "id": "laser_y",
+      "type": "drag",
+      "target": "laser",
+      "anchor": {
+        "x": 0.1,
+        "y": 0.5
+      }
+    }
+  ],
+  "effectZones": [
+    {
+      "id": "eff_focal_point",
+      "asset": "focal_point.svg",
+      "anchor": {
+        "x": 0.7,
+        "y": 0.5
+      }
+    },
+    {
+      "id": "eff_light_beams",
+      "asset": "light_beams.svg",
+      "anchor": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "status": "missing"
+    }
+  ]
+}

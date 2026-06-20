@@ -3,7 +3,11 @@
   "version": "1.0",
   "background": [],
   "actors": [
-    "planets"
+    "earth.svg",
+    "orbit.svg",
+    "planets.svg",
+    "star.svg",
+    "sun.svg"
   ],
   "effects": [],
   "ui": []
