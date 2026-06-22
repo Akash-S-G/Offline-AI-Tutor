@@ -1,0 +1,151 @@
+{
+  "metadata": {
+    "version": "2.0.0",
+    "author": "Antigravity",
+    "category": "environmental",
+    "difficulty": "Easy",
+    "grade": "Grade 10",
+    "subject": "Geography",
+    "estimatedTime": "15 mins"
+  },
+  "scene": {
+    "sceneId": "water_cycle_v2",
+    "name": "Water Cycle Explorer",
+    "description": "Interactive laboratory for exploring the water cycle.",
+    "tags": ["environmental", "water cycle", "evaporation", "condensation", "precipitation"],
+    "visualPreset": "nature",
+    "backgroundAssets": ["assets/images/experiments/sky_bg.svg", "assets/images/experiments/mountains.svg"],
+    "actorAssets": ["assets/images/experiments/sun.svg", "assets/images/experiments/clouds.svg"],
+    "effectAssets": ["assets/images/experiments/lake.svg"],
+    "theme": "nature_lab",
+    "variables": [
+      {
+        "id": "temperature",
+        "name": "Temperature",
+        "type": "number",
+        "value": 20.0,
+        "description": "Ambient temperature in °C"
+      },
+      {
+        "id": "humidity",
+        "name": "Humidity",
+        "type": "number",
+        "value": 20.0,
+        "description": "Ambient humidity in %"
+      },
+      {
+        "id": "evaporation_rate",
+        "name": "Evaporation Rate",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Rate of evaporation",
+        "metadata": {
+          "formula": "(temperature * 0.6) + (humidity * 0.2)",
+          "dependencies": ["temperature", "humidity"]
+        }
+      },
+      {
+        "id": "cloud_density",
+        "name": "Cloud Density",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Density of clouds in the sky",
+        "metadata": {
+          "formula": "evaporation_rate * 0.5",
+          "dependencies": ["evaporation_rate"]
+        }
+      },
+      {
+        "id": "rainfall",
+        "name": "Rainfall",
+        "type": "computed",
+        "value": 0.0,
+        "description": "Amount of rainfall",
+        "metadata": {
+          "formula": "cloud_density > 80 ? 100 : 0",
+          "dependencies": ["cloud_density"]
+        }
+      }
+    ],
+    "behaviors": [
+      {
+        "type": "oscillation",
+        "params": {
+          "frequency": 0.1,
+          "amplitude": 50,
+          "axis": "horizontal"
+        }
+      },
+      {
+        "type": "pulse",
+        "params": {
+          "speed": 0.5,
+          "scale_min": 0.95,
+          "scale_max": 1.05
+        }
+      }
+    ],
+    "effects": [
+      { "type": "rain" },
+      { "type": "cloud" },
+      { "type": "glow" },
+      { "type": "wave_motion", "params": { "amplitude": 4, "speed": 0.3 } },
+      { "type": "ripple" }
+    ],
+    "states": [
+      { "id": "clear", "label": "Clear Sky" },
+      { "id": "evaporating",  "label": "Evaporation" },
+      { "id": "cloud_forming",  "label": "Condensation" },
+      { "id": "heavy_cloud",  "label": "Heavy Clouds" },
+      { "id": "raining",  "label": "Precipitation" },
+      { "id": "collection",  "label": "Collection" }
+    ],
+    "stateTransitions": [
+      { "from": "clear", "to": "evaporating", "condition": { "variable": "temperature", "operator": ">", "value": 30 } },
+      { "from": "evaporating", "to": "cloud_forming", "condition": { "variable": "cloud_density", "operator": ">", "value": 30 } },
+      { "from": "cloud_forming", "to": "heavy_cloud", "condition": { "variable": "cloud_density", "operator": ">", "value": 60 } },
+      { "from": "heavy_cloud", "to": "raining", "condition": { "variable": "cloud_density", "operator": ">", "value": 80 } },
+      { "from": "raining", "to": "collection", "condition": { "variable": "rainfall", "operator": ">", "value": 0 } }
+    ],
+    "visualMappings": [
+      { "variable": "temperature", "property": "glow_intensity", "min": 0, "max": 100 },
+      { "variable": "cloud_density", "property": "opacity", "min": 0, "max": 100 },
+      { "variable": "cloud_density", "property": "scale", "min": 0, "max": 100 },
+      { "variable": "rainfall", "property": "dropCount", "min": 0, "max": 100 },
+      { "variable": "rainfall", "property": "dropSpeed", "min": 0, "max": 100 },
+      { "variable": "rainfall", "property": "ripple_count", "min": 0, "max": 100 }
+    ],
+    "tools": [
+      {
+        "type": "numeric",
+        "variable": "temperature",
+        "unit": "°C",
+        "label": "Temperature"
+      },
+      {
+        "type": "numeric",
+        "variable": "humidity",
+        "unit": "%",
+        "label": "Humidity"
+      },
+      {
+        "type": "numeric",
+        "variable": "cloud_density",
+        "unit": "%",
+        "label": "Cloud Density"
+      }
+    ],
+    "mission": {
+      "id": "mission_water_cycle",
+      "title": "Water Cycle Mission",
+      "description": "Explore the different stages of the water cycle.",
+      "tasks": [
+        { "id": "task_1", "title": "Mission 1 — Increase temperature", "condition": "temperature > 30" },
+        { "id": "task_2", "title": "Mission 2 — Observe evaporation", "condition": "evaporation_rate > 20" },
+        { "id": "task_3", "title": "Mission 3 — Increase cloud density", "condition": "cloud_density > 60" },
+        { "id": "task_4", "title": "Mission 4 — Trigger rainfall", "condition": "rainfall > 0" },
+        { "id": "task_5", "title": "Mission 5 — Complete the water cycle", "condition": "rainfall > 0" }
+      ]
+    }
+  }
+}

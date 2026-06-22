@@ -11,24 +11,21 @@ class WaterCycleSceneControls extends StatefulWidget {
 }
 
 class _WaterCycleSceneControlsState extends State<WaterCycleSceneControls> {
-  void _cycleTemperature() {
-    final current = widget.world.variables.getValue('var_temperature') ?? 20.0;
-    double next = 20.0;
-    if (current < 20.0) next = 20.0;
-    else if (current < 30.0) next = 30.0;
-    else if (current < 40.0) next = 40.0;
-    else next = 10.0;
-    widget.world.variables.setVariable('var_temperature', next);
+  void _changeTemperature(double delta) {
+    final current = widget.world.variables.getValue('temperature') ?? 20.0;
+    double next = (current + delta).clamp(0.0, 100.0);
+    widget.world.variables.setVariable('temperature', next);
   }
 
-  void _cycleHumidity() {
-    final current = widget.world.variables.getValue('var_humidity') ?? 50.0;
-    double next = 50.0;
-    if (current < 50.0) next = 50.0;
-    else if (current < 75.0) next = 75.0;
-    else if (current < 100.0) next = 100.0;
-    else next = 25.0;
-    widget.world.variables.setVariable('var_humidity', next);
+  void _changeHumidity(double delta) {
+    final current = widget.world.variables.getValue('humidity') ?? 20.0;
+    double next = (current + delta).clamp(0.0, 100.0);
+    widget.world.variables.setVariable('humidity', next);
+  }
+
+  void _resetSimulation() {
+    widget.world.variables.setVariable('temperature', 20.0);
+    widget.world.variables.setVariable('humidity', 20.0);
   }
 
   @override
@@ -45,7 +42,8 @@ class _WaterCycleSceneControlsState extends State<WaterCycleSceneControls> {
               width: constraints.maxWidth * 0.2,
               height: constraints.maxHeight * 0.2,
               child: GestureDetector(
-                onTap: _cycleTemperature,
+                onTap: () => _changeTemperature(10.0),
+                onLongPress: () => _changeTemperature(-10.0),
                 behavior: HitTestBehavior.translucent,
               ),
             ),
@@ -57,7 +55,20 @@ class _WaterCycleSceneControlsState extends State<WaterCycleSceneControls> {
               width: constraints.maxWidth * 0.3,
               height: constraints.maxHeight * 0.2,
               child: GestureDetector(
-                onTap: _cycleHumidity,
+                onTap: () => _changeHumidity(10.0),
+                onLongPress: () => _changeHumidity(-10.0),
+                behavior: HitTestBehavior.translucent,
+              ),
+            ),
+
+            // Lake area - Reset
+            Positioned(
+              left: constraints.maxWidth * 0.1,
+              bottom: constraints.maxHeight * 0.1,
+              width: constraints.maxWidth * 0.8,
+              height: constraints.maxHeight * 0.3,
+              child: GestureDetector(
+                onTap: _resetSimulation,
                 behavior: HitTestBehavior.translucent,
               ),
             ),

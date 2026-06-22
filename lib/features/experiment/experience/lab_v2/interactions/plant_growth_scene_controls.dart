@@ -11,31 +11,10 @@ class PlantGrowthSceneControls extends StatefulWidget {
 }
 
 class _PlantGrowthSceneControlsState extends State<PlantGrowthSceneControls> {
-  void _waterPlant() {
-    final current = widget.world.variables.getValue('var_water') ?? 0.0;
-    widget.world.variables.setVariable('var_water', (current + 20.0).clamp(0.0, 100.0));
-    _triggerGrowth();
-  }
-
-  void _cycleSunlight() {
-    final current = widget.world.variables.getValue('var_sunlight') ?? 50.0;
-    double next = 50.0;
-    if (current < 50.0) next = 50.0;
-    else if (current < 100.0) next = 100.0;
-    else next = 25.0;
-    widget.world.variables.setVariable('var_sunlight', next);
-    _triggerGrowth();
-  }
-
-  void _triggerGrowth() {
-    final water = widget.world.variables.getValue('var_water') ?? 0.0;
-    final sun = widget.world.variables.getValue('var_sunlight') ?? 0.0;
-    final growth = widget.world.variables.getValue('var_growth') ?? 0.0;
-    
-    if (water > 20 && sun > 20) {
-      widget.world.variables.setVariable('var_growth', (growth + 10.0).clamp(0.0, 100.0));
-      widget.world.variables.setVariable('var_water', (water - 10.0).clamp(0.0, 100.0));
-    }
+  void _changeVariable(String variable, double delta) {
+    final current = widget.world.variables.getValue(variable) ?? 0.0;
+    double next = (current + delta).clamp(0.0, 100.0);
+    widget.world.variables.setVariable(variable, next);
   }
 
   @override
@@ -45,26 +24,28 @@ class _PlantGrowthSceneControlsState extends State<PlantGrowthSceneControls> {
         return Stack(
           fit: StackFit.expand,
           children: [
-            // Watering can tap area
+            // Watering can area - Water
             Positioned(
               left: constraints.maxWidth * 0.1,
               top: constraints.maxHeight * 0.4,
               width: constraints.maxWidth * 0.2,
               height: constraints.maxHeight * 0.3,
               child: GestureDetector(
-                onTap: _waterPlant,
+                onTap: () => _changeVariable('water', 10.0),
+                onLongPress: () => _changeVariable('water', -10.0),
                 behavior: HitTestBehavior.translucent,
               ),
             ),
             
-            // Sun tap area
+            // Sun area - Sunlight
             Positioned(
               right: constraints.maxWidth * 0.1,
               top: constraints.maxHeight * 0.1,
               width: constraints.maxWidth * 0.2,
               height: constraints.maxHeight * 0.2,
               child: GestureDetector(
-                onTap: _cycleSunlight,
+                onTap: () => _changeVariable('sunlight', 10.0),
+                onLongPress: () => _changeVariable('sunlight', -10.0),
                 behavior: HitTestBehavior.translucent,
               ),
             ),

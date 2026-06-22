@@ -12,6 +12,9 @@ class SceneDefinitionV3 {
   /// Effects declared in the blueprint JSON, e.g. [{"type":"motion_trail"}]
   final List<dynamic> effects;
 
+  /// Tools declared in the blueprint JSON, e.g. [{"type": "numeric", "variable": "var_current"}]
+  final List<dynamic> tools;
+
   const SceneDefinitionV3({
     required this.sceneId,
     required this.backgroundAssets,
@@ -21,6 +24,7 @@ class SceneDefinitionV3 {
     this.defaultLayout = const {},
     this.behaviors = const [],
     this.effects = const [],
+    this.tools = const [],
   });
 
   factory SceneDefinitionV3.fromJson(Map<String, dynamic> json) {
@@ -33,6 +37,7 @@ class SceneDefinitionV3 {
       defaultLayout: json['defaultLayout'] as Map<String, dynamic>? ?? {},
       behaviors: (json['behaviors'] as List?) ?? [],
       effects: (json['effects'] as List?) ?? [],
+      tools: (json['tools'] as List?) ?? [],
     );
   }
 

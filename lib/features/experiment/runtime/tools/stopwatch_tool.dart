@@ -9,7 +9,7 @@ class StopwatchTool implements MeasurementTool {
   String get type => 'stopwatch';
 
   @override
-  Widget buildOverlay(RuntimeWorld world, BuildContext context) {
+  Widget buildOverlay(RuntimeWorld world, BuildContext context, [Map<String, dynamic>? config]) {
     return const Positioned(
       top: 16,
       right: 16,
@@ -40,7 +40,7 @@ class _StopwatchWidgetState extends State<_StopwatchWidget> {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: Listenable.merge([]),
-      builder: (_, __) => _build(),
+      builder: (context, child) => _build(),
     );
   }
 

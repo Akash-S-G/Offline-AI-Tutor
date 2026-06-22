@@ -6,7 +6,7 @@
 |--------|-------|
 | Target | 19 |
 | Attempted | 19 |
-| Successful | [{'scene': 'heart_rate', 'group': 'actors', 'filename': 'human_outline', 'size_kb': 26.2, 'source': 'Wikimedia Commons'}, {'scene': 'heart_rate', 'group': 'actors', 'filename': 'treadmill', 'size_kb': 2.0, 'source': 'Wikimedia Commons'}] |
+| Successful | 2 |
 | Rejected/Failed | 17 |
 
 ## Downloaded Assets

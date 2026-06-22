@@ -3,6 +3,7 @@ import '../../runtime/runtime_world.dart';
 import 'measurement_tool.dart';
 import 'stopwatch_tool.dart';
 import 'ruler_tool.dart';
+import 'numeric_measurement_tool.dart';
 
 /// Central registry mapping tool type strings to [MeasurementTool] instances.
 class MeasurementRegistry {
@@ -11,6 +12,7 @@ class MeasurementRegistry {
   static void initialize() {
     register(StopwatchTool());
     register(RulerTool());
+    register(NumericMeasurementTool());
   }
 
   static void register(MeasurementTool tool) {
@@ -29,17 +31,33 @@ class ToolOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolved = tools
-        .map((t) => MeasurementRegistry.resolve(t as String))
-        .whereType<MeasurementTool>()
-        .toList();
+    if (tools.isEmpty) return const SizedBox.shrink();
 
-    if (resolved.isEmpty) return const SizedBox.shrink();
+    final List<Widget> overlays = [];
+
+    for (final t in tools) {
+      String type;
+      Map<String, dynamic>? config;
+
+      if (t is String) {
+        type = t;
+      } else if (t is Map) {
+        type = t['type'] as String;
+        config = Map<String, dynamic>.from(t);
+      } else {
+        continue;
+      }
+
+      final tool = MeasurementRegistry.resolve(type);
+      if (tool != null) {
+        overlays.add(tool.buildOverlay(world, context, config));
+      }
+    }
+
+    if (overlays.isEmpty) return const SizedBox.shrink();
 
     return Stack(
-      children: resolved
-          .map((tool) => tool.buildOverlay(world, context))
-          .toList(),
+      children: overlays,
     );
   }
 }

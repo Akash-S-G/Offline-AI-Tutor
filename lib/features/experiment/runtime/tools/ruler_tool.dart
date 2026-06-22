@@ -9,7 +9,7 @@ class RulerTool implements MeasurementTool {
   String get type => 'ruler';
 
   @override
-  Widget buildOverlay(RuntimeWorld world, BuildContext context) {
+  Widget buildOverlay(RuntimeWorld world, BuildContext context, [Map<String, dynamic>? config]) {
     return Positioned(
       left: 12,
       top: 80,

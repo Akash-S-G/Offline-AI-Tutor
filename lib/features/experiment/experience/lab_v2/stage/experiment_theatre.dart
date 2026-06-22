@@ -12,6 +12,8 @@ import '../../../immersive_runtime/idle_animation_controller.dart';
 import '../../../immersive_runtime/visual_response_controller.dart';
 import '../../../immersive_runtime/scene_effect_controller.dart';
 import '../../../immersive_runtime/interaction_feedback_controller.dart';
+import '../../../runtime/tools/measurement_registry.dart';
+
 class ExperimentTheatre extends StatelessWidget {
   final RuntimeWorld world;
   final String environmentMode;
@@ -55,6 +57,10 @@ class ExperimentTheatre extends StatelessWidget {
               SceneControlsOverlay(
                 world: world,
                 sceneId: sceneDefinition.sceneId,
+              ),
+              ToolOverlay(
+                tools: sceneDefinition.tools,
+                world: world,
               ),
             ],
           ),

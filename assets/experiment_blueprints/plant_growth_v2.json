@@ -1,0 +1,270 @@
+{
+  "sceneId": "plant_growth",
+  "variables": [
+    {
+      "id": "water",
+      "type": "number",
+      "default": 30
+    },
+    {
+      "id": "sunlight",
+      "type": "number",
+      "default": 30
+    },
+    {
+      "id": "growth",
+      "type": "number",
+      "default": 0
+    },
+    {
+      "id": "health",
+      "type": "number",
+      "default": 100
+    }
+  ],
+  "computedVariables": [
+    {
+      "id": "photosynthesis_rate",
+      "type": "computed",
+      "formula": "(water * 0.4) + (sunlight * 0.6)"
+    },
+    {
+      "id": "growth_rate",
+      "type": "computed",
+      "formula": "photosynthesis_rate > 50 ? 5 : (photosynthesis_rate > 20 ? 1 : 0)"
+    },
+    {
+      "id": "decay_rate",
+      "type": "computed",
+      "formula": "water < 10 || sunlight < 10 ? 10 : 0"
+    }
+  ],
+  "states": [
+    {
+      "id": "seed",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "growth > 10",
+          "actions": [
+            { "type": "transition", "payload": { "target": "sprout" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "true",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "growth", "value": 0.5 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "sprout",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "growth > 40 && health > 50",
+          "actions": [
+            { "type": "transition", "payload": { "target": "vegetative" } }
+          ]
+        },
+        {
+          "type": "trigger",
+          "condition": "health <= 0",
+          "actions": [
+            { "type": "transition", "payload": { "target": "wilted" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "true",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "growth", "value": 0.5 } },
+            { "type": "add_to_variable", "payload": { "variableId": "water", "value": -0.1 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "vegetative",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "growth > 80 && health > 80",
+          "actions": [
+            { "type": "transition", "payload": { "target": "flowering" } }
+          ]
+        },
+        {
+          "type": "trigger",
+          "condition": "health <= 0",
+          "actions": [
+            { "type": "transition", "payload": { "target": "wilted" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "true",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "growth", "value": 0.5 } },
+            { "type": "add_to_variable", "payload": { "variableId": "water", "value": -0.2 } },
+            { "type": "add_to_variable", "payload": { "variableId": "health", "value": -0.1 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "flowering",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "health <= 0",
+          "actions": [
+            { "type": "transition", "payload": { "target": "wilted" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "true",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "water", "value": -0.3 } },
+            { "type": "add_to_variable", "payload": { "variableId": "health", "value": -0.2 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "wilted",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "water > 50 && sunlight > 30",
+          "actions": [
+            { "type": "transition", "payload": { "target": "recovering" } },
+            { "type": "set_variable", "payload": { "variableId": "health", "value": 10 } }
+          ]
+        },
+        {
+          "type": "trigger",
+          "condition": "health < -50",
+          "actions": [
+            { "type": "transition", "payload": { "target": "dead" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "true",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "health", "value": -1 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recovering",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "health > 50 && growth > 80",
+          "actions": [
+            { "type": "transition", "payload": { "target": "flowering" } }
+          ]
+        },
+        {
+          "type": "trigger",
+          "condition": "health > 50 && growth <= 80",
+          "actions": [
+            { "type": "transition", "payload": { "target": "vegetative" } }
+          ]
+        },
+        {
+          "type": "trigger",
+          "condition": "health <= 0",
+          "actions": [
+            { "type": "transition", "payload": { "target": "wilted" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "true",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "health", "value": 0.5 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "dead",
+      "rules": []
+    }
+  ],
+  "behaviors": [
+    {
+      "type": "growth",
+      "params": {
+        "growth_var": "growth",
+        "outputs": {
+          "plant_height": { "min": 0.1, "max": 2.0 },
+          "leaf_count": { "min": 0.0, "max": 20.0 }
+        }
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "water_droplets",
+      "params": {}
+    },
+    {
+      "type": "organic_growth",
+      "params": {}
+    }
+  ],
+  "visualMappings": [
+    {
+      "variableId": "water",
+      "targetType": "effect",
+      "targetId": "water_droplets",
+      "property": "droplet_frequency",
+      "range": { "min": 0, "max": 100 },
+      "mapTo": { "min": 0.0, "max": 40.0 }
+    },
+    {
+      "variableId": "leaf_count",
+      "targetType": "effect",
+      "targetId": "organic_growth",
+      "property": "node_count",
+      "range": { "min": 0, "max": 20 },
+      "mapTo": { "min": 0, "max": 20 }
+    },
+    {
+      "variableId": "health",
+      "targetType": "effect",
+      "targetId": "organic_growth",
+      "property": "node_color",
+      "range": { "min": 0, "max": 100 },
+      "mapTo": { "min": 0.0, "max": 100.0 }
+    },
+    {
+      "variableId": "growth",
+      "targetType": "effect",
+      "targetId": "organic_growth",
+      "property": "flower_visibility",
+      "range": { "min": 0, "max": 100 },
+      "mapTo": { "min": 0.0, "max": 100.0 }
+    }
+  ],
+  "tools": [
+    { "id": "ruler", "enabled": true },
+    { "id": "stopwatch", "enabled": true }
+  ],
+  "missions": [
+    {
+      "id": "mission_1",
+      "title": "Grow a Plant",
+      "description": "Provide enough water and sunlight to grow the plant into the flowering stage.",
+      "successCondition": "growth > 80 && health > 80"
+    }
+  ]
+}

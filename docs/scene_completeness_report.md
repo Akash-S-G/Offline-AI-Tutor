@@ -13,7 +13,6 @@
 | mirror | 0 | 7 | 2 | 0 | **9** |
 | motion | 0 | 6 | 0 | 0 | **6** |
 | pendulum | 0 | 6 | 0 | 0 | **6** |
-|同在的 ormation 0 | 7 | 1 | 0 | **8** |
 | plant_growth | 0 | 7 | 1 | 0 | **8** |
 | simple_machines | 0 | 7 | 0 | 0 | **7** |
 | solar_system | 0 | 5 | 0 | 0 | **5** |

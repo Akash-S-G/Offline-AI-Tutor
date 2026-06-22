@@ -6,5 +6,5 @@ abstract class MeasurementTool {
   String get type;
 
   /// Build the on-screen overlay widget for this tool.
-  Widget buildOverlay(RuntimeWorld world, BuildContext context);
+  Widget buildOverlay(RuntimeWorld world, BuildContext context, [Map<String, dynamic>? config]);
 }
