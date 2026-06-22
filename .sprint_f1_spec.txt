@@ -1,0 +1,72 @@
+Leaving a comment while you're working so you take this into account: <USER_REQUEST>
+Since you've decided:
+
+```text id="pfspqy"
+✓ Laptop Server does all AI
+✓ Flutter remains thin client
+✓ Hindi + Kannada + English
+✓ Voice-first experience
+✓ Real-time conversations
+```
+
+the frontend implementation becomes much simpler and cleaner.
+
+---
+
+# Frontend Final Architecture
+
+```text id="nq8j3e"
+lib/
+└── features/
+
+    language/
+    voice/
+    tutor/
+    simulation_context/
+    settings/
+```
+
+No:
+
+```text id="ktbg5z"
+ASR
+Translation
+TTS
+LLM
+```
+
+inside Flutter.
+
+---
+
+# Sprint F1 — Language Foundation
+
+## Goal
+
+Entire application becomes language-aware.
+
+---
+
+## Create
+
+```text id="z8rb4f"
+features/language/
+```
+
+Structure:
+
+```text id="q7dzra"
+language/
+├── models/
+│   └── app_language.dart
+│
+├── services/
+│   └── language_service.dart
+│
+├── providers/
+│   └── language_provider.dart
+│
+├── widgets/
+│   └── language_selector.dart
+│
+<truncated 6442 bytes>

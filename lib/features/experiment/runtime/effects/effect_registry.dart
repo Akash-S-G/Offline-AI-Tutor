@@ -7,9 +7,10 @@ import 'current_flow_effect.dart';
 import 'rain_effect.dart';
 import 'cloud_effect.dart';
 import 'wave_motion_effect.dart';
-import 'velocity_vector_effect.dart';
 import 'water_droplets_effect.dart';
 import 'organic_growth_effect.dart';
+import 'heart_glow_effect.dart';
+import 'blood_flow_effect.dart';
 
 /// Central registry mapping effect type strings to [RuntimeEffect] instances.
 /// Add new effects HERE only. No experiment-specific code anywhere else.
@@ -25,9 +26,10 @@ class EffectRegistry {
     register(RainEffect());
     register(CloudEffect());
     register(WaveMotionEffect());
-    register(VelocityVectorEffect());
     register(WaterDropletsEffect());
     register(OrganicGrowthEffect());
+    register(HeartGlowEffect());
+    register(BloodFlowEffect());
   }
 
   static void register(RuntimeEffect effect) {

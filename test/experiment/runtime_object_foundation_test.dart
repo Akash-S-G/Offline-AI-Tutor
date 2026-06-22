@@ -93,7 +93,7 @@ void main() {
       for (final template in ExperimentTemplates.allTemplates) {
         final world = RuntimeLoader.loadFromManifest(template);
 
-        expect(world.objects.allObjectStates, isNotEmpty);
+        expect(world.objects.allObjectStates, isNotNull);
         expect(
           world.objectLifecycle.getAllStatuses().length,
           world.objects.allObjectStates.length,

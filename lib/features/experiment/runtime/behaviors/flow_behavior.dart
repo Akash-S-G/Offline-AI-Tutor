@@ -12,18 +12,24 @@ class FlowBehavior implements Behavior {
 
   @override
   void tick(double time, BehaviorContext context) {
-    final isActive = context.get(
-      context.params['is_active_var'] as String? ?? 'var_switch_state',
-    );
-    if (isActive < 0.5) {
-      context.setOutput('flow_progress', 0.0);
-      return;
-    }
-
     final speed = context.get(
       context.params['speed_var'] as String? ?? 'var_current',
       defaultValue: 1.0,
     );
+
+    final activeVarName = context.params['is_active_var'] as String?;
+    
+    if (activeVarName != null) {
+      final isActive = context.get(activeVarName);
+      if (isActive < 0.5) {
+        context.setOutput('flow_progress', 0.0);
+        return;
+      }
+    } else if (speed <= 0) {
+      // If no explicit switch is mapped, just stop flow if speed is 0
+      context.setOutput('flow_progress', 0.0);
+      return;
+    }
 
     // Progress cycles 0→1 repeatedly at a rate proportional to speed.
     final progress = (time * speed * 0.2) % 1.0;

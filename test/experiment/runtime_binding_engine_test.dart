@@ -95,11 +95,42 @@ void main() {
       for (final template in ExperimentTemplates.allTemplates) {
         final world = RuntimeLoader.loadFromManifest(template);
 
-        expect(
-          world.bindings.allBindings(),
-          isNotEmpty,
-          reason: template['scene']?['name']?.toString(),
-        );
+        final objects = template['scene']?['objects'] as List?;
+        if (objects != null && objects.isNotEmpty) {
+          final hasBindingProperties = objects.any((obj) {
+            final props = obj['properties'] as Map?;
+            if (props == null) return false;
+            return props.keys.any((key) =>
+                const [
+                  'variableId',
+                  'valueVariable',
+                  'sourceVariable',
+                  'boundVariable',
+                  'linkedVariable',
+                  'linked_variable'
+                ].contains(key) ||
+                (key.toString().endsWith('_var') && key.toString().length > 4));
+          });
+          if (hasBindingProperties) {
+            expect(
+              world.bindings.allBindings(),
+              isNotEmpty,
+              reason: template['scene']?['name']?.toString(),
+            );
+          } else {
+            expect(
+              world.bindings.allBindings(),
+              isEmpty,
+              reason: template['scene']?['name']?.toString(),
+            );
+          }
+        } else {
+          expect(
+            world.bindings.allBindings(),
+            isEmpty,
+            reason: template['scene']?['name']?.toString(),
+          );
+        }
 
         world.dispose();
       }

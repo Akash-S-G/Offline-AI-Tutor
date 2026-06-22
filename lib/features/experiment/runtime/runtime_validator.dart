@@ -24,6 +24,9 @@ class RuntimeValidator {
     final varIds = variables
         .map((v) => (v['id'] ?? v['name']).toString())
         .toSet();
+    final objectIds = objects
+        .map((o) => (o['objectId'] ?? o['id']).toString())
+        .toSet();
     final sensorRegistry = SensorRegistry();
 
     for (final variable in variables) {
@@ -71,13 +74,15 @@ class RuntimeValidator {
       final condition = rule['condition'];
       if (condition is Map && condition.containsKey('variableId')) {
         final varId = condition['variableId'].toString();
-        if (!varIds.contains(varId)) {
+        if (!varIds.contains(varId) && !objectIds.contains(varId)) {
           throw RuntimeValidationException(
-            "Rule condition references undefined variable: $varId",
+            "Rule condition references undefined variable or object: $varId",
           );
         }
         // Variable triggers Rule (Edge: Var -> Rule)
-        graph.putIfAbsent(varId, () => []).add(ruleId);
+        if (varIds.contains(varId)) {
+          graph.putIfAbsent(varId, () => []).add(ruleId);
+        }
       }
 
       final action = rule['action'];

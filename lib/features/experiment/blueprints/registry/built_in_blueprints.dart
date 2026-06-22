@@ -84,7 +84,7 @@ class BuiltInBlueprints {
           ExperimentParameter(
             id: 'param_pulse',
             displayName: 'Pulse',
-            variableId: 'var_pulse',
+            variableId: 'heart_rate',
             unit: 'bpm',
             minValue: 40,
             maxValue: 180,
@@ -118,7 +118,7 @@ class BuiltInBlueprints {
           ExperimentParameter(
             id: 'param_water',
             displayName: 'Water',
-            variableId: 'var_water',
+            variableId: 'water',
             unit: '%',
             minValue: 0,
             maxValue: 100,
@@ -127,7 +127,7 @@ class BuiltInBlueprints {
           ExperimentParameter(
             id: 'param_sunlight',
             displayName: 'Sunlight',
-            variableId: 'var_sunlight',
+            variableId: 'sunlight',
             unit: '%',
             minValue: 0,
             maxValue: 100,
@@ -162,7 +162,7 @@ class BuiltInBlueprints {
           ExperimentParameter(
             id: 'param_temperature',
             displayName: 'Temperature',
-            variableId: 'var_temp',
+            variableId: 'temperature',
             unit: 'C',
             minValue: 0,
             maxValue: 100,
@@ -179,6 +179,49 @@ class BuiltInBlueprints {
         observationTemplate: const ExperimentObservationTemplate(
           columns: ['Temperature', 'Water Cycle Stage'],
           requiredRows: 2,
+        ),
+      ),
+      _fromTemplate(
+        ExperimentTemplates.circuit,
+        id: 'blueprint_circuit',
+        visualPreset: 'circuit',
+        topic: 'Electricity',
+        objectives: const [
+          ExperimentObjective(
+            title: 'Understand Ohm\'s Law',
+            description: 'Explore the relationship between voltage, resistance, and current.',
+          ),
+        ],
+        parameters: const [
+          ExperimentParameter(
+            id: 'param_voltage',
+            displayName: 'Voltage',
+            variableId: 'var_voltage',
+            unit: 'V',
+            minValue: 1,
+            maxValue: 9,
+            defaultValue: 1,
+          ),
+          ExperimentParameter(
+            id: 'param_resistance',
+            displayName: 'Resistance',
+            variableId: 'var_resistance',
+            unit: 'Ω',
+            minValue: 10,
+            maxValue: 50,
+            defaultValue: 10,
+          ),
+        ],
+        questions: const [
+          ExperimentQuestion(
+            id: 'circuit_prediction',
+            type: QuestionType.prediction,
+            question: 'What happens to the current when voltage increases?',
+          ),
+        ],
+        observationTemplate: const ExperimentObservationTemplate(
+          columns: ['Voltage', 'Resistance', 'Current'],
+          requiredRows: 3,
         ),
       ),
     ];

@@ -12,31 +12,13 @@ class HeartRateSceneControls extends StatefulWidget {
 
 class _HeartRateSceneControlsState extends State<HeartRateSceneControls> {
   void _increaseActivity() {
-    final current = widget.world.variables.getValue('var_activity') ?? 0.0;
-    double next = 0.0;
-    if (current < 20.0) next = 20.0;
-    else if (current < 50.0) next = 50.0;
-    else if (current < 80.0) next = 80.0;
-    else next = 100.0; // Max intensity
-    widget.world.variables.setVariable('var_activity', next);
-    _updateHeartRate(next);
+    final current = widget.world.variables.getValue('activity') ?? 0.0;
+    widget.world.variables.setVariable('activity', (current + 20.0).clamp(0.0, 100.0));
   }
 
   void _decreaseActivity() {
-    final current = widget.world.variables.getValue('var_activity') ?? 0.0;
-    double next = 0.0;
-    if (current <= 20.0) next = 0.0;
-    else if (current <= 50.0) next = 20.0;
-    else if (current <= 80.0) next = 50.0;
-    else next = 80.0;
-    widget.world.variables.setVariable('var_activity', next);
-    _updateHeartRate(next);
-  }
-
-  void _updateHeartRate(double activity) {
-    // Basic physiological model approximation
-    double targetHR = 60.0 + (activity * 1.2);
-    widget.world.variables.setVariable('var_heart_rate', targetHR);
+    final current = widget.world.variables.getValue('activity') ?? 0.0;
+    widget.world.variables.setVariable('activity', (current - 20.0).clamp(0.0, 100.0));
   }
 
   @override

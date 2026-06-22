@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:offline_tutor_app/features/network/application/classroom_session_manager.dart';
 import 'package:offline_tutor_app/features/network/application/deferred_sync_manager.dart';
@@ -8,6 +10,13 @@ import 'package:offline_tutor_app/features/network/application/pack_version_mana
 import 'package:offline_tutor_app/features/network/application/incremental_sync_coordinator.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    dotenv.loadFromString(envString: 'BACKEND_BASE_URL=http://10.28.73.193\nENABLE_STRUCTURED_LOGGING=false');
+  });
+
   test('offline recovery stores and recovers state', () {
     final persistence = OfflineStatePersistence();
     final deferred = DeferredSyncManager();

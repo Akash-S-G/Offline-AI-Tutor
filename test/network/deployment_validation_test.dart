@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:offline_tutor_app/features/network/application/classroom_session_manager.dart';
 import 'package:offline_tutor_app/features/network/application/deployment_diagnostics_manager.dart';
@@ -19,6 +20,7 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
+    dotenv.loadFromString(envString: 'BACKEND_BASE_URL=http://10.28.73.193\nENABLE_STRUCTURED_LOGGING=false');
   });
 
   group('Phase 1 - Classroom Session Recovery', () {

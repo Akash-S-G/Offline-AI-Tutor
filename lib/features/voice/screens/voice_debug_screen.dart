@@ -1,0 +1,164 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../models/voice_state.dart';
+import '../providers/voice_provider.dart';
+import '../services/audio_recorder_service.dart';
+import '../widgets/mic_button.dart';
+import '../widgets/recording_waveform.dart';
+import '../widgets/tutor_avatar.dart';
+import '../widgets/voice_status_chip.dart';
+
+/// Debug screen for validating the voice pipeline.
+///
+/// Workflow: Press Mic → Record → Stop → Playback.
+/// Validates: permission, recording, playback, no crashes.
+class VoiceDebugScreen extends ConsumerStatefulWidget {
+  const VoiceDebugScreen({super.key});
+
+  @override
+  ConsumerState<VoiceDebugScreen> createState() => _VoiceDebugScreenState();
+}
+
+class _VoiceDebugScreenState extends ConsumerState<VoiceDebugScreen> {
+  final _recorder = AudioRecorderService();
+
+  @override
+  void dispose() {
+    _recorder.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final voice = ref.watch(voiceProvider);
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Voice Debug'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh_rounded),
+            onPressed: () => ref.read(voiceProvider.notifier).reset(),
+            tooltip: 'Reset',
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              const SizedBox(height: 24),
+
+              // ─ Avatar ─
+              TutorAvatar(state: voice.state, size: 140),
+              const SizedBox(height: 24),
+
+              // ─ Status ─
+              VoiceStatusChip(state: voice.state),
+              const SizedBox(height: 16),
+
+              // ─ Waveform ─
+              RecordingWaveform(
+                recorder: _recorder,
+                isRecording: voice.state == VoiceState.listening,
+              ),
+              const SizedBox(height: 24),
+
+              // ─ Info cards ─
+              _InfoTile(
+                label: 'Permission',
+                value: voice.hasPermission ? 'Granted' : 'Not granted',
+                icon: voice.hasPermission ? Icons.check_circle : Icons.block,
+                color: voice.hasPermission ? Colors.green : Colors.red,
+              ),
+              _InfoTile(
+                label: 'Recording',
+                value: voice.currentRecording ?? '—',
+                icon: Icons.audio_file_rounded,
+                color: theme.colorScheme.primary,
+              ),
+              _InfoTile(
+                label: 'Duration',
+                value: _formatDuration(voice.recordingDuration),
+                icon: Icons.timer_rounded,
+                color: theme.colorScheme.secondary,
+              ),
+              _InfoTile(
+                label: 'Playing',
+                value: voice.isPlaying ? 'Yes' : 'No',
+                icon: Icons.play_arrow_rounded,
+                color: voice.isPlaying ? Colors.green : Colors.grey,
+              ),
+
+              const Spacer(),
+
+              // ─ Playback button ─
+              if (voice.currentRecording != null &&
+                  voice.state == VoiceState.idle)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: OutlinedButton.icon(
+                    icon: const Icon(Icons.play_arrow_rounded),
+                    label: const Text('Play Recording'),
+                    onPressed: () =>
+                        ref.read(voiceProvider.notifier).playRecording(),
+                  ),
+                ),
+
+              // ─ Mic ─
+              const MicButton(),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatDuration(Duration d) {
+    final mins = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final secs = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    final tenths = (d.inMilliseconds.remainder(1000) ~/ 100).toString();
+    return '$mins:$secs.$tenths';
+  }
+}
+
+class _InfoTile extends StatelessWidget {
+  const _InfoTile({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: color),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.end,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

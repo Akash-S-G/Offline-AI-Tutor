@@ -1,0 +1,208 @@
+{
+  "sceneId": "heart_rate",
+  "variables": [
+    {
+      "id": "activity",
+      "type": "number",
+      "default": 0
+    },
+    {
+      "id": "heart_rate",
+      "type": "number",
+      "default": 60
+    }
+  ],
+  "computedVariables": [
+    {
+      "id": "target_heart_rate",
+      "type": "computed",
+      "formula": "60 + (activity * 1.2)"
+    },
+    {
+      "id": "blood_flow",
+      "type": "computed",
+      "formula": "heart_rate / 60.0"
+    }
+  ],
+  "states": [
+    {
+      "id": "resting",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "activity >= 20",
+          "actions": [
+            { "type": "transition", "payload": { "target": "active" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "heart_rate > target_heart_rate",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "heart_rate", "value": -0.5 } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "heart_rate < target_heart_rate",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "heart_rate", "value": 0.5 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "active",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "activity >= 80",
+          "actions": [
+            { "type": "transition", "payload": { "target": "intense" } }
+          ]
+        },
+        {
+          "type": "trigger",
+          "condition": "activity < 20",
+          "actions": [
+            { "type": "transition", "payload": { "target": "recovery" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "heart_rate > target_heart_rate",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "heart_rate", "value": -0.5 } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "heart_rate < target_heart_rate",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "heart_rate", "value": 0.5 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "intense",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "activity < 50",
+          "actions": [
+            { "type": "transition", "payload": { "target": "recovery" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "heart_rate > target_heart_rate",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "heart_rate", "value": -0.5 } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "heart_rate < target_heart_rate",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "heart_rate", "value": 0.5 } }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recovery",
+      "rules": [
+        {
+          "type": "trigger",
+          "condition": "activity == 0 && heart_rate <= 65",
+          "actions": [
+            { "type": "transition", "payload": { "target": "resting" } }
+          ]
+        },
+        {
+          "type": "trigger",
+          "condition": "activity >= 50",
+          "actions": [
+            { "type": "transition", "payload": { "target": "active" } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "heart_rate > target_heart_rate",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "heart_rate", "value": -0.5 } }
+          ]
+        },
+        {
+          "type": "continuous",
+          "condition": "heart_rate < target_heart_rate",
+          "actions": [
+            { "type": "add_to_variable", "payload": { "variableId": "heart_rate", "value": 0.5 } }
+          ]
+        }
+      ]
+    }
+  ],
+  "behaviors": [
+    {
+      "type": "pulse",
+      "params": {
+        "rate_var": "heart_rate",
+        "base_scale": 1.0,
+        "pulse_scale": 1.3
+      }
+    },
+    {
+      "type": "flow",
+      "params": {
+        "speed_var": "blood_flow"
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "heart_glow",
+      "params": {}
+    },
+    {
+      "type": "blood_flow",
+      "params": {}
+    }
+  ],
+  "visualMappings": [
+    {
+      "variableId": "pulse_intensity",
+      "targetType": "effect",
+      "targetId": "heart_glow",
+      "property": "pulse_intensity",
+      "range": { "min": 0, "max": 1 },
+      "mapTo": { "min": 0.0, "max": 1.0 }
+    },
+    {
+      "variableId": "blood_flow",
+      "targetType": "effect",
+      "targetId": "blood_flow",
+      "property": "flow_speed",
+      "range": { "min": 0, "max": 4 },
+      "mapTo": { "min": 0.0, "max": 4.0 }
+    }
+  ],
+  "tools": [
+    { "id": "stopwatch", "enabled": true }
+  ],
+  "missions": [
+    {
+      "id": "mission_1",
+      "title": "Increase Heart Rate",
+      "description": "Tap the treadmill to increase your activity until your heart rate reaches the intense zone.",
+      "successCondition": "heart_rate >= 140"
+    },
+    {
+      "id": "mission_2",
+      "title": "Recover",
+      "description": "Double tap the treadmill to stop and let your heart rate recover back to resting.",
+      "successCondition": "heart_rate <= 65"
+    }
+  ]
+}

@@ -7,7 +7,7 @@ void main() {
     final loader = BlueprintLoader();
     final registry = loader.loadBuiltIns();
 
-    expect(registry.allBlueprints().length, 5);
+    expect(registry.allBlueprints().length, 6);
     expect(
       registry.findBlueprint('blueprint_pendulum')?.name,
       contains('Pendulum'),

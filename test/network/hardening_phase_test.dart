@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 import 'package:offline_tutor_app/features/network/application/classroom_recovery_coordinator.dart';
 import 'package:offline_tutor_app/features/network/application/classroom_session_manager.dart';
@@ -13,6 +15,13 @@ import 'package:offline_tutor_app/features/network/application/session_persisten
 import 'package:offline_tutor_app/features/network/application/transfer_integrity_validator.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues(<String, Object>{});
+    dotenv.loadFromString(envString: 'BACKEND_BASE_URL=http://10.28.73.193\nENABLE_STRUCTURED_LOGGING=false');
+  });
+
   test('classroom session can be persisted and recovered', () async {
     final persistence = SessionPersistenceManager();
     final sessions = ClassroomSessionManager();

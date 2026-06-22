@@ -41,7 +41,7 @@ void main() {
     final manifest = BlueprintRuntimeConverter().toManifest(blueprint);
     final world = RuntimeLoader.loadFromManifest(manifest);
 
-    expect(world.variables.containsVariable('var_pulse'), true);
+    expect(world.variables.containsVariable('heart_rate'), true);
     expect(
       world.objects.allObjectStates.any(
         (state) => state.objectType == 'slider',

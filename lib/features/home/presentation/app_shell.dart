@@ -4,6 +4,7 @@ import '../../../bootstrap/background_bootstrap.dart';
 import '../../../bootstrap/optional_bootstrap.dart';
 import '../../../bootstrap/startup_coordinator.dart';
 import '../../course/data/local/course_repository.dart';
+import '../../language/providers/language_provider.dart';
 import 'hero_page.dart';
 import 'main_dashboard_screen.dart';
 import '../../onboarding/presentation/grade_selection_screen.dart';
@@ -14,11 +15,13 @@ class AppShell extends StatefulWidget {
   const AppShell({
     required this.courseRepository,
     required this.startupCoordinator,
+    required this.languageProvider,
     super.key,
   });
 
   final CourseRepository courseRepository;
   final StartupCoordinator startupCoordinator;
+  final LanguageProvider languageProvider;
 
   @override
   State<AppShell> createState() => _AppShellState();
