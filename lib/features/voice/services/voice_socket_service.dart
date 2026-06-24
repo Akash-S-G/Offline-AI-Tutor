@@ -7,6 +7,7 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../models/connection_status.dart';
 import '../models/voice_event.dart';
 import '../../session/models/session_info.dart';
+import '../../language/services/language_interceptor.dart';
 
 /// Manages the WebSocket connection to the laptop voice server.
 ///
@@ -14,6 +15,7 @@ import '../../session/models/session_info.dart';
 /// and exposes a stream of [VoiceEvent]s for the UI layer.
 class VoiceSocketService {
   SessionInfo? activeSession;
+  LanguageInterceptor? interceptor;
   WebSocketChannel? _channel;
   StreamSubscription<dynamic>? _subscription;
 
@@ -21,6 +23,7 @@ class VoiceSocketService {
   final _statusController = StreamController<ConnectionStatus>.broadcast();
 
   ConnectionStatus _status = ConnectionStatus.disconnected;
+  bool _isDisposed = false;
 
   // F8: Exponential backoff retry
   String? _lastUrl;
@@ -39,6 +42,12 @@ class VoiceSocketService {
 
   /// Current connection status (synchronous read).
   ConnectionStatus get status => _status;
+
+  /// Number of times the socket has reconnected
+  int get retryAttempt => _retryAttempt;
+
+  /// Number of audio chunks sent
+  int audioChunksSent = 0;
 
   /// Open a WebSocket to the voice endpoint.
   Future<void> connect(String url) async {
@@ -62,12 +71,16 @@ class VoiceSocketService {
         onDone: _onDone,
       );
     } catch (_) {
-      _setStatus(ConnectionStatus.error);
-      _eventController.add(const VoiceEvent(
-        type: VoiceEventType.error,
-        payload: {'message': 'Tutor unavailable'},
-      ));
-      _scheduleRetry();
+      if (!_isDisposed) {
+        _setStatus(ConnectionStatus.error);
+        if (!_eventController.isClosed) {
+          _eventController.add(const VoiceEvent(
+            type: VoiceEventType.error,
+            payload: {'message': 'Tutor unavailable'},
+          ));
+        }
+        _scheduleRetry();
+      }
     }
   }
 
@@ -90,47 +103,77 @@ class VoiceSocketService {
     await connect(url);
   }
 
-  /// Send a raw audio chunk (bytes) to the server.
-  void sendAudioChunk(Uint8List bytes) {
+  /// Send a session_start message to initialize language.
+  void sendSessionStart(String language) {
     if (_status != ConnectionStatus.connected) return;
-    final event = VoiceEvent(
-      type: VoiceEventType.audioData,
-      payload: {'audio': base64Encode(bytes)},
+    VoiceEvent event = VoiceEvent(
+      type: VoiceEventType.sessionStart,
+      language: language,
       sessionId: activeSession?.sessionId,
       deviceId: activeSession?.deviceId,
       studentId: activeSession?.studentId,
     );
+    if (interceptor != null) {
+      event = interceptor!.interceptOutgoing(event);
+    }
+    _channel?.sink.add(jsonEncode(event.toJson()));
+  }
+
+  /// Send a raw audio chunk (bytes) to the server.
+  void sendAudioChunk(Uint8List bytes, int sequence) {
+    if (_status != ConnectionStatus.connected) return;
+    audioChunksSent++;
+    VoiceEvent event = VoiceEvent(
+      type: VoiceEventType.audioChunk,
+      data: base64Encode(bytes),
+      sequence: sequence,
+      sessionId: activeSession?.sessionId,
+      deviceId: activeSession?.deviceId,
+      studentId: activeSession?.studentId,
+    );
+    if (interceptor != null) {
+      event = interceptor!.interceptOutgoing(event);
+    }
     _channel?.sink.add(jsonEncode(event.toJson()));
   }
 
   /// Signal to the server that audio recording is complete.
-  void sendAudioComplete({Map<String, dynamic>? context}) {
+  void sendAudioComplete(String language, {Map<String, dynamic>? context}) {
     if (_status != ConnectionStatus.connected) return;
-    final event = VoiceEvent(
+    VoiceEvent event = VoiceEvent(
       type: VoiceEventType.audioComplete,
-      payload: context != null ? {'context': context} : const {},
+      language: language,
+      payload: context != null ? {'simulation_context': context} : const {},
       sessionId: activeSession?.sessionId,
       deviceId: activeSession?.deviceId,
       studentId: activeSession?.studentId,
     );
+    if (interceptor != null) {
+      event = interceptor!.interceptOutgoing(event);
+    }
     _channel?.sink.add(jsonEncode(event.toJson()));
   }
 
   /// Send an arbitrary JSON event.
   void sendEvent(VoiceEvent event) {
     if (_status != ConnectionStatus.connected) return;
-    final evt = VoiceEvent(
+    VoiceEvent evt = VoiceEvent(
       type: event.type,
       payload: event.payload,
       sessionId: event.sessionId ?? activeSession?.sessionId,
       deviceId: event.deviceId ?? activeSession?.deviceId,
       studentId: event.studentId ?? activeSession?.studentId,
+      language: event.language,
     );
+    if (interceptor != null) {
+      evt = interceptor!.interceptOutgoing(evt);
+    }
     _channel?.sink.add(jsonEncode(evt.toJson()));
   }
 
   /// Release all resources.
   void dispose() {
+    _isDisposed = true;
     _retryTimer?.cancel();
     disconnect();
     _eventController.close();
@@ -144,10 +187,12 @@ class VoiceSocketService {
     _retryAttempt++;
     final delaySec = (1 << (_retryAttempt - 1)).clamp(1, _maxRetryDelaySec);
     _setStatus(ConnectionStatus.reconnecting);
-    _eventController.add(VoiceEvent(
-      type: VoiceEventType.error,
-      payload: {'message': 'Reconnecting in ${delaySec}s…'},
-    ));
+    if (!_isDisposed && !_eventController.isClosed) {
+      _eventController.add(VoiceEvent(
+        type: VoiceEventType.error,
+        payload: {'message': 'Reconnecting in ${delaySec}s…'},
+      ));
+    }
     _retryTimer = Timer(Duration(seconds: delaySec), () {
       if (_status != ConnectionStatus.connected) {
         connect(_lastUrl!);
@@ -159,28 +204,39 @@ class VoiceSocketService {
 
   void _setStatus(ConnectionStatus s) {
     _status = s;
-    _statusController.add(s);
+    if (!_isDisposed && !_statusController.isClosed) {
+      _statusController.add(s);
+    }
   }
 
   void _onData(dynamic raw) {
     try {
       final json = jsonDecode(raw as String) as Map<String, dynamic>;
-      _eventController.add(VoiceEvent.fromJson(json));
+      final event = VoiceEvent.fromJson(json);
+      if (interceptor == null || interceptor!.validateIncoming(event)) {
+        if (!_isDisposed && !_eventController.isClosed) {
+          _eventController.add(event);
+        }
+      }
     } catch (e) {
-      _eventController.add(VoiceEvent(
-        type: VoiceEventType.error,
-        payload: {'message': 'Failed to parse server event: $e'},
-      ));
+      if (!_isDisposed && !_eventController.isClosed) {
+        _eventController.add(VoiceEvent(
+          type: VoiceEventType.error,
+          payload: {'message': 'Failed to parse server event: $e'},
+        ));
+      }
     }
   }
 
   void _onError(Object error) {
     _setStatus(ConnectionStatus.error);
     // F8: Never surface raw exceptions to UI
-    _eventController.add(const VoiceEvent(
-      type: VoiceEventType.error,
-      payload: {'message': 'Tutor unavailable'},
-    ));
+    if (!_isDisposed && !_eventController.isClosed) {
+      _eventController.add(const VoiceEvent(
+        type: VoiceEventType.error,
+        payload: {'message': 'Tutor unavailable'},
+      ));
+    }
     _scheduleRetry();
   }
 

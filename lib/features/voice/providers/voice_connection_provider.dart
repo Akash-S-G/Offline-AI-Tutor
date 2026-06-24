@@ -7,6 +7,7 @@ import '../models/voice_event.dart';
 import '../services/voice_connectivity_service.dart';
 import '../services/voice_socket_service.dart';
 import '../../session/providers/session_provider.dart';
+import '../../network/providers/backend_discovery_provider.dart';
 
 // ─── State ──────────────────────────────────────────────────────────
 
@@ -45,9 +46,9 @@ class VoiceConnectionNotifier extends StateNotifier<VoiceConnectionState> {
   VoiceConnectionNotifier({
     VoiceSocketService? socketService,
     VoiceConnectivityService? connectivityService,
-  })  : _socket = socketService ?? VoiceSocketService(),
-        _connectivity = connectivityService ?? VoiceConnectivityService(),
-        super(const VoiceConnectionState()) {
+  }) : _socket = socketService ?? VoiceSocketService(),
+       _connectivity = connectivityService ?? VoiceConnectivityService(),
+       super(const VoiceConnectionState()) {
     _listenToStatus();
     _listenToEvents();
 
@@ -99,9 +100,7 @@ class VoiceConnectionNotifier extends StateNotifier<VoiceConnectionState> {
   void _listenToEvents() {
     _eventSub = _socket.eventStream.listen((event) {
       if (event.type == 'error') {
-        state = state.copyWith(
-          error: event.payload['message'] as String?,
-        );
+        state = state.copyWith(error: event.payload['message'] as String?);
       }
     });
   }
@@ -119,8 +118,20 @@ class VoiceConnectionNotifier extends StateNotifier<VoiceConnectionState> {
 
 final voiceConnectionProvider =
     StateNotifierProvider<VoiceConnectionNotifier, VoiceConnectionState>((ref) {
-  final session = ref.watch(sessionProvider);
-  final notifier = VoiceConnectionNotifier();
-  notifier.socket.activeSession = session;
-  return notifier;
-});
+      final session = ref.watch(sessionProvider);
+      final activeEndpoint = ref.watch(
+        backendDiscoveryProvider.select((service) => service.activeEndpoint),
+      );
+      final notifier = VoiceConnectionNotifier();
+
+      notifier.socket.activeSession = session;
+
+      if (activeEndpoint != null) {
+        // Convert http:// to ws:// for the socket connection
+        final wsUrl = activeEndpoint.replaceFirst('http', 'ws');
+        // Connect automatically using the discovered endpoint
+        notifier.connect('$wsUrl/api/v1/voice/stream');
+      }
+
+      return notifier;
+    });

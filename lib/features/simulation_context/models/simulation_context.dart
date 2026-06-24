@@ -6,6 +6,8 @@ class SimulationContext {
   const SimulationContext({
     this.experimentId,
     this.experimentName,
+    this.subject,
+    this.provider,
     this.variables = const {},
     this.currentState = '',
   });
@@ -15,6 +17,12 @@ class SimulationContext {
 
   /// Human-readable name (e.g. "Water Cycle").
   final String? experimentName;
+
+  /// Subject of the experiment (e.g. "Physics").
+  final String? subject;
+
+  /// Provider of the experiment (e.g. "PhET").
+  final String? provider;
 
   /// Current variable values from the runtime engine.
   final Map<String, dynamic> variables;
@@ -27,14 +35,20 @@ class SimulationContext {
 
   /// Serialize for inclusion in voice request payloads.
   Map<String, dynamic> toJson() => {
-        'experiment': experimentName ?? experimentId ?? '',
-        'variables': variables,
-        'state': currentState,
+        'experiment': {
+          'id': experimentId ?? experimentName ?? '',
+          if (subject != null) 'subject': subject,
+          if (provider != null) 'provider': provider,
+          'variables': variables,
+          'state': currentState,
+        }
       };
 
   SimulationContext copyWith({
     String? experimentId,
     String? experimentName,
+    String? subject,
+    String? provider,
     Map<String, dynamic>? variables,
     String? currentState,
     bool clearContext = false,
@@ -43,6 +57,8 @@ class SimulationContext {
     return SimulationContext(
       experimentId: experimentId ?? this.experimentId,
       experimentName: experimentName ?? this.experimentName,
+      subject: subject ?? this.subject,
+      provider: provider ?? this.provider,
       variables: variables ?? this.variables,
       currentState: currentState ?? this.currentState,
     );

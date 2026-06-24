@@ -36,19 +36,23 @@ class HybridInferenceService {
     AssetResolver? assetResolver,
     SubjectRoutingCoordinator? subjectRoutingCoordinator,
     this.localCacheTTLSeconds = 300,
-  })  : _localInference = localInference,
-        _backendService = backendService,
-        _healthMonitor = healthMonitor,
-        _router = router,
-        _networkState = networkState,
-        _confidence = confidenceEvaluator ?? ConfidenceEvaluator(),
-      _educationalComplexityAnalyzer = educationalComplexityAnalyzer ?? const EducationalComplexityAnalyzer(),
-      _escalationCoordinator = escalationCoordinator ?? EscalationCoordinator(),
-        _streamCoordinator = streamCoordinator ?? StreamCoordinator(),
-        _metrics = metricsTracker ?? RoutingMetricsTracker(),
-      _intentDetector = intentDetector ?? IntentDetector(),
-      _assetResolver = assetResolver ?? AssetResolver(),
-      _subjectRoutingCoordinator = subjectRoutingCoordinator ?? const SubjectRoutingCoordinator();
+  }) : _localInference = localInference,
+       _backendService = backendService,
+       _healthMonitor = healthMonitor,
+       _router = router,
+       _networkState = networkState,
+       _confidence = confidenceEvaluator ?? ConfidenceEvaluator(),
+       _educationalComplexityAnalyzer =
+           educationalComplexityAnalyzer ??
+           const EducationalComplexityAnalyzer(),
+       _escalationCoordinator =
+           escalationCoordinator ?? EscalationCoordinator(),
+       _streamCoordinator = streamCoordinator ?? StreamCoordinator(),
+       _metrics = metricsTracker ?? RoutingMetricsTracker(),
+       _intentDetector = intentDetector ?? IntentDetector(),
+       _assetResolver = assetResolver ?? AssetResolver(),
+       _subjectRoutingCoordinator =
+           subjectRoutingCoordinator ?? const SubjectRoutingCoordinator();
 
   final LocalInferenceSource _localInference;
   final BackendApiService _backendService;
@@ -66,7 +70,8 @@ class HybridInferenceService {
   final AssetResolver _assetResolver;
   final SubjectRoutingCoordinator _subjectRoutingCoordinator;
 
-  final Map<String, _CachedResponse> _responseCache = <String, _CachedResponse>{};
+  final Map<String, _CachedResponse> _responseCache =
+      <String, _CachedResponse>{};
 
   /// Intents whose responses are deterministic and safe to cache.
   static const _cacheableIntents = <TutorIntent>{
@@ -79,7 +84,8 @@ class HybridInferenceService {
   };
 
   /// Returns true if responses for [intent] are safe to cache.
-  bool _shouldCacheIntent(TutorIntent intent) => _cacheableIntents.contains(intent);
+  bool _shouldCacheIntent(TutorIntent intent) =>
+      _cacheableIntents.contains(intent);
 
   /// Stream an answer to a question.
   /// Local stream starts first; if confidence is low, backend stream upgrades it.
@@ -87,17 +93,22 @@ class HybridInferenceService {
     String question, {
     String? context,
     String? systemPrompt,
+    String? language,
     bool forceLocal = false,
   }) async* {
     final queryInfo = _intentDetector.detect(question);
     final educationalInfo = _educationalComplexityAnalyzer.analyze(question);
-    final subjectPreference = _subjectRoutingCoordinator.preferredRouteFor(question);
+    final subjectPreference = _subjectRoutingCoordinator.preferredRouteFor(
+      question,
+    );
     final decision = _router.route(
       question,
       questionComplexity: queryInfo.confidence > educationalInfo.score
           ? queryInfo.confidence
           : educationalInfo.score,
-      forceLocal: forceLocal || subjectPreference == 'local' && educationalInfo.score < 0.35,
+      forceLocal:
+          forceLocal ||
+          subjectPreference == 'local' && educationalInfo.score < 0.35,
     );
 
     if (decision.route == InferenceRoute.cache) {
@@ -124,7 +135,8 @@ class HybridInferenceService {
           partialAnswer: localBuffer.toString(),
           score: confidence,
         );
-        if (_shouldEscalate(decision, confidence) || escalation.shouldEscalate) {
+        if (_shouldEscalate(decision, confidence) ||
+            escalation.shouldEscalate) {
           escalated = true;
           _metrics.recordEscalation();
           await _streamCoordinator.stopActive();
@@ -139,6 +151,7 @@ class HybridInferenceService {
           question: question,
           context: context,
           systemPrompt: systemPrompt,
+          language: language,
         );
         await for (final chunk in backendStream) {
           yield chunk;
@@ -157,6 +170,7 @@ class HybridInferenceService {
           question: question,
           context: context,
           systemPrompt: systemPrompt,
+          language: language,
         );
         await for (final chunk in backendStream) {
           yield chunk;
@@ -183,6 +197,7 @@ class HybridInferenceService {
     String? chapter,
     String? language,
     List<String>? conversationHistory,
+    String? preparedPrompt,
     SessionState? sessionState,
   }) async* {
     print('[DIAGNOSTICS] ENTERING HybridInferenceService.streamTutorAnswer()');
@@ -226,7 +241,7 @@ class HybridInferenceService {
     if (hasRelevantLocalContent) {
       executionMode = TutorExecutionMode.curriculumRag;
     } else {
-      if (backendAvailable) {
+      if (backendAvailable && _networkState.quality != NetworkQuality.offline) {
         executionMode = TutorExecutionMode.backendRag;
       } else {
         executionMode = TutorExecutionMode.knowledgeFallback;
@@ -238,7 +253,9 @@ class HybridInferenceService {
       intent: detection.intent.name,
       chunks: localCurriculumContext?.length ?? 0,
       mode: hasRelevantLocalContent ? 'Local RAG' : 'Fallback',
-      fallback: hasRelevantLocalContent ? '' : (backendAvailable ? 'Local missing' : 'Offline'),
+      fallback: hasRelevantLocalContent
+          ? ''
+          : (backendAvailable ? 'Local missing' : 'Offline'),
       execMode: executionMode.name,
     );
 
@@ -274,8 +291,8 @@ class HybridInferenceService {
       _metrics.recordBackend();
       try {
         final Stream<String> backendStream;
-        
-        if (detection.intent == TutorIntent.learningPath || 
+
+        if (detection.intent == TutorIntent.learningPath ||
             detection.intent == TutorIntent.prerequisiteCheck) {
           print('[DIAGNOSTICS] ROUTING_TO_PLANNER');
           backendStream = _backendService.streamPlannerLesson(
@@ -295,8 +312,10 @@ class HybridInferenceService {
             conversationHistory: conversationHistory,
           );
         }
-        
-        await for (final chunk in backendStream) {
+
+        await for (final chunk in backendStream.timeout(
+          const Duration(seconds: 5),
+        )) {
           print("[TRACE] HYBRID_RECEIVED=$chunk");
           print("[TRACE] HYBRID_FORWARDING=$chunk");
           yield chunk;
@@ -318,7 +337,9 @@ class HybridInferenceService {
       print('[DIAGNOSTICS] LOCAL_RAG_START');
       final localBuffer = StringBuffer();
       final contextText = localCurriculumContext?.join('\n\n') ?? '';
-      final localPrompt = '''
+      final localPrompt =
+          preparedPrompt ??
+          '''
 You are an offline school tutor. 
 Use the following curriculum context to answer the question.
 Context:
@@ -329,8 +350,10 @@ Question: $question
       print('[DIAGNOSTICS] LOCAL_RAG_END');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
       print('[DIAGNOSTICS] PROMPT_TO_NATIVE_LENGTH=${localPrompt.length}');
-      print('[DIAGNOSTICS] PROMPT_FIRST_500=${localPrompt.substring(0, localPrompt.length > 500 ? 500 : localPrompt.length)}');
-      
+      print(
+        '[DIAGNOSTICS] PROMPT_FIRST_500=${localPrompt.substring(0, localPrompt.length > 500 ? 500 : localPrompt.length)}',
+      );
+
       final localStream = _localInference.streamQuestion(localPrompt);
       var isFirstToken = true;
       try {
@@ -347,12 +370,12 @@ Question: $question
         yield 'Failed to process your question locally. Please try again.';
         return;
       }
-      
+
       print('[DIAGNOSTICS] LOCAL_STREAM_COMPLETE');
       print('[DIAGNOSTICS] FINAL_EXECUTION_PATH=CURRICULUM_RAG');
       final totalMs = DateTime.now().difference(startTime).inMilliseconds;
       print('[DIAGNOSTICS] TOTAL_EXECUTION_TIME_MS=$totalMs');
-      
+
       _metrics.recordLocal();
       final text = localBuffer.toString();
       if (text.isNotEmpty) {
@@ -364,7 +387,9 @@ Question: $question
     if (executionMode == TutorExecutionMode.knowledgeFallback) {
       print('[DIAGNOSTICS] EXECUTION_MODE=KNOWLEDGE_FALLBACK');
       final localBuffer = StringBuffer();
-      final localPrompt = '''
+      final localPrompt =
+          preparedPrompt ??
+          '''
 You are an offline school tutor.
 The requested topic was not found in the local curriculum database.
 Answer using your general knowledge.
@@ -381,8 +406,10 @@ Question: $question
       print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_PROMPT_BUILT');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
       print('[DIAGNOSTICS] PROMPT_TO_NATIVE_LENGTH=${localPrompt.length}');
-      print('[DIAGNOSTICS] PROMPT_FIRST_500=${localPrompt.substring(0, localPrompt.length > 500 ? 500 : localPrompt.length)}');
-      
+      print(
+        '[DIAGNOSTICS] PROMPT_FIRST_500=${localPrompt.substring(0, localPrompt.length > 500 ? 500 : localPrompt.length)}',
+      );
+
       final localStream = _localInference.streamQuestion(localPrompt);
       var isFirstToken = true;
       try {
@@ -399,12 +426,12 @@ Question: $question
         yield 'Failed to process your question via fallback. Please try again.';
         return;
       }
-      
+
       print('[DIAGNOSTICS] LOCAL_STREAM_COMPLETE');
       print('[DIAGNOSTICS] FINAL_EXECUTION_PATH=KNOWLEDGE_FALLBACK');
       final totalMs = DateTime.now().difference(startTime).inMilliseconds;
       print('[DIAGNOSTICS] TOTAL_EXECUTION_TIME_MS=$totalMs');
-      
+
       _metrics.recordLocal();
       final text = localBuffer.toString();
       if (text.isNotEmpty) {
@@ -451,7 +478,9 @@ Question: $question
       response: response,
       timestamp: DateTime.now(),
     );
-    print('[CACHE] STORED key=${question.toLowerCase().substring(0, question.length > 60 ? 60 : question.length)}');
+    print(
+      '[CACHE] STORED key=${question.toLowerCase().substring(0, question.length > 60 ? 60 : question.length)}',
+    );
   }
 
   String? _getCachedResponse(String question) {
@@ -472,10 +501,7 @@ Question: $question
 }
 
 class _CachedResponse {
-  _CachedResponse({
-    required this.response,
-    required this.timestamp,
-  });
+  _CachedResponse({required this.response, required this.timestamp});
 
   final String response;
   final DateTime timestamp;

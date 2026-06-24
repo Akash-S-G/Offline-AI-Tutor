@@ -29,17 +29,19 @@ void main() {
       );
 
       final json = ctx.toJson();
-      expect(json['experiment'], 'Water Cycle');
-      expect(json['state'], 'raining');
-      expect((json['variables'] as Map)['temperature'], 80);
-      expect((json['variables'] as Map)['humidity'], 90);
+      final experiment = json['experiment'] as Map;
+      expect(experiment['id'], 'water_cycle');
+      expect(experiment['state'], 'raining');
+      expect((experiment['variables'] as Map)['temperature'], 80);
+      expect((experiment['variables'] as Map)['humidity'], 90);
     });
 
     test('toJson uses experimentId when name is null', () {
       const ctx = SimulationContext(
         experimentId: 'water_cycle',
       );
-      expect(ctx.toJson()['experiment'], 'water_cycle');
+      final experiment = ctx.toJson()['experiment'] as Map;
+      expect(experiment['id'], 'water_cycle');
     });
 
     test('copyWith preserves unchanged fields', () {

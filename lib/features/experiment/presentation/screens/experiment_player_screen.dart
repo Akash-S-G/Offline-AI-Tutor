@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../application/experiment_context_bridge.dart';
+import '../../../simulation_context/providers/simulation_context_provider.dart';
 import '../../domain/models/experiment_models.dart';
 import '../../application/orchestrator/experiment_execution_state.dart';
 import '../controllers/experiment_player_controller.dart';
@@ -46,7 +50,7 @@ import '../runtime_workspace/runtime_view_mode.dart';
 import '../../experience/scenes/experiment_scene_service.dart';
 import '../../experience/scenes/scene_definition_v3.dart';
 
-class ExperimentPlayerScreen extends StatefulWidget {
+class ExperimentPlayerScreen extends ConsumerStatefulWidget {
   final ExperimentManifest manifest;
   final Map<String, dynamic>? executionPayload;
 
@@ -57,10 +61,10 @@ class ExperimentPlayerScreen extends StatefulWidget {
   });
 
   @override
-  State<ExperimentPlayerScreen> createState() => _ExperimentPlayerScreenState();
+  ConsumerState<ExperimentPlayerScreen> createState() => _ExperimentPlayerScreenState();
 }
 
-class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
+class _ExperimentPlayerScreenState extends ConsumerState<ExperimentPlayerScreen> {
   final ExperimentPlayerController _controller = ExperimentPlayerController();
   final RuntimeVisualizationController _visualizationController =
       RuntimeVisualizationController();
@@ -71,6 +75,7 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
   RuntimeExperience? _experience;
   final LabWorkspaceAnalytics _labWorkspaceAnalytics = LabWorkspaceAnalytics();
   GuidedExperimentEngine? _guidedEngine;
+  ExperimentContextBridge? _contextBridge;
   InvestigationAnalytics? _investigationAnalytics;
   ExperimentTrialManager? _trialManager;
   TrialComparisonEngine? _trialComparisonEngine;
@@ -171,6 +176,16 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
       eventBus: world.eventBus,
     )..loadMission(mission);
     engine.startMission();
+    
+    _contextBridge?.dispose();
+    _contextBridge = ExperimentContextBridge(
+      notifier: ref.read(simulationContextProvider.notifier),
+      eventBus: world.eventBus,
+      world: world,
+      experimentId: widget.manifest.id,
+      experimentName: widget.manifest.title,
+    );
+    
     setState(() => _guidedEngine = engine);
   }
 
@@ -230,6 +245,7 @@ class _ExperimentPlayerScreenState extends State<ExperimentPlayerScreen> {
     _guidedEngine?.dispose();
     _experienceEngine?.dispose();
     _visualizationController.dispose();
+    _contextBridge?.dispose();
     _controller.dispose();
     super.dispose();
   }

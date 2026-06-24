@@ -8,11 +8,14 @@ import '../../voice/providers/voice_provider.dart';
 import '../../voice/widgets/mic_button.dart';
 import '../../voice/widgets/tutor_avatar.dart';
 import '../../voice/widgets/voice_status_chip.dart';
+import '../../language/services/language_interceptor.dart';
+import '../../voice/providers/voice_connection_provider.dart';
 import '../models/conversation_state.dart';
 import '../providers/conversation_provider.dart';
 import '../widgets/connection_status_bar.dart';
 import '../widgets/conversation_bubble.dart';
 import '../widgets/developer_overlay.dart';
+import '../widgets/voice_quality_dashboard.dart';
 
 /// Full-featured voice tutor screen (F5).
 ///
@@ -57,6 +60,10 @@ class _VoiceTutorScreenState extends ConsumerState<VoiceTutorScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Inject the LanguageInterceptor into the socket service
+    final voiceConn = ref.read(voiceConnectionProvider.notifier);
+    voiceConn.socket.interceptor ??= LanguageInterceptor(widget.languageProvider);
+
     final voice = ref.watch(voiceProvider);
     final conv = ref.watch(conversationProvider);
 
@@ -94,8 +101,9 @@ class _VoiceTutorScreenState extends ConsumerState<VoiceTutorScreen> {
               ],
             ),
 
-            // 3. Developer overlay
+            // 3. Developer overlay & Quality Dashboard
             DeveloperOverlay(visible: _devMode),
+            if (_devMode) const VoiceQualityDashboard(),
 
             // 4. Tutor Avatar
             Padding(

@@ -7,7 +7,6 @@ import 'config/app_environment.dart';
 import 'features/course/data/local/course_repository.dart';
 import 'features/home/presentation/app_shell.dart';
 import 'features/language/providers/language_provider.dart';
-import 'features/network/application/pi_hub_discovery_coordinator.dart';
 import 'features/onboarding/application/background_prefetch_service.dart';
 import 'core/theme/idp_theme.dart';
 import 'features/experiment/runtime/behaviors/behavior_registry.dart';
@@ -16,9 +15,6 @@ import 'features/experiment/runtime/tools/measurement_registry.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Enforce a completely clean slate for discovery on every boot (Sprint requirement)
-  await PiHubDiscoveryCoordinator.clearPersistedCache();
 
   await AppEnvironment.initialize();
   await BackgroundPrefetchService.initialize();
@@ -50,7 +46,8 @@ Future<void> main() async {
 }
 
 class OfflineTutorApp extends StatelessWidget {
-  const OfflineTutorApp({super.key,
+  const OfflineTutorApp({
+    super.key,
     required this.courseRepository,
     required this.startupCoordinator,
     required this.languageProvider,

@@ -5,6 +5,7 @@ import '../repositories/ai_experiment_repository.dart';
 import '../../data/repositories/experiment_manifest_repository.dart';
 import '../../validation/manifest_sanitizer.dart';
 import '../../../analytics/telemetry_service.dart';
+import 'package:offline_tutor_app/features/language/services/language_service.dart';
 
 class AiGeneratorController extends ChangeNotifier {
   final AiExperimentRepository _aiRepository;
@@ -44,12 +45,24 @@ class AiGeneratorController extends ChangeNotifier {
       _compatibilityResult?.migrationRequired == false;
 
   Future<void> generateExperiment(String prompt) async {
-    await _executeAiFlow(() => _aiRepository.generateExperiment(prompt));
+    final language = await _getLanguageCode();
+    await _executeAiFlow(() => _aiRepository.generateExperiment(prompt, language: language));
   }
 
   Future<void> refineExperiment(String prompt) async {
     if (_generatedManifest == null) return;
-    await _executeAiFlow(() => _aiRepository.refineExperiment(_generatedManifest!, prompt));
+    final language = await _getLanguageCode();
+    await _executeAiFlow(() => _aiRepository.refineExperiment(_generatedManifest!, prompt, language: language));
+  }
+
+  Future<String> _getLanguageCode() async {
+    try {
+      final LanguageService service = LanguageService();
+      final lang = await service.loadSavedLanguage();
+      return lang.code;
+    } catch (_) {
+      return 'en';
+    }
   }
 
   Future<void> _executeAiFlow(Future<AiGeneratedExperiment> Function() action) async {

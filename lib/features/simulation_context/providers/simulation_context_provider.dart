@@ -11,12 +11,16 @@ class SimulationContextNotifier extends StateNotifier<SimulationContext> {
   void update({
     String? experimentId,
     String? experimentName,
+    String? subject,
+    String? provider,
     Map<String, dynamic>? variables,
     String? currentState,
   }) {
     state = state.copyWith(
       experimentId: experimentId,
       experimentName: experimentName,
+      subject: subject,
+      provider: provider,
       variables: variables,
       currentState: currentState,
     );

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>PhET Simulation Placeholder</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #000;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+    .container {
+      text-align: center;
+      padding: 20px;
+      border: 2px solid #555;
+      border-radius: 10px;
+      background-color: #222;
+    }
+    h1 {
+      color: #ffca28;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>PhET Simulation Loaded</h1>
+    <p>This is a placeholder for the actual PhET HTML simulation.</p>
+    <p id="sim-id"></p>
+  </div>
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const simId = urlParams.get('id');
+    if (simId) {
+      document.getElementById('sim-id').innerText = 'Sim ID: ' + simId;
+    }
+  </script>
+</body>
+</html>

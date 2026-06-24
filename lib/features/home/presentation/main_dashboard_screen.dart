@@ -29,7 +29,9 @@ import '../../experiment/builder/storage/builder_draft_repository.dart';
 import '../../experiment/builder/data/repositories/experiment_manifest_repository.dart';
 import '../../experiment/builder/data/api/experiment_manifest_api_service.dart';
 import '../../experiment/presentation/screens/experiment_hub_screen.dart';
+import '../../experiment/phet/presentation/experiment_catalog_screen.dart';
 import '../../network/domain/backend_config.dart';
+import '../../network/presentation/classroom_connection_banner.dart';
 
 import '../../classroom/repositories/classroom_repository.dart';
 import '../../classroom/controllers/teacher_dashboard_controller.dart';
@@ -38,10 +40,7 @@ import '../../classroom/screens/teacher_dashboard_screen.dart';
 import '../../classroom/screens/student_dashboard_screen.dart';
 
 class MainDashboardScreen extends StatefulWidget {
-  const MainDashboardScreen({
-    required this.courseRepository,
-    super.key,
-  });
+  const MainDashboardScreen({required this.courseRepository, super.key});
 
   final CourseRepository courseRepository;
 
@@ -81,29 +80,55 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Future<void> _runDiagnostics() async {
     try {
       final db = await offline_tutor_app.AppDatabase.instance.database;
-      final packs = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_packs')) ?? 0;
-      final chunks = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks')) ?? 0;
-      
+      final packs =
+          Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM material_packs'),
+          ) ??
+          0;
+      final chunks =
+          Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'),
+          ) ??
+          0;
+
       print('====================================================');
       print('[DIAGNOSTICS] PHASE 1 & 2 REPORT');
       print('[DB] CONTENT_PACKS_COUNT=$packs');
       print('[DB] RAG_CHUNKS_COUNT=$chunks');
-      
-      final ftsTableExists = Sqflite.firstIntValue(await db.rawQuery(
-          "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rag_chunks_fts'")) ?? 0;
-      
+
+      final ftsTableExists =
+          Sqflite.firstIntValue(
+            await db.rawQuery(
+              "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rag_chunks_fts'",
+            ),
+          ) ??
+          0;
+
       if (ftsTableExists > 0) {
-        final ftsChunks = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts')) ?? 0;
+        final ftsChunks =
+            Sqflite.firstIntValue(
+              await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
+            ) ??
+            0;
         print('[DB] RAG_FTS_COUNT=$ftsChunks');
       } else {
         print('[DB] RAG_FTS_COUNT=0 (Table does not exist)');
       }
-      
+
       final packRows = await db.query('material_packs');
       for (final row in packRows) {
         final packId = row['pack_id'];
-        final items = Sqflite.firstIntValue(await db.rawQuery('SELECT COUNT(*) FROM material_pack_items WHERE pack_id = ?', [packId])) ?? 0;
-        print('[DIAGNOSTICS] PACK_ID=$packId, INSERTED_CHUNKS=0 (Items: $items)');
+        final items =
+            Sqflite.firstIntValue(
+              await db.rawQuery(
+                'SELECT COUNT(*) FROM material_pack_items WHERE pack_id = ?',
+                [packId],
+              ),
+            ) ??
+            0;
+        print(
+          '[DIAGNOSTICS] PACK_ID=$packId, INSERTED_CHUNKS=0 (Items: $items)',
+        );
       }
       print('====================================================');
     } catch (e) {
@@ -173,7 +198,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       }
 
       final selectedCourse = courses.first;
-      final subjects = await widget.courseRepository.getSubjects(selectedCourse.id);
+      final subjects = await widget.courseRepository.getSubjects(
+        selectedCourse.id,
+      );
       final selectedSubject = subjects.isEmpty ? null : subjects.first;
       final chapters = selectedSubject == null
           ? <Chapter>[]
@@ -288,9 +315,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Future<void> _navigateP2PForTest() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => P2PScreen(
-          courseRepository: widget.courseRepository,
-        ),
+        builder: (_) => P2PScreen(courseRepository: widget.courseRepository),
       ),
     );
 
@@ -321,16 +346,20 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   void _navigateExperimentHub() {
     Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => const ExperimentHubScreen(),
-      ),
+      MaterialPageRoute<void>(builder: (_) => const ExperimentCatalogScreen()),
     );
   }
 
   void _navigateExperimentSharing() {
-    final config = BackendConfig.fromEnvironment() ?? BackendConfig(baseUrl: 'http://localhost', apiKey: 'dummy');
-    final manifestRepo = ExperimentManifestRepositoryImpl(ExperimentManifestApiService(config));
-    final draftManager = BuilderDraftManager(SharedPreferencesBuilderDraftRepository());
+    final config =
+        BackendConfig.fromEnvironment() ??
+        BackendConfig(baseUrl: 'http://localhost', apiKey: 'dummy');
+    final manifestRepo = ExperimentManifestRepositoryImpl(
+      ExperimentManifestApiService(config),
+    );
+    final draftManager = BuilderDraftManager(
+      SharedPreferencesBuilderDraftRepository(),
+    );
     final sharingController = ExperimentSharingController(
       sharingRepository: ExperimentSharingRepository(),
       manifestRepository: manifestRepo,
@@ -348,7 +377,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   }
 
   void _navigateTeacherDashboard() {
-    final draftManager = BuilderDraftManager(SharedPreferencesBuilderDraftRepository());
+    final draftManager = BuilderDraftManager(
+      SharedPreferencesBuilderDraftRepository(),
+    );
     final controller = TeacherDashboardController(_classroomRepository);
 
     Navigator.of(context).push(
@@ -366,9 +397,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => StudentDashboardScreen(
-          controller: controller,
-        ),
+        builder: (_) => StudentDashboardScreen(controller: controller),
       ),
     );
   }
@@ -416,9 +445,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     return Scaffold(
@@ -449,12 +476,19 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
         ],
       ),
       body: SafeArea(
-        child: IndexedStack(
-          index: _currentIndex,
+        child: Column(
           children: [
-            const MyLearningScreen(),
-            _buildToolsTab(),
-            _buildSettingsTab(),
+            if (_currentIndex == 0) const ClassroomConnectionBanner(),
+            Expanded(
+              child: IndexedStack(
+                index: _currentIndex,
+                children: [
+                  const MyLearningScreen(),
+                  _buildToolsTab(),
+                  _buildSettingsTab(),
+                ],
+              ),
+            ),
           ],
         ),
       ),
@@ -507,7 +541,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               onTap: _navigateExperimentHub,
             ),
             const SizedBox(height: 24),
-            
+
             const Text(
               'Sharing & P2P Transfer',
               style: TextStyle(
@@ -537,7 +571,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               onTap: _navigateExperimentSharing,
             ),
             const SizedBox(height: 24),
-            
+
             const Text(
               'Classroom Dashboard',
               style: TextStyle(
@@ -600,23 +634,41 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                     children: [
                       const Text(
                         'Active Learning Grade',
-                        style: TextStyle(fontSize: 13, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Color(0xFF64748B),
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Grade $_selectedGrade Curriculum',
-                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF1E293B),
+                        ),
                       ),
                     ],
                   ),
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const GradeSelectionScreen()),
-                    ).then((_) => _loadFeatureInsights());
+                    Navigator.of(context)
+                        .push(
+                          MaterialPageRoute(
+                            builder: (_) => const GradeSelectionScreen(),
+                          ),
+                        )
+                        .then((_) => _loadFeatureInsights());
                   },
-                  child: const Text('Change', style: TextStyle(color: primary, fontWeight: FontWeight.bold)),
+                  child: const Text(
+                    'Change',
+                    style: TextStyle(
+                      color: primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -624,7 +676,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           const SizedBox(height: 24),
           const Text(
             'System Actions',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1E293B),
+            ),
           ),
           const SizedBox(height: 12),
           _buildSettingsItem(
@@ -643,11 +699,13 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             icon: Icons.folder_zip_rounded,
             title: 'Manage Content Packs',
             subtitle: 'Sync, install, and clear offline content packs',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(
-                builder: (_) => const ManageContentScreen(),
-              ),
-            ).then((_) => _loadFeatureInsights()),
+            onTap: () => Navigator.of(context)
+                .push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ManageContentScreen(),
+                  ),
+                )
+                .then((_) => _loadFeatureInsights()),
           ),
           _buildSettingsItem(
             icon: Icons.upload_file_rounded,
@@ -698,9 +756,22 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           ),
           child: Icon(icon, color: const Color(0xFF475569)),
         ),
-        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B))),
-        subtitle: Text(subtitle, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-        trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+            color: Color(0xFF1E293B),
+          ),
+        ),
+        subtitle: Text(
+          subtitle,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
+        trailing: const Icon(
+          Icons.chevron_right_rounded,
+          color: Color(0xFF94A3B8),
+        ),
         onTap: onTap,
       ),
     );
@@ -727,9 +798,7 @@ class _LearningCard extends StatelessWidget {
     final enabled = onTap != null;
     return Card(
       elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
@@ -784,7 +853,9 @@ class _LearningCard extends StatelessWidget {
                 ),
               ),
               Icon(
-                enabled ? Icons.arrow_forward_rounded : Icons.lock_outline_rounded,
+                enabled
+                    ? Icons.arrow_forward_rounded
+                    : Icons.lock_outline_rounded,
                 size: 20,
                 color: enabled ? color : Colors.grey.shade600,
               ),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../tutor/models/conversation_state.dart';
 import '../models/voice_state.dart';
 import '../providers/voice_provider.dart';
 import '../services/audio_recorder_service.dart';
@@ -53,7 +54,16 @@ class _VoiceDebugScreenState extends ConsumerState<VoiceDebugScreen> {
               const SizedBox(height: 24),
 
               // ─ Avatar ─
-              TutorAvatar(state: voice.state, size: 140),
+              TutorAvatar(
+                state: voice.state == VoiceState.listening
+                    ? ConversationState.listening
+                    : voice.state == VoiceState.speaking
+                        ? ConversationState.speaking
+                        : voice.state == VoiceState.processing
+                            ? ConversationState.uploading
+                            : ConversationState.idle,
+                size: 140,
+              ),
               const SizedBox(height: 24),
 
               // ─ Status ─

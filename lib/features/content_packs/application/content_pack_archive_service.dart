@@ -129,11 +129,18 @@ class ContentPackArchiveService {
     final ragBefore = Sqflite.firstIntValue(
       await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'),
     );
-    final ftsTableExists = Sqflite.firstIntValue(await db.rawQuery(
-        "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rag_chunks_fts'")) ?? 0;
-    final ftsBefore = ftsTableExists > 0 ? Sqflite.firstIntValue(
-      await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
-    ) : 0;
+    final ftsTableExists =
+        Sqflite.firstIntValue(
+          await db.rawQuery(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='rag_chunks_fts'",
+          ),
+        ) ??
+        0;
+    final ftsBefore = ftsTableExists > 0
+        ? Sqflite.firstIntValue(
+            await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
+          )
+        : 0;
     print('PACKS_BEFORE=$packsBefore');
     print('ITEMS_BEFORE=$itemsBefore');
     print('RAG_BEFORE=$ragBefore');
@@ -444,11 +451,12 @@ class ContentPackArchiveService {
           await db.rawQuery('SELECT COUNT(*) FROM rag_chunks'),
         ) ??
         0;
-    final ftsAfter = ftsTableExists > 0 ?
-        (Sqflite.firstIntValue(
-          await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
-        ) ??
-        0) : 0;
+    final ftsAfter = ftsTableExists > 0
+        ? (Sqflite.firstIntValue(
+                await db.rawQuery('SELECT COUNT(*) FROM rag_chunks_fts'),
+              ) ??
+              0)
+        : 0;
 
     print('PACKS_AFTER=$packsAfter');
     print('ITEMS_AFTER=$itemsAfter');
@@ -477,6 +485,16 @@ class ContentPackArchiveService {
     required String packId,
     void Function(String message)? onProgress,
   }) async {
+    final artifactCounts = manifest['artifact_counts'];
+    final isSimulationPack =
+        packId == 'phet_simulations_v1' ||
+        (artifactCounts is Map &&
+            (artifactCounts['simulations'] as num? ?? 0) > 0);
+    if (isSimulationPack) {
+      print('[PDF_INSTALL] SKIPPED packId=$packId reason=simulation-pack');
+      return const [];
+    }
+
     final grade = _readGrade(manifest);
     final subject = manifest['subject']?.toString().trim() ?? '';
     final chapter = manifest['chapter']?.toString().trim().isNotEmpty == true

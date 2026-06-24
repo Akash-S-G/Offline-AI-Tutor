@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../language/providers/language_provider.dart';
 import '../../language/widgets/language_selector.dart';
 import '../../voice/models/voice_state.dart';
+import '../../language/services/language_interceptor.dart';
+import '../../voice/providers/voice_connection_provider.dart';
 import '../../voice/widgets/tutor_avatar.dart';
 import '../models/conversation_message.dart';
 import '../models/conversation_state.dart';
@@ -32,6 +34,10 @@ class PrimaryVoiceTutorScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Inject the LanguageInterceptor into the socket service
+    final voiceConn = ref.read(voiceConnectionProvider.notifier);
+    voiceConn.socket.interceptor ??= LanguageInterceptor(languageProvider);
+
     final conv = ref.watch(conversationProvider);
     final screenHeight = MediaQuery.of(context).size.height;
 

@@ -103,6 +103,7 @@ class BackendApiService {
     required String question,
     String? context,
     String? systemPrompt,
+    String? language,
     int maxTokens = 512,
   }) async {
     final body = <String, dynamic>{
@@ -111,6 +112,9 @@ class BackendApiService {
       'stream': false,
     };
 
+    if (language != null && language.isNotEmpty) {
+      body['language'] = language;
+    }
     if (context != null && context.isNotEmpty) {
       body['context'] = context;
     }
@@ -148,6 +152,7 @@ class BackendApiService {
     required String question,
     String? context,
     String? systemPrompt,
+    String? language,
     int maxTokens = 512,
   }) async* {
     AppEnvironment.log(
@@ -161,6 +166,9 @@ class BackendApiService {
       'stream': true,
     };
 
+    if (language != null && language.isNotEmpty) {
+      body['language'] = language;
+    }
     if (context != null && context.isNotEmpty) {
       body['context'] = context;
     }
@@ -311,6 +319,8 @@ class BackendApiService {
     String? language,
     String? context,
     List<String>? conversationHistory,
+    String? sessionId,
+    Map<String, dynamic>? experimentContext,
   }) async* {
     print('[DIAGNOSTICS] ENTERING BackendApiService.streamTutorAnswer()');
     print('[DIAGNOSTICS] REQUEST_START (BACKEND)');
@@ -332,6 +342,12 @@ class BackendApiService {
     if (context != null && context.isNotEmpty) body['context'] = context;
     if (conversationHistory != null && conversationHistory.isNotEmpty) {
       body['conversation_history'] = conversationHistory;
+    }
+    if (sessionId != null && sessionId.isNotEmpty) {
+      body['session_id'] = sessionId;
+    }
+    if (experimentContext != null && experimentContext.isNotEmpty) {
+      body['experiment'] = experimentContext;
     }
 
     // Task E: Log exact request payload for 400 debugging

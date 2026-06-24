@@ -1,11 +1,15 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/voice_state.dart';
+import '../models/voice_event.dart';
 import '../services/audio_player_service.dart';
 import '../services/audio_recorder_service.dart';
 import '../services/voice_permission_service.dart';
+import '../services/voice_stream_player.dart';
+import 'voice_connection_provider.dart';
 
 // ─── State ──────────────────────────────────────────────────────────
 
@@ -45,23 +49,29 @@ class VoiceProviderState {
 // ─── Notifier ───────────────────────────────────────────────────────
 
 class VoiceNotifier extends StateNotifier<VoiceProviderState> {
-  VoiceNotifier({
+  VoiceNotifier(
+    this.ref, {
     VoicePermissionService? permissionService,
     AudioRecorderService? recorderService,
     AudioPlayerService? playerService,
   })  : _permissions = permissionService ?? VoicePermissionService(),
         _recorder = recorderService ?? AudioRecorderService(),
         _player = playerService ?? AudioPlayerService(),
+        _streamPlayer = VoiceStreamPlayer(),
         super(const VoiceProviderState()) {
     _listenToPlayback();
+    _listenToSocketEvents();
   }
 
+  final Ref ref;
   final VoicePermissionService _permissions;
   final AudioRecorderService _recorder;
   final AudioPlayerService _player;
+  final VoiceStreamPlayer _streamPlayer;
 
   Timer? _durationTimer;
   StreamSubscription<bool>? _playingSub;
+  StreamSubscription<VoiceEvent>? _socketEventSub;
 
   // ─── Public API ─────────────────────────────────────────────────
 
@@ -75,6 +85,9 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
     state = state.copyWith(hasPermission: true);
 
     try {
+      // Interrupt any playing response
+      await _streamPlayer.interrupt();
+      
       await _recorder.startRecording();
       state = state.copyWith(
         state: VoiceState.listening,
@@ -86,21 +99,29 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
     }
   }
 
-  /// Stop recording and keep the file.
+  /// Stop recording, send to server, and wait for response.
   Future<void> stopRecording() async {
     _stopDurationTimer();
     try {
       final path = await _recorder.stopRecording();
       state = state.copyWith(
-        state: VoiceState.idle,
+        state: VoiceState.processing,
         currentRecording: path,
       );
+      
+      if (path != null) {
+        final bytes = await File(path).readAsBytes();
+        final conn = ref.read(voiceConnectionProvider.notifier);
+        conn.socket.sendSessionStart('en');
+        conn.socket.sendAudioChunk(bytes, 1);
+        conn.socket.sendAudioComplete('en');
+      }
     } catch (_) {
       state = state.copyWith(state: VoiceState.error);
     }
   }
 
-  /// Play the last recording.
+  /// Play the last recording (for debugging).
   Future<void> playRecording() async {
     final path = state.currentRecording;
     if (path == null) return;
@@ -115,6 +136,7 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
   /// Stop playback.
   Future<void> stopPlayback() async {
     try {
+      await _streamPlayer.interrupt();
       await _player.stop();
       state = state.copyWith(state: VoiceState.idle, isPlaying: false);
     } catch (_) {
@@ -129,6 +151,7 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
       if (await _recorder.isRecording()) {
         await _recorder.cancelRecording();
       }
+      await _streamPlayer.interrupt();
       await _player.stop();
     } catch (_) {
       // Best-effort cleanup.
@@ -153,10 +176,40 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
 
   void _listenToPlayback() {
     _playingSub = _player.isPlayingStream.listen((playing) {
-      state = state.copyWith(isPlaying: playing);
+      // Only for local playback debugger. Streaming sets speaking state manually.
+      if (state.state == VoiceState.speaking && playing) return;
       if (!playing && state.state == VoiceState.speaking) {
-        state = state.copyWith(state: VoiceState.idle);
+        state = state.copyWith(state: VoiceState.idle, isPlaying: false);
       }
+    });
+  }
+
+  void _listenToSocketEvents() {
+    // Delay subscription to allow connection provider to initialize
+    Future.microtask(() {
+      final conn = ref.read(voiceConnectionProvider.notifier);
+      _socketEventSub = conn.socket.eventStream.listen((event) {
+        if (event.type == VoiceEventType.transcribing) {
+          state = state.copyWith(state: VoiceState.processing);
+        } else if (event.type == VoiceEventType.thinking) {
+          state = state.copyWith(state: VoiceState.processing);
+        } else if (event.type == VoiceEventType.generatingAudio) {
+          state = state.copyWith(state: VoiceState.processing);
+        } else if (event.type == VoiceEventType.audioChunk) {
+          if (state.state != VoiceState.speaking) {
+            state = state.copyWith(state: VoiceState.speaking, isPlaying: true);
+          }
+          final b64 = event.data;
+          if (b64 != null) {
+            _streamPlayer.queueAudioChunk(b64);
+          }
+        } else if (event.type == VoiceEventType.audioComplete) {
+          _streamPlayer.markComplete();
+          // We don't immediately set idle because it's still playing
+        } else if (event.type == VoiceEventType.error) {
+          state = state.copyWith(state: VoiceState.error);
+        }
+      });
     });
   }
 
@@ -164,8 +217,10 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
   void dispose() {
     _stopDurationTimer();
     _playingSub?.cancel();
+    _socketEventSub?.cancel();
     _recorder.dispose();
     _player.dispose();
+    _streamPlayer.dispose();
     super.dispose();
   }
 }
@@ -174,5 +229,5 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
 
 final voiceProvider =
     StateNotifierProvider<VoiceNotifier, VoiceProviderState>((ref) {
-  return VoiceNotifier();
+  return VoiceNotifier(ref);
 });

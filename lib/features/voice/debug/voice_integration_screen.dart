@@ -5,11 +5,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../tutor/screens/voice_tutor_screen.dart';
-import '../../models/connection_status.dart';
-import '../../models/voice_event.dart';
-import '../../providers/voice_connection_provider.dart';
-import '../../services/voice_socket_service.dart';
+import '../../language/providers/language_provider.dart';
+
+import '../../../features/tutor/screens/voice_tutor_screen.dart';
+import '../models/connection_status.dart';
+import '../models/voice_event.dart';
+import '../providers/voice_connection_provider.dart';
+import '../services/voice_socket_service.dart';
 
 /// A mock implementation of [VoiceSocketService] that fakes the AI backend.
 class MockVoiceSocketService extends VoiceSocketService {
@@ -49,12 +51,12 @@ class MockVoiceSocketService extends VoiceSocketService {
   }
 
   @override
-  void sendAudioChunk(Uint8List bytes) {
+  void sendAudioChunk(Uint8List bytes, int sequence) {
     // Drop mock audio bytes
   }
 
   @override
-  void sendAudioComplete({Map<String, dynamic>? context}) {
+  void sendAudioComplete(String language, {Map<String, dynamic>? context}) {
     // Simulate backend response pipeline
     _simulateBackendPipeline();
   }
@@ -112,7 +114,12 @@ class MockVoiceSocketService extends VoiceSocketService {
 /// A harness screen that wraps the normal VoiceTutorScreen but injects
 /// a mock backend connection.
 class VoiceIntegrationScreen extends StatelessWidget {
-  const VoiceIntegrationScreen({super.key});
+  const VoiceIntegrationScreen({
+    super.key,
+    required this.languageProvider,
+  });
+
+  final LanguageProvider languageProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -127,7 +134,9 @@ class VoiceIntegrationScreen extends StatelessWidget {
           return notifier;
         }),
       ],
-      child: const VoiceTutorScreen(),
+      child: VoiceTutorScreen(
+        languageProvider: languageProvider,
+      ),
     );
   }
 }

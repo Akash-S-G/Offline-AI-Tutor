@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../session/providers/session_provider.dart';
 import '../providers/conversation_provider.dart';
 
 /// Togglable debug overlay showing raw conversation internals.
@@ -17,6 +18,7 @@ class DeveloperOverlay extends ConsumerWidget {
     if (!visible) return const SizedBox.shrink();
 
     final conv = ref.watch(conversationProvider);
+    final session = ref.watch(sessionProvider);
 
     return Container(
       margin: const EdgeInsets.all(8),
@@ -37,6 +39,10 @@ class DeveloperOverlay extends ConsumerWidget {
           children: [
             const Text('— Developer Overlay —',
                 style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('Session: ${session.sessionId.substring(0, 8)}...'),
+            Text('Device: ${session.deviceId}'),
+            Text('Student: ${session.studentId}'),
             const SizedBox(height: 4),
             Text('State: ${conv.state.name}'),
             Text('Partial: ${conv.partialTranscript}'),

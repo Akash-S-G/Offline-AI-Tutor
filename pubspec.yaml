@@ -44,6 +44,7 @@ dependencies:
   just_audio: ^0.9.43
   flutter_riverpod: ^2.6.1
   web_socket_channel: ^3.0.2
+  flutter_inappwebview: ^6.1.5
 
 dev_dependencies:
   integration_test:
@@ -60,3 +61,5 @@ flutter:
     - assets/asset_registry.json
     - assets/experiment_blueprints/
     - assets/seed_data_math_science.json
+    - assets/phet/catalog.json
+    - assets/phet/simulations/

@@ -8,9 +8,9 @@ class AiGeneratedExperiment {
 }
 
 abstract class AiExperimentRepository {
-  Future<AiGeneratedExperiment> generateExperiment(String prompt);
-  Future<AiGeneratedExperiment> refineExperiment(Map<String, dynamic> manifest, String prompt);
-  Future<Map<String, dynamic>> explainExperiment(Map<String, dynamic> manifest);
+  Future<AiGeneratedExperiment> generateExperiment(String prompt, {String? language});
+  Future<AiGeneratedExperiment> refineExperiment(Map<String, dynamic> manifest, String prompt, {String? language});
+  Future<Map<String, dynamic>> explainExperiment(Map<String, dynamic> manifest, {String? language});
 }
 
 class AiExperimentRepositoryImpl implements AiExperimentRepository {
@@ -19,8 +19,8 @@ class AiExperimentRepositoryImpl implements AiExperimentRepository {
   AiExperimentRepositoryImpl(this._apiService);
 
   @override
-  Future<AiGeneratedExperiment> generateExperiment(String prompt) async {
-    final response = await _apiService.generateExperiment(prompt);
+  Future<AiGeneratedExperiment> generateExperiment(String prompt, {String? language}) async {
+    final response = await _apiService.generateExperiment(prompt, language: language);
     return AiGeneratedExperiment(
       manifest: response['manifest'] as Map<String, dynamic>? ?? {},
       explanation: response['explanation'] as Map<String, dynamic>? ?? {},
@@ -28,8 +28,8 @@ class AiExperimentRepositoryImpl implements AiExperimentRepository {
   }
 
   @override
-  Future<AiGeneratedExperiment> refineExperiment(Map<String, dynamic> manifest, String prompt) async {
-    final response = await _apiService.refineExperiment(manifest, prompt);
+  Future<AiGeneratedExperiment> refineExperiment(Map<String, dynamic> manifest, String prompt, {String? language}) async {
+    final response = await _apiService.refineExperiment(manifest, prompt, language: language);
     return AiGeneratedExperiment(
       manifest: response['manifest'] as Map<String, dynamic>? ?? {},
       explanation: response['explanation'] as Map<String, dynamic>? ?? {},
@@ -37,8 +37,8 @@ class AiExperimentRepositoryImpl implements AiExperimentRepository {
   }
 
   @override
-  Future<Map<String, dynamic>> explainExperiment(Map<String, dynamic> manifest) async {
-    final response = await _apiService.explainExperiment(manifest);
+  Future<Map<String, dynamic>> explainExperiment(Map<String, dynamic> manifest, {String? language}) async {
+    final response = await _apiService.explainExperiment(manifest, language: language);
     return response['explanation'] as Map<String, dynamic>? ?? {};
   }
 }

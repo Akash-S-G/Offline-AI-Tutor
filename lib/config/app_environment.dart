@@ -352,14 +352,14 @@ class AppEnvironment {
   static String _normalizeBackendBaseUrl(String? rawValue) {
     final value = (rawValue ?? '').trim();
     if (value.isEmpty) {
-      // Default to production configuration
-      return 'http://10.28.73.193';
+      // Default to production Pi Gateway configuration
+      return 'http://pihub.local';
     }
 
     final uri = Uri.tryParse(value);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
       // Invalid URI, use default
-      return 'http://10.28.73.193';
+      return 'http://pihub.local';
     }
 
     // Return the URI as-is (nginx gateway manages all ports)

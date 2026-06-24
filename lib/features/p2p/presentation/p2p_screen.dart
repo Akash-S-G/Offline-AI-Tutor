@@ -16,6 +16,8 @@ import '../../content_packs/data/local/content_pack_repository.dart';
 import '../../content_packs/domain/content_pack_models.dart';
 import '../../course/data/local/course_repository.dart';
 import '../../course/domain/course_tree.dart';
+import '../../network/presentation/classroom_details_screen.dart';
+import '../../network/services/backend_discovery_service.dart';
 import '../../rag/data/local/rag_repository.dart';
 import '../data/local/p2p_security_settings_repository.dart';
 import '../data/local/trusted_peer_repository.dart';
@@ -40,22 +42,30 @@ class P2PScreen extends StatefulWidget {
 }
 
 class _P2PScreenState extends State<P2PScreen> {
+  final BackendDiscoveryService _classroomConnection =
+      BackendDiscoveryService();
   final P2PChannelService _service = P2PChannelService();
   final P2PBundleService _bundleService = P2PBundleService(
     ragRepository: RagRepository(),
   );
   final ContentPackRepository _packRepository = ContentPackRepository();
-  final ContentPackArchiveService _packArchiveService = ContentPackArchiveService();
+  final ContentPackArchiveService _packArchiveService =
+      ContentPackArchiveService();
   final TrustedPeerRepository _trustedPeerRepository = TrustedPeerRepository();
   final P2PSecuritySettingsRepository _securitySettingsRepository =
       P2PSecuritySettingsRepository();
-  final P2PSecretBootstrapService _bootstrapService = P2PSecretBootstrapService();
+  final P2PSecretBootstrapService _bootstrapService =
+      P2PSecretBootstrapService();
   final TextEditingController _sharedSecretController = TextEditingController();
-  final TextEditingController _rotationSecretController = TextEditingController();
-  final TextEditingController _bootstrapPasscodeController = TextEditingController();
+  final TextEditingController _rotationSecretController =
+      TextEditingController();
+  final TextEditingController _bootstrapPasscodeController =
+      TextEditingController();
   final TextEditingController _importTokenController = TextEditingController();
-  final TextEditingController _importPasscodeController = TextEditingController();
-  final TextEditingController _apkDownloadUrlController = TextEditingController();
+  final TextEditingController _importPasscodeController =
+      TextEditingController();
+  final TextEditingController _apkDownloadUrlController =
+      TextEditingController();
 
   P2PStatus? _status;
   List<P2PPeer> _peers = const [];
@@ -79,12 +89,14 @@ class _P2PScreenState extends State<P2PScreen> {
   bool _autoAcceptTrustedUnknown = true;
   Set<String> _trustedPeerAddresses = <String>{};
   P2PPermissionStatus? _permissionStatus;
-  P2PTransferTelemetrySnapshot _telemetry =
-      const P2PTransferTelemetrySnapshot(send: null, receive: null);
+  P2PTransferTelemetrySnapshot _telemetry = const P2PTransferTelemetrySnapshot(
+    send: null,
+    receive: null,
+  );
   final Set<String> _promptedIncomingIds = <String>{};
   Timer? _telemetryTimer;
   String? _error;
-  
+
   BundleTransferProgress? _exportProgress;
   BundleTransferProgress? _importProgress;
   bool _quickSendTriggered = false;
@@ -92,6 +104,7 @@ class _P2PScreenState extends State<P2PScreen> {
   @override
   void initState() {
     super.initState();
+    _classroomConnection.addListener(_onClassroomConnectionChanged);
     _apkDownloadUrlController.text =
         'https://example.com/releases/offline_tutor_app-latest.apk';
     _startTelemetryPolling();
@@ -101,6 +114,7 @@ class _P2PScreenState extends State<P2PScreen> {
   @override
   void dispose() {
     _telemetryTimer?.cancel();
+    _classroomConnection.removeListener(_onClassroomConnectionChanged);
     _sharedSecretController.dispose();
     _rotationSecretController.dispose();
     _bootstrapPasscodeController.dispose();
@@ -108,6 +122,12 @@ class _P2PScreenState extends State<P2PScreen> {
     _importPasscodeController.dispose();
     _apkDownloadUrlController.dispose();
     super.dispose();
+  }
+
+  void _onClassroomConnectionChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _startTelemetryPolling() {
@@ -155,11 +175,13 @@ class _P2PScreenState extends State<P2PScreen> {
       final chapters = chapterById.values.toList()
         ..sort((a, b) => a.title.compareTo(b.title));
       final installedPacks = await _packRepository.listInstalledPacks();
-      final trustedPeerAddresses = await _trustedPeerRepository.listTrustedAddresses();
+      final trustedPeerAddresses = await _trustedPeerRepository
+          .listTrustedAddresses();
       final sharedSecret = await _securitySettingsRepository.getSharedSecret();
-      final autoAcceptTrustedUnknown =
-          await _securitySettingsRepository.getAutoAcceptTrustedUnknown();
-      final rotationStatus = await _securitySettingsRepository.getRotationStatus();
+      final autoAcceptTrustedUnknown = await _securitySettingsRepository
+          .getAutoAcceptTrustedUnknown();
+      final rotationStatus = await _securitySettingsRepository
+          .getRotationStatus();
       await _securitySettingsRepository.clearExpiredPreviousSecret();
       final selectedPeerAddress = _selectedPeer?.address;
       P2PPeer? selectedPeer;
@@ -183,11 +205,13 @@ class _P2PScreenState extends State<P2PScreen> {
         }
       }
       final selectedChapterId =
-          widget.initialChapterId != null && chapterById.containsKey(widget.initialChapterId)
-              ? widget.initialChapterId
-              : (_selectedChapterId != null && chapterById.containsKey(_selectedChapterId)
-                  ? _selectedChapterId
-                  : (chapters.isEmpty ? null : chapters.first.id));
+          widget.initialChapterId != null &&
+              chapterById.containsKey(widget.initialChapterId)
+          ? widget.initialChapterId
+          : (_selectedChapterId != null &&
+                    chapterById.containsKey(_selectedChapterId)
+                ? _selectedChapterId
+                : (chapters.isEmpty ? null : chapters.first.id));
       if (!mounted) {
         return;
       }
@@ -208,8 +232,9 @@ class _P2PScreenState extends State<P2PScreen> {
         _previousSecretActive =
             rotationStatus['previousSecretActive'] as bool? ?? false;
         _selectedChapterId = selectedChapterId;
-        _selectedChapter =
-          selectedChapterId == null ? null : chapterById[selectedChapterId];
+        _selectedChapter = selectedChapterId == null
+            ? null
+            : chapterById[selectedChapterId];
         _selectedPack = installedPacks.isEmpty
             ? null
             : (selectedPack ?? _selectedPack ?? installedPacks.first);
@@ -233,7 +258,8 @@ class _P2PScreenState extends State<P2PScreen> {
         return;
       }
       setState(() {
-        _error = 'P2P is not available on this platform yet. Currently implemented on Android.';
+        _error =
+            'P2P is not available on this platform yet. Currently implemented on Android.';
         _loading = false;
       });
     } on PlatformException catch (e) {
@@ -277,7 +303,8 @@ class _P2PScreenState extends State<P2PScreen> {
           await _approveIncomingTransfer(
             pending,
             silent: true,
-            customMessage: 'Auto-approved trusted sender ${pending.senderAddress}',
+            customMessage:
+                'Auto-approved trusted sender ${pending.senderAddress}',
           );
           return;
         }
@@ -423,7 +450,9 @@ class _P2PScreenState extends State<P2PScreen> {
 
       final lowerPath = bundlePath.toLowerCase();
       if (lowerPath.endsWith('.otpack') || lowerPath.endsWith('.zip')) {
-        final packResult = await _packArchiveService.importPackArchive(bundlePath);
+        final packResult = await _packArchiveService.importPackArchive(
+          bundlePath,
+        );
         await _refresh();
 
         if (!mounted) {
@@ -447,7 +476,8 @@ class _P2PScreenState extends State<P2PScreen> {
 
       final result = await _bundleService.importBundleFromFile(
         bundlePath,
-        verificationSecrets: await _securitySettingsRepository.getVerificationSecrets(),
+        verificationSecrets: await _securitySettingsRepository
+            .getVerificationSecrets(),
         onProgress: (progress) {
           if (mounted) {
             setState(() {
@@ -517,9 +547,9 @@ class _P2PScreenState extends State<P2PScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
     } on PlatformException catch (e) {
       if (!mounted) {
         return;
@@ -544,12 +574,17 @@ class _P2PScreenState extends State<P2PScreen> {
   Future<void> _sendLastBundleToPeer() async {
     final peer = _selectedPeer;
     final exportPath = _lastExportPath;
-    if (peer == null || exportPath == null || exportPath.isEmpty || _processingTransfer) {
+    if (peer == null ||
+        exportPath == null ||
+        exportPath.isEmpty ||
+        _processingTransfer) {
       return;
     }
     if (!_trustedPeerAddresses.contains(peer.address)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Trust this peer before sending bundles.')),
+        const SnackBar(
+          content: Text('Trust this peer before sending bundles.'),
+        ),
       );
       return;
     }
@@ -568,9 +603,9 @@ class _P2PScreenState extends State<P2PScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
     } on PlatformException catch (e) {
       if (!mounted) {
         return;
@@ -600,7 +635,9 @@ class _P2PScreenState extends State<P2PScreen> {
     final chapter = _selectedChapter;
     if (chapter == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quick send skipped: no chapter selected.')),
+        const SnackBar(
+          content: Text('Quick send skipped: no chapter selected.'),
+        ),
       );
       return;
     }
@@ -638,7 +675,9 @@ class _P2PScreenState extends State<P2PScreen> {
 
     if (_lastExportPath == null || _lastExportPath!.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Quick send export did not produce a bundle.')),
+        const SnackBar(
+          content: Text('Quick send export did not produce a bundle.'),
+        ),
       );
       return;
     }
@@ -749,9 +788,9 @@ class _P2PScreenState extends State<P2PScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(result.message)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(result.message)));
     } on PlatformException catch (e) {
       if (!mounted) {
         return;
@@ -818,8 +857,9 @@ class _P2PScreenState extends State<P2PScreen> {
       } else {
         await _trustedPeerRepository.trustPeer(
           address: peer.address,
-          alternateAddress:
-              peer.resolvedAddress.isEmpty ? null : peer.resolvedAddress,
+          alternateAddress: peer.resolvedAddress.isEmpty
+              ? null
+              : peer.resolvedAddress,
           name: peer.name,
           transport: peer.transport,
         );
@@ -869,7 +909,9 @@ class _P2PScreenState extends State<P2PScreen> {
     try {
       final lowerPath = bundle.path.toLowerCase();
       if (lowerPath.endsWith('.otpack') || lowerPath.endsWith('.zip')) {
-        final packResult = await _packArchiveService.importPackArchive(bundle.path);
+        final packResult = await _packArchiveService.importPackArchive(
+          bundle.path,
+        );
         await _refresh();
         if (!mounted) {
           return;
@@ -887,7 +929,8 @@ class _P2PScreenState extends State<P2PScreen> {
 
       final result = await _bundleService.importBundleFromFile(
         bundle.path,
-        verificationSecrets: await _securitySettingsRepository.getVerificationSecrets(),
+        verificationSecrets: await _securitySettingsRepository
+            .getVerificationSecrets(),
         onProgress: (_) {}, // Silent progress for auto-import
       );
       await _refresh();
@@ -930,10 +973,9 @@ class _P2PScreenState extends State<P2PScreen> {
         return;
       }
 
-      await Share.shareXFiles(
-        <XFile>[XFile(apkPath)],
-        text: 'Offline Tutor app install package',
-      );
+      await Share.shareXFiles(<XFile>[
+        XFile(apkPath),
+      ], text: 'Offline Tutor app install package');
     } catch (e) {
       if (!mounted) {
         return;
@@ -1046,14 +1088,13 @@ class _P2PScreenState extends State<P2PScreen> {
       if (!mounted) {
         return;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('APK downloaded: ${output.path}')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('APK downloaded: ${output.path}')));
 
-      await Share.shareXFiles(
-        <XFile>[XFile(output.path)],
-        text: 'Downloaded APK package',
-      );
+      await Share.shareXFiles(<XFile>[
+        XFile(output.path),
+      ], text: 'Downloaded APK package');
     } catch (e) {
       if (!mounted) {
         return;
@@ -1290,7 +1331,9 @@ class _P2PScreenState extends State<P2PScreen> {
                   token: _importTokenController.text,
                   passcode: _importPasscodeController.text,
                 );
-                await _securitySettingsRepository.setSharedSecret(imported.secret);
+                await _securitySettingsRepository.setSharedSecret(
+                  imported.secret,
+                );
                 if (!mounted) {
                   return;
                 }
@@ -1298,7 +1341,9 @@ class _P2PScreenState extends State<P2PScreen> {
                 await _refresh();
                 messenger.showSnackBar(
                   const SnackBar(
-                    content: Text('Shared secret imported from bootstrap token.'),
+                    content: Text(
+                      'Shared secret imported from bootstrap token.',
+                    ),
                   ),
                 );
               } catch (e) {
@@ -1322,6 +1367,202 @@ class _P2PScreenState extends State<P2PScreen> {
     );
   }
 
+  Future<void> _showManualClassroomDialog() async {
+    final controller = TextEditingController(
+      text: _classroomConnection.activeEndpoint ?? '',
+    );
+    final address = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Connect by Address'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.url,
+          decoration: const InputDecoration(
+            labelText: 'Classroom gateway',
+            hintText: '192.168.1.20 or http://pihub.local',
+            border: OutlineInputBorder(),
+          ),
+          onSubmitted: (value) => Navigator.of(context).pop(value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: const Text('Connect'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+
+    if (address == null || address.trim().isEmpty) {
+      return;
+    }
+    final connected = await _classroomConnection.connectManual(address);
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          connected
+              ? 'Connected to classroom.'
+              : 'Could not reach that classroom gateway.',
+        ),
+      ),
+    );
+  }
+
+  String _classroomStatusText(ClassroomConnectionState state) {
+    return switch (state) {
+      ClassroomConnectionState.disconnected => 'Not connected',
+      ClassroomConnectionState.discovering => 'Searching nearby network...',
+      ClassroomConnectionState.connecting => 'Connecting...',
+      ClassroomConnectionState.connected => 'Connected',
+      ClassroomConnectionState.reconnecting => 'Reconnecting automatically...',
+    };
+  }
+
+  Widget _buildClassroomConnectionSection(BuildContext context) {
+    final connection = _classroomConnection;
+    final classroom = connection.currentClassroom;
+    final available = connection.availableClassrooms;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                connection.isConnected
+                    ? Icons.wifi_rounded
+                    : Icons.wifi_find_rounded,
+                color: connection.isConnected
+                    ? const Color(0xFF15803D)
+                    : const Color(0xFFB45309),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      connection.isConnected
+                          ? classroom?.name ?? 'Connected Classroom'
+                          : 'Available Classrooms',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      connection.isConnected
+                          ? classroom?.gatewayUrl ?? ''
+                          : _classroomStatusText(connection.state),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              if (connection.isDiscovering)
+                const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              else
+                IconButton(
+                  onPressed: () => connection.discover(force: true),
+                  tooltip: 'Refresh classrooms',
+                  icon: const Icon(Icons.refresh_rounded),
+                ),
+            ],
+          ),
+          if (connection.isConnected && classroom != null) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                Chip(label: Text('Node: ${classroom.nodeId}')),
+                if (classroom.studentCount != null)
+                  Chip(label: Text('${classroom.studentCount} students')),
+                if (classroom.latencyMs != null)
+                  Chip(label: Text('${classroom.latencyMs} ms')),
+              ],
+            ),
+          ],
+          if (!connection.isConnected &&
+              !connection.isDiscovering &&
+              available.isEmpty) ...[
+            const SizedBox(height: 14),
+            const Text(
+              'No classroom found. Check that this device and the PiHub are '
+              'on the same Wi-Fi network.',
+            ),
+          ],
+          if (!connection.isConnected && available.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            for (final item in available)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.meeting_room_outlined),
+                title: Text(item.name),
+                subtitle: Text(item.gatewayUrl),
+                trailing: FilledButton(
+                  onPressed: () => connection.connect(item),
+                  child: const Text('Connect'),
+                ),
+              ),
+          ],
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (!connection.isConnected)
+                FilledButton.icon(
+                  onPressed: connection.isDiscovering
+                      ? null
+                      : () => connection.discover(force: true),
+                  icon: const Icon(Icons.wifi_find_rounded),
+                  label: const Text('Retry'),
+                ),
+              OutlinedButton.icon(
+                onPressed: _showManualClassroomDialog,
+                icon: const Icon(Icons.edit_location_alt_outlined),
+                label: const Text('Manual IP'),
+              ),
+              if (classroom != null)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const ClassroomDetailsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.info_outline_rounded),
+                  label: const Text('Details'),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final status = _status;
@@ -1329,11 +1570,12 @@ class _P2PScreenState extends State<P2PScreen> {
     final receiveTelemetry = _telemetry.receive;
     final permissionStatus = _permissionStatus;
     final selectedPeerTrusted =
-        _selectedPeer != null && _trustedPeerAddresses.contains(_selectedPeer!.address);
+        _selectedPeer != null &&
+        _trustedPeerAddresses.contains(_selectedPeer!.address);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Offline P2P Sharing'),
+        title: const Text('Classroom & P2P'),
         actions: [
           IconButton(
             onPressed: _refresh,
@@ -1359,6 +1601,8 @@ class _P2PScreenState extends State<P2PScreen> {
                       ),
                       child: Text(_error!),
                     ),
+                  _buildClassroomConnectionSection(context),
+                  const SizedBox(height: 12),
                   if (widget.quickSendPreset) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -1370,7 +1614,10 @@ class _P2PScreenState extends State<P2PScreen> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.bolt_rounded, color: Color(0xFFB45309)),
+                          const Icon(
+                            Icons.bolt_rounded,
+                            color: Color(0xFFB45309),
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -1407,13 +1654,27 @@ class _P2PScreenState extends State<P2PScreen> {
                           spacing: 8,
                           runSpacing: 8,
                           children: [
-                            Chip(label: Text('Transport: ${status?.transport ?? 'unknown'}')),
-                            Chip(label: Text('Route: ${status?.routeDecision ?? 'NONE'}')),
-                            Chip(label: Text('Peers: ${status?.pairedCount ?? 0}')),
-                            Chip(label: Text('Inbox: ${status?.inboxCount ?? 0}')),
                             Chip(
                               label: Text(
-                                status?.receiverRunning == true ? 'Receiver: ON' : 'Receiver: OFF',
+                                'Transport: ${status?.transport ?? 'unknown'}',
+                              ),
+                            ),
+                            Chip(
+                              label: Text(
+                                'Route: ${status?.routeDecision ?? 'NONE'}',
+                              ),
+                            ),
+                            Chip(
+                              label: Text('Peers: ${status?.pairedCount ?? 0}'),
+                            ),
+                            Chip(
+                              label: Text('Inbox: ${status?.inboxCount ?? 0}'),
+                            ),
+                            Chip(
+                              label: Text(
+                                status?.receiverRunning == true
+                                    ? 'Receiver: ON'
+                                    : 'Receiver: OFF',
                               ),
                             ),
                             Chip(
@@ -1457,12 +1718,16 @@ class _P2PScreenState extends State<P2PScreen> {
                           runSpacing: 8,
                           children: [
                             FilledButton.icon(
-                              onPressed: _downloadingApk ? null : _downloadApkFromUrl,
+                              onPressed: _downloadingApk
+                                  ? null
+                                  : _downloadApkFromUrl,
                               icon: _downloadingApk
                                   ? const SizedBox(
                                       width: 16,
                                       height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                      ),
                                     )
                                   : const Icon(Icons.download_rounded),
                               label: const Text('Download APK'),
@@ -1494,10 +1759,14 @@ class _P2PScreenState extends State<P2PScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Send: ${sendTelemetry.fileName} (${sendTelemetry.stage})'),
+                            Text(
+                              'Send: ${sendTelemetry.fileName} (${sendTelemetry.stage})',
+                            ),
                             const SizedBox(height: 6),
                             LinearProgressIndicator(
-                              value: (sendTelemetry.progressPct.clamp(0, 100)) / 100,
+                              value:
+                                  (sendTelemetry.progressPct.clamp(0, 100)) /
+                                  100,
                             ),
                             const SizedBox(height: 6),
                             Text(
@@ -1506,7 +1775,9 @@ class _P2PScreenState extends State<P2PScreen> {
                             if (sendTelemetry.done && !sendTelemetry.success)
                               Text(
                                 'Error: ${sendTelemetry.errorMessage}',
-                                style: const TextStyle(color: Color(0xFFB91C1C)),
+                                style: const TextStyle(
+                                  color: Color(0xFFB91C1C),
+                                ),
                               ),
                           ],
                         ),
@@ -1523,25 +1794,33 @@ class _P2PScreenState extends State<P2PScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text('Receive: ${receiveTelemetry.fileName} (${receiveTelemetry.stage})'),
+                            Text(
+                              'Receive: ${receiveTelemetry.fileName} (${receiveTelemetry.stage})',
+                            ),
                             const SizedBox(height: 6),
                             LinearProgressIndicator(
-                              value: (receiveTelemetry.progressPct.clamp(0, 100)) / 100,
+                              value:
+                                  (receiveTelemetry.progressPct.clamp(0, 100)) /
+                                  100,
                             ),
                             const SizedBox(height: 6),
                             Text(
                               'Peer: ${receiveTelemetry.peerAddress} | ${receiveTelemetry.progressPct}% | ${_formatThroughput(receiveTelemetry.throughputBps)} | ETA: ${_formatEta(receiveTelemetry.etaSeconds)}',
                             ),
-                            if (receiveTelemetry.done && !receiveTelemetry.success)
+                            if (receiveTelemetry.done &&
+                                !receiveTelemetry.success)
                               Text(
                                 'Error: ${receiveTelemetry.errorMessage}',
-                                style: const TextStyle(color: Color(0xFFB91C1C)),
+                                style: const TextStyle(
+                                  color: Color(0xFFB91C1C),
+                                ),
                               ),
                           ],
                         ),
                       ),
                   ],
-                  if (permissionStatus != null && !permissionStatus.allGranted) ...[
+                  if (permissionStatus != null &&
+                      !permissionStatus.allGranted) ...[
                     const SizedBox(height: 8),
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -1562,9 +1841,13 @@ class _P2PScreenState extends State<P2PScreen> {
                           ),
                           const SizedBox(height: 8),
                           OutlinedButton.icon(
-                            onPressed: _processingTransfer ? null : _requestPermissions,
+                            onPressed: _processingTransfer
+                                ? null
+                                : _requestPermissions,
                             icon: const Icon(Icons.security_rounded),
-                            label: const Text('Grant Local Network Permissions'),
+                            label: const Text(
+                              'Grant Local Network Permissions',
+                            ),
                           ),
                         ],
                       ),
@@ -1582,7 +1865,9 @@ class _P2PScreenState extends State<P2PScreen> {
                     children: [
                       Expanded(
                         child: FilledButton.icon(
-                          onPressed: _processingTransfer ? null : _toggleReceiver,
+                          onPressed: _processingTransfer
+                              ? null
+                              : _toggleReceiver,
                           icon: Icon(
                             status?.receiverRunning == true
                                 ? Icons.stop_circle_outlined
@@ -1628,7 +1913,8 @@ class _P2PScreenState extends State<P2PScreen> {
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: _selectedPeer == null || _processingTransfer
+                          onPressed:
+                              _selectedPeer == null || _processingTransfer
                               ? null
                               : _toggleTrustForSelectedPeer,
                           icon: Icon(
@@ -1637,7 +1923,9 @@ class _P2PScreenState extends State<P2PScreen> {
                                 : Icons.shield_outlined,
                           ),
                           label: Text(
-                            selectedPeerTrusted ? 'Untrust Selected Peer' : 'Trust Selected Peer',
+                            selectedPeerTrusted
+                                ? 'Untrust Selected Peer'
+                                : 'Trust Selected Peer',
                           ),
                         ),
                       ),
@@ -1655,7 +1943,8 @@ class _P2PScreenState extends State<P2PScreen> {
                             : const Color(0xFFB91C1C),
                       ),
                     ),
-                  if (_selectedPeer != null && _selectedPeer!.transport == 'wifi-direct')
+                  if (_selectedPeer != null &&
+                      _selectedPeer!.transport == 'wifi-direct')
                     Text(
                       _selectedPeer!.resolvedAddress.isNotEmpty
                           ? 'Wi-Fi Direct route ready: ${_selectedPeer!.resolvedAddress}'
@@ -1664,7 +1953,10 @@ class _P2PScreenState extends State<P2PScreen> {
                     ),
                   const SizedBox(height: 8),
                   FilledButton.icon(
-                    onPressed: (_processingTransfer || _lastExportPath == null || !selectedPeerTrusted)
+                    onPressed:
+                        (_processingTransfer ||
+                            _lastExportPath == null ||
+                            !selectedPeerTrusted)
                         ? null
                         : _sendLastBundleToPeer,
                     icon: const Icon(Icons.send_rounded),
@@ -1672,8 +1964,8 @@ class _P2PScreenState extends State<P2PScreen> {
                       _lastExportPath == null
                           ? 'Export bundle first to enable sending'
                           : (selectedPeerTrusted
-                              ? 'Send Last Exported Bundle'
-                              : 'Trust peer to enable sending'),
+                                ? 'Send Last Exported Bundle'
+                                : 'Trust peer to enable sending'),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -1777,8 +2069,9 @@ class _P2PScreenState extends State<P2PScreen> {
                       ),
                     ],
                   ),
-                  if (_exportProgress != null) ...[const SizedBox(height: 12),
- Container(
+                  if (_exportProgress != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF0F4FF),
@@ -1810,8 +2103,9 @@ class _P2PScreenState extends State<P2PScreen> {
                       ),
                     ),
                   ],
-                  if (_importProgress != null) ...[const SizedBox(height: 12),
- Container(
+                  if (_importProgress != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFF0FFF0),
@@ -1839,14 +2133,18 @@ class _P2PScreenState extends State<P2PScreen> {
                             value: _importProgress!.percentComplete,
                             minHeight: 6,
                             backgroundColor: Colors.green.shade100,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.green.shade600),
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.green.shade600,
+                            ),
                           ),
                         ],
                       ),
                     ),
                   ],
-                  if (_error != null && (_exportProgress == null && _importProgress == null)) ...[const SizedBox(height: 12),
- Container(
+                  if (_error != null &&
+                      (_exportProgress == null && _importProgress == null)) ...[
+                    const SizedBox(height: 12),
+                    Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFFE0E0),
@@ -1903,7 +2201,9 @@ class _P2PScreenState extends State<P2PScreen> {
                     value: _autoAcceptTrustedUnknown,
                     onChanged: _setAutoAcceptTrustedUnknown,
                     title: const Text('Auto-accept trusted peers'),
-                    subtitle: const Text('Unknown peers will still require manual accept/reject.'),
+                    subtitle: const Text(
+                      'Unknown peers will still require manual accept/reject.',
+                    ),
                     contentPadding: EdgeInsets.zero,
                   ),
                   const SizedBox(height: 8),
@@ -1988,32 +2288,42 @@ class _P2PScreenState extends State<P2PScreen> {
                   SizedBox(
                     height: 120,
                     child: _pendingIncomingTransfers.isEmpty
-                        ? const Center(child: Text('No pending incoming transfers.'))
+                        ? const Center(
+                            child: Text('No pending incoming transfers.'),
+                          )
                         : ListView.builder(
                             itemCount: _pendingIncomingTransfers.length,
                             itemBuilder: (context, index) {
                               final pending = _pendingIncomingTransfers[index];
                               return ListTile(
                                 dense: true,
-                                leading: const Icon(Icons.notifications_active_outlined),
+                                leading: const Icon(
+                                  Icons.notifications_active_outlined,
+                                ),
                                 title: Text(pending.fileName),
                                 subtitle: Text('From ${pending.senderAddress}'),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('${(pending.sizeBytes / 1024).toStringAsFixed(1)} KB'),
+                                    Text(
+                                      '${(pending.sizeBytes / 1024).toStringAsFixed(1)} KB',
+                                    ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
                                       onPressed: _processingTransfer
                                           ? null
-                                          : () => _rejectIncomingTransfer(pending),
+                                          : () => _rejectIncomingTransfer(
+                                              pending,
+                                            ),
                                       child: const Text('Reject'),
                                     ),
                                     const SizedBox(width: 6),
                                     FilledButton(
                                       onPressed: _processingTransfer
                                           ? null
-                                          : () => _approveIncomingTransfer(pending),
+                                          : () => _approveIncomingTransfer(
+                                              pending,
+                                            ),
                                       child: const Text('Accept'),
                                     ),
                                   ],
@@ -2044,7 +2354,9 @@ class _P2PScreenState extends State<P2PScreen> {
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('${(bundle.sizeBytes / 1024).toStringAsFixed(1)} KB'),
+                                    Text(
+                                      '${(bundle.sizeBytes / 1024).toStringAsFixed(1)} KB',
+                                    ),
                                     const SizedBox(width: 8),
                                     OutlinedButton(
                                       onPressed: _processingBundle
@@ -2094,11 +2406,19 @@ class _P2PScreenState extends State<P2PScreen> {
                                     Builder(
                                       builder: (context) {
                                         final peer = _peers[i];
-                                        final normalized = _peerRadarPosition(i, _peers.length);
-                                        final trusted = _trustedPeerAddresses.contains(peer.address);
-                                        final selected = _selectedPeer?.address == peer.address;
-                                        final x = (normalized.dx * size.width) - 34;
-                                        final y = (normalized.dy * size.height) - 34;
+                                        final normalized = _peerRadarPosition(
+                                          i,
+                                          _peers.length,
+                                        );
+                                        final trusted = _trustedPeerAddresses
+                                            .contains(peer.address);
+                                        final selected =
+                                            _selectedPeer?.address ==
+                                            peer.address;
+                                        final x =
+                                            (normalized.dx * size.width) - 34;
+                                        final y =
+                                            (normalized.dy * size.height) - 34;
 
                                         return Positioned(
                                           left: x,
@@ -2110,7 +2430,9 @@ class _P2PScreenState extends State<P2PScreen> {
                                               });
                                             },
                                             child: AnimatedContainer(
-                                              duration: const Duration(milliseconds: 200),
+                                              duration: const Duration(
+                                                milliseconds: 200,
+                                              ),
                                               width: selected ? 68 : 58,
                                               height: selected ? 68 : 58,
                                               decoration: BoxDecoration(
@@ -2135,7 +2457,8 @@ class _P2PScreenState extends State<P2PScreen> {
                                               child: Center(
                                                 child: Text(
                                                   peer.name.isNotEmpty
-                                                      ? peer.name[0].toUpperCase()
+                                                      ? peer.name[0]
+                                                            .toUpperCase()
                                                       : '?',
                                                   style: const TextStyle(
                                                     color: Colors.white,
@@ -2162,7 +2485,9 @@ class _P2PScreenState extends State<P2PScreen> {
                       separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final peer = _peers[index];
-                        final trusted = _trustedPeerAddresses.contains(peer.address);
+                        final trusted = _trustedPeerAddresses.contains(
+                          peer.address,
+                        );
                         final selected = _selectedPeer?.address == peer.address;
                         return InkWell(
                           onTap: () {
@@ -2202,7 +2527,8 @@ class _P2PScreenState extends State<P2PScreen> {
                                 const SizedBox(width: 10),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         peer.name,
@@ -2259,9 +2585,7 @@ class _RadarPainter extends CustomPainter {
           const Color(0xFF22D3EE).withAlpha(10),
           Colors.transparent,
         ],
-      ).createShader(
-        Rect.fromCircle(center: center, radius: maxRadius),
-      );
+      ).createShader(Rect.fromCircle(center: center, radius: maxRadius));
     canvas.drawCircle(center, maxRadius, sweepPaint);
 
     final ringPaint = Paint()
@@ -2276,8 +2600,16 @@ class _RadarPainter extends CustomPainter {
     final crossPaint = Paint()
       ..color = Colors.white24
       ..strokeWidth = 1;
-    canvas.drawLine(Offset(center.dx, center.dy - maxRadius), Offset(center.dx, center.dy + maxRadius), crossPaint);
-    canvas.drawLine(Offset(center.dx - maxRadius, center.dy), Offset(center.dx + maxRadius, center.dy), crossPaint);
+    canvas.drawLine(
+      Offset(center.dx, center.dy - maxRadius),
+      Offset(center.dx, center.dy + maxRadius),
+      crossPaint,
+    );
+    canvas.drawLine(
+      Offset(center.dx - maxRadius, center.dy),
+      Offset(center.dx + maxRadius, center.dy),
+      crossPaint,
+    );
 
     final centerPaint = Paint()..color = const Color(0xFF38BDF8);
     canvas.drawCircle(center, 6, centerPaint);

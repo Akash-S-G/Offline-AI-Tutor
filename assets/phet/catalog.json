@@ -1,0 +1,37 @@
+[
+  {
+    "id": "phet-bending-light",
+    "title": "Bending Light",
+    "subject": "Physics",
+    "provider": "PhET",
+    "localPath": "assets/phet/simulations/placeholder.html"
+  },
+  {
+    "id": "phet-forces-motion",
+    "title": "Forces and Motion: Basics",
+    "subject": "Physics",
+    "provider": "PhET",
+    "localPath": "assets/phet/simulations/placeholder.html"
+  },
+  {
+    "id": "phet-balancing-chemical-equations",
+    "title": "Balancing Chemical Equations",
+    "subject": "Chemistry",
+    "provider": "PhET",
+    "localPath": "assets/phet/simulations/placeholder.html"
+  },
+  {
+    "id": "phet-build-an-atom",
+    "title": "Build an Atom",
+    "subject": "Chemistry",
+    "provider": "PhET",
+    "localPath": "assets/phet/simulations/placeholder.html"
+  },
+  {
+    "id": "phet-fraction-matcher",
+    "title": "Fraction Matcher",
+    "subject": "Math",
+    "provider": "PhET",
+    "localPath": "assets/phet/simulations/placeholder.html"
+  }
+]

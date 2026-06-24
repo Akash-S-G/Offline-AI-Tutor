@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -7,7 +8,8 @@ import 'package:flutter/services.dart';
 
 import '../../course/domain/course_tree.dart';
 import '../application/chat_latency_benchmark_service.dart';
-import '../application/conversation_memory_service.dart';
+import '../application/conversation_context_builder.dart';
+import '../application/reasoning_output_filter.dart';
 import '../application/simple_ai_chat_component.dart';
 import '../application/tutor_prompt_builder.dart';
 import '../data/platform_tutor_inference_gateway.dart';
@@ -20,6 +22,7 @@ import '../../translation/application/separate_translation_layer_service.dart';
 import '../../translation/data/local/translation_engine_config_service.dart';
 import '../../translation/domain/translation_engine_catalog.dart';
 import '../../rag/application/embedding_index_service.dart';
+import '../../rag/application/simple_rag_service.dart';
 import '../../rag/data/local/embedding_index_repository.dart';
 import '../../rag/data/local/rag_repository.dart';
 import '../data/local/chat_session_repository.dart';
@@ -29,6 +32,8 @@ import '../../network/application/intent_detector.dart';
 import '../../progress/data/local/progress_repository.dart';
 import '../../shared/application/offline_error_taxonomy.dart';
 import 'asset_message_widgets.dart';
+import '../../language/providers/language_provider.dart';
+import '../../tutor/screens/voice_tutor_screen.dart';
 
 class ChapterChatScreen extends StatefulWidget {
   const ChapterChatScreen({
@@ -54,15 +59,18 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   final TutorInferenceGateway _gateway = PlatformTutorInferenceGateway();
   late final ChatLatencyBenchmarkService _benchmarkService =
       ChatLatencyBenchmarkService(gateway: _gateway);
-    final DistributedServiceComposer _distributedServiceComposer =
+  final DistributedServiceComposer _distributedServiceComposer =
       DistributedServiceComposer();
   final SimpleAiChatComponent _simpleAiComponent =
       const SimpleAiChatComponent();
-    final TutorPromptBuilder _promptBuilder = TutorPromptBuilder();
-    final ConversationMemoryService _conversationMemoryService =
-      const ConversationMemoryService();
-    final SessionState _sessionState = SessionState();
+  final TutorPromptBuilder _promptBuilder = TutorPromptBuilder();
+  final ConversationContextBuilder _conversationContextBuilder =
+      const ConversationContextBuilder();
+  final SessionState _sessionState = SessionState();
   final RagRepository _ragRepository = RagRepository();
+  late final SimpleRagService _simpleRagService = SimpleRagService(
+    repository: _ragRepository,
+  );
   late final EmbeddingIndexService _embeddingIndexService =
       EmbeddingIndexService(
         ragRepository: _ragRepository,
@@ -72,11 +80,12 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   final ChatMemoryPolicyRepository _chatMemoryPolicyRepository =
       ChatMemoryPolicyRepository();
   final ProgressRepository _progressRepository = ProgressRepository();
-  final LlmAdminChannelService _llmAdminChannelService = LlmAdminChannelService();
+  final LlmAdminChannelService _llmAdminChannelService =
+      LlmAdminChannelService();
   final LinuxLlmConfigService _linuxConfigService = LinuxLlmConfigService();
-    final TranslationEngineConfigService _translationConfigService =
+  final TranslationEngineConfigService _translationConfigService =
       TranslationEngineConfigService();
-    late final SeparateTranslationLayerService _translationService =
+  late final SeparateTranslationLayerService _translationService =
       SeparateTranslationLayerService(gateway: _gateway);
   final TextEditingController _inputController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
@@ -104,17 +113,22 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   bool _runningBenchmark = false;
   ChatMemoryPolicy? _memoryPolicy;
   TranslationEngineConfig _translationConfig = TranslationEngineConfig.defaults;
-  
+
   bool _engineLoaded = false;
   String _linuxStatusMessage = 'Linux model not validated yet.';
   LinuxLlmConfig _linuxConfig = LinuxLlmConfig.defaults;
   Timer? _engineStatusTimer;
+  Timer? _backendStatusTimer;
   StreamSubscription<Map<String, dynamic>>? _metricsSubscription;
   StreamSubscription<String>? _activeResponseSubscription;
   int _lastAutoScrollAtMs = 0;
+  bool _backendConnected = false;
+  late final LanguageProvider _languageProvider = LanguageProvider()
+    ..initialize();
 
   bool get _hasChapterRagContent => _totalChunks > 0;
-  String get _chatScopeLabel => _hasChapterRagContent ? 'Chapter mode' : 'General mode';
+  String get _chatScopeLabel =>
+      _hasChapterRagContent ? 'Chapter mode' : 'General mode';
 
   static const Map<String, String> _chatModeLabels = <String, String>{
     'fast': 'Fast',
@@ -132,6 +146,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     _bootstrapSession();
     _loadTranslationConfig();
     _listenInferenceMetrics();
+    _startBackendStatusPolling();
     if (_isLinux) {
       _loadLinuxConfig();
     } else {
@@ -147,6 +162,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     _notesController.dispose();
     _scrollController.dispose();
     _engineStatusTimer?.cancel();
+    _backendStatusTimer?.cancel();
     super.dispose();
   }
 
@@ -169,7 +185,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     LinuxLlmConfig nextConfig = config;
     final resolvedExec = validation.resolvedExecutablePath;
     if (resolvedExec != null && resolvedExec != config.executablePath) {
-      nextConfig = await _linuxConfigService.update(executablePath: resolvedExec);
+      nextConfig = await _linuxConfigService.update(
+        executablePath: resolvedExec,
+      );
     }
 
     if (!mounted) {
@@ -239,7 +257,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       setState(() {
         _linuxStatusMessage = 'Copying model to app storage...';
       });
-      final newPath = await _linuxConfigService.copyModelToAppStorage(_linuxConfig.modelPath);
+      final newPath = await _linuxConfigService.copyModelToAppStorage(
+        _linuxConfig.modelPath,
+      );
       final updated = await _linuxConfigService.update(modelPath: newPath);
       final validation = await _linuxConfigService.validate(updated);
       if (!mounted) return;
@@ -256,9 +276,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       setState(() {
         _linuxStatusMessage = 'Copy failed: $e';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Copy failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Copy failed: $e')));
     }
   }
 
@@ -290,7 +310,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('llama-cli not found. Use Select Llama CLI.')),
+        const SnackBar(
+          content: Text('llama-cli not found. Use Select Llama CLI.'),
+        ),
       );
       return;
     }
@@ -312,21 +334,54 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     Future.microtask(() {
       _llmAdminChannelService.preloadModel().ignore();
     });
-    
-    _engineStatusTimer = Timer.periodic(
-      const Duration(seconds: 2),
-      (_) async {
-        try {
-          final status = await _llmAdminChannelService.getEngineStatus();
-          if (mounted) {
-            setState(() {
-              _engineLoaded = status.loaded;
-            });
-          }
-        } catch (e) {
-          // Silently ignore polling errors
+
+    _engineStatusTimer = Timer.periodic(const Duration(seconds: 2), (_) async {
+      try {
+        final status = await _llmAdminChannelService.getEngineStatus();
+        if (mounted) {
+          setState(() {
+            _engineLoaded = status.loaded;
+          });
         }
-      },
+      } catch (e) {
+        // Silently ignore polling errors
+      }
+    });
+  }
+
+  void _startBackendStatusPolling() {
+    Future.microtask(() => _checkBackendStatus());
+    _backendStatusTimer = Timer.periodic(const Duration(seconds: 3), (_) {
+      _checkBackendStatus();
+    });
+  }
+
+  Future<void> _checkBackendStatus() async {
+    if (!_distributedServiceComposer.isInitialized) return;
+    try {
+      final available = await _distributedServiceComposer.backendService
+          .isBackendAvailable();
+      if (mounted && _backendConnected != available) {
+        setState(() {
+          _backendConnected = available;
+        });
+      }
+    } catch (_) {}
+  }
+
+  void _openVoiceTutor() {
+    if (!_backendConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Backend not connected. Voice streaming unavailable.'),
+        ),
+      );
+      return;
+    }
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VoiceTutorScreen(languageProvider: _languageProvider),
+      ),
     );
   }
 
@@ -338,7 +393,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
       setState(() {
         _lastInferenceMs = metrics['totalMs'] as int? ?? 0;
-        _lastInferenceTokens = metrics['tokens'] as int? ?? _liveEstimatedTokens;
+        _lastInferenceTokens =
+            metrics['tokens'] as int? ?? _liveEstimatedTokens;
         _lastInferenceTokensPerSec =
             metrics['tokensPerSec'] as int? ?? _liveTokensPerSec;
         _inferenceLog =
@@ -350,8 +406,16 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   Future<void> _applyChatMode(String mode, {bool showFeedback = true}) async {
     const modeConfigs = <String, Map<String, int>>{
       'fast': <String, int>{'maxTokens': 512, 'timeoutMs': 120000, 'topK': 2},
-      'balanced': <String, int>{'maxTokens': 512, 'timeoutMs': 180000, 'topK': 3},
-      'detailed': <String, int>{'maxTokens': 512, 'timeoutMs': 240000, 'topK': 4},
+      'balanced': <String, int>{
+        'maxTokens': 512,
+        'timeoutMs': 180000,
+        'topK': 3,
+      },
+      'detailed': <String, int>{
+        'maxTokens': 512,
+        'timeoutMs': 240000,
+        'topK': 4,
+      },
     };
 
     final config = modeConfigs[mode] ?? modeConfigs['balanced']!;
@@ -449,7 +513,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
                 navigator.pop();
                 messenger.showSnackBar(
-                  const SnackBar(content: Text('Notes indexed for RAG retrieval.')),
+                  const SnackBar(
+                    content: Text('Notes indexed for RAG retrieval.'),
+                  ),
                 );
               },
               child: const Text('Save & Index'),
@@ -466,13 +532,17 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       languageCode: _languageCode,
     );
     var policy = await _chatMemoryPolicyRepository.getOrCreatePolicy(sessionId);
-    final lastMessageAt = await _chatSessionRepository.getLastMessageAt(sessionId);
+    final lastMessageAt = await _chatSessionRepository.getLastMessageAt(
+      sessionId,
+    );
 
-    final shouldResetOnOpen = policy.resetPolicy == SessionResetPolicy.chapterOpen;
+    final shouldResetOnOpen =
+        policy.resetPolicy == SessionResetPolicy.chapterOpen;
     final shouldResetOnInactivity =
         policy.resetPolicy == SessionResetPolicy.inactivity &&
         lastMessageAt != null &&
-        DateTime.now().difference(lastMessageAt).inMinutes >= policy.inactivityMinutes;
+        DateTime.now().difference(lastMessageAt).inMinutes >=
+            policy.inactivityMinutes;
 
     if (shouldResetOnOpen || shouldResetOnInactivity) {
       await _chatSessionRepository.clearMessages(sessionId);
@@ -489,16 +559,17 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
     }
 
-    final existingMessages = await _chatSessionRepository.getMessages(sessionId);
+    final existingMessages = await _chatSessionRepository.getMessages(
+      sessionId,
+    );
     final questionsAsked = await _progressRepository.getQuestionCount(
       chapterId: widget.chapter.id,
     );
     final totalChunks = await _ragRepository.getChunkCountForChapter(
       widget.chapter.id,
     );
-    final indexedChunks = await EmbeddingIndexRepository().getIndexedCountForChapter(
-      chapterId: widget.chapter.id,
-    );
+    final indexedChunks = await EmbeddingIndexRepository()
+        .getIndexedCountForChapter(chapterId: widget.chapter.id);
 
     var generationMaxTokens = 256;
     try {
@@ -524,13 +595,13 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         ..addAll(
           existingMessages.isEmpty
               ? [
-                TutorMessage(
-                  text:
-                      'You are learning ${widget.chapter.title}. Ask your doubt to start.',
-                  isUser: false,
-                  timestamp: DateTime.now(),
-                ),
-              ]
+                  TutorMessage(
+                    text:
+                        'You are learning ${widget.chapter.title}. Ask your doubt to start.',
+                    isUser: false,
+                    timestamp: DateTime.now(),
+                  ),
+                ]
               : existingMessages,
         );
       _isBootstrapping = false;
@@ -576,7 +647,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     final next = ChatMemoryPolicy(
       sessionId: sessionId,
       shortTermWindow: shortTermWindow ?? current.shortTermWindow,
-      semanticRecallEnabled: semanticRecallEnabled ?? current.semanticRecallEnabled,
+      semanticRecallEnabled:
+          semanticRecallEnabled ?? current.semanticRecallEnabled,
       semanticTopK: semanticTopK ?? current.semanticTopK,
       resetPolicy: resetPolicy ?? current.resetPolicy,
       inactivityMinutes: inactivityMinutes ?? current.inactivityMinutes,
@@ -603,7 +675,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }
 
     final welcome = TutorMessage(
-      text: 'Session memory reset. Ask your next doubt from ${widget.chapter.title}.',
+      text:
+          'Session memory reset. Ask your next doubt from ${widget.chapter.title}.',
       isUser: false,
       timestamp: DateTime.now(),
     );
@@ -712,9 +785,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     final totalChunks = await _ragRepository.getChunkCountForChapter(
       widget.chapter.id,
     );
-    final indexedChunks = await EmbeddingIndexRepository().getIndexedCountForChapter(
-      chapterId: widget.chapter.id,
-    );
+    final indexedChunks = await EmbeddingIndexRepository()
+        .getIndexedCountForChapter(chapterId: widget.chapter.id);
 
     if (!mounted) {
       return;
@@ -754,7 +826,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Embedding index updated for this chapter.')),
+        const SnackBar(
+          content: Text('Embedding index updated for this chapter.'),
+        ),
       );
     } finally {
       if (mounted) {
@@ -764,7 +838,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
     }
   }
-  
+
   Future<void> _ask() async {
     final startTime = DateTime.now();
     print('[TRACE] QUESTION_RECEIVED');
@@ -774,7 +848,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }
 
     // ── Cancel any orphaned stream subscription ──
-    print('[TRACE] OLD_SUBSCRIPTION_EXISTS=${_activeResponseSubscription != null}');
+    print(
+      '[TRACE] OLD_SUBSCRIPTION_EXISTS=${_activeResponseSubscription != null}',
+    );
     if (_activeResponseSubscription != null) {
       await _activeResponseSubscription!.cancel();
       _activeResponseSubscription = null;
@@ -783,17 +859,25 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
     final useAndroidFastPath = Platform.isAndroid && _androidNativeFastPath;
 
-    final localFastReply = _simpleAiComponent.localFastReply(question: question);
+    final localFastReply = _simpleAiComponent.localFastReply(
+      question: question,
+    );
     if (localFastReply != null) {
       final now = DateTime.now();
       setState(() {
-        _messages.add(TutorMessage(text: question, isUser: true, timestamp: now));
-        _messages.add(TutorMessage(text: localFastReply, isUser: false, timestamp: now));
+        _messages.add(
+          TutorMessage(text: question, isUser: true, timestamp: now),
+        );
+        _messages.add(
+          TutorMessage(text: localFastReply, isUser: false, timestamp: now),
+        );
         _inputController.clear();
         _inferenceLog = 'Quick local response.';
       });
 
-      await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+      await _progressRepository.recordQuestionAsked(
+        chapterId: widget.chapter.id,
+      );
       await _progressRepository.recordChatMessage(
         chapterId: widget.chapter.id,
         sessionId: _sessionId!,
@@ -820,17 +904,25 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       return;
     }
 
-    final localMathReply = _simpleAiComponent.localMathReply(question: question);
+    final localMathReply = _simpleAiComponent.localMathReply(
+      question: question,
+    );
     if (localMathReply != null) {
       final now = DateTime.now();
       setState(() {
-        _messages.add(TutorMessage(text: question, isUser: true, timestamp: now));
-        _messages.add(TutorMessage(text: localMathReply, isUser: false, timestamp: now));
+        _messages.add(
+          TutorMessage(text: question, isUser: true, timestamp: now),
+        );
+        _messages.add(
+          TutorMessage(text: localMathReply, isUser: false, timestamp: now),
+        );
         _inputController.clear();
         _inferenceLog = 'Quick math response.';
       });
 
-      await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+      await _progressRepository.recordQuestionAsked(
+        chapterId: widget.chapter.id,
+      );
       await _progressRepository.recordChatMessage(
         chapterId: widget.chapter.id,
         sessionId: _sessionId!,
@@ -859,9 +951,15 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
     final distributedStreamingReady = _distributedServiceComposer.isInitialized;
 
-    if (_isLinux && !_engineLoaded) {
+    if (!_engineLoaded) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_linuxStatusMessage)),
+        SnackBar(
+          content: Text(
+            _isLinux
+                ? _linuxStatusMessage
+                : 'Offline AI model is not ready yet.',
+          ),
+        ),
       );
       return;
     }
@@ -869,13 +967,17 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     final needsTranslation = !useAndroidFastPath && _languageCode != 'en';
 
     final recoveryPrompt = useAndroidFastPath && !distributedStreamingReady
-      ? ''
-      : _simpleAiComponent.buildRecoveryPrompt(question: question);
+        ? ''
+        : _simpleAiComponent.buildRecoveryPrompt(question: question);
 
     setState(() {
       print("[TRACE] ASSISTANT_MESSAGE_CREATED");
-      _messages.add(TutorMessage(text: question, isUser: true, timestamp: DateTime.now()));
-      _messages.add(TutorMessage(text: '', isUser: false, timestamp: DateTime.now()));
+      _messages.add(
+        TutorMessage(text: question, isUser: true, timestamp: DateTime.now()),
+      );
+      _messages.add(
+        TutorMessage(text: '', isUser: false, timestamp: DateTime.now()),
+      );
       print("[TRACE] MESSAGE_ID=${_messages.length - 1}");
       _isGenerating = true;
       _inferenceStartedAt = DateTime.now();
@@ -893,7 +995,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       _persistUserTurnAsync(question: question, timestamp: userTimestamp);
     } else {
       // Record question asked and chat message
-      await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+      await _progressRepository.recordQuestionAsked(
+        chapterId: widget.chapter.id,
+      );
       await _progressRepository.recordChatMessage(
         chapterId: widget.chapter.id,
         sessionId: _sessionId!,
@@ -919,15 +1023,22 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     GenerationConfig? previousConfigForFallback;
     GenerationConfig? previousConfigForShortQuery;
 
-    final shortQuery = question.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length <= 8;
+    final shortQuery =
+        question.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).length <= 8;
     if (!useAndroidFastPath && Platform.isAndroid && shortQuery) {
       previousConfigForShortQuery = await _enableShortQueryConfig();
     }
 
     try {
       // ── Task B: Intent detection BEFORE retrieval ──
-      final preDetection = IntentDetector().detect(question, sessionState: _sessionState);
-      final ragQuery = preDetection.topic.isNotEmpty ? preDetection.topic : question;
+      final preDetection = IntentDetector().detect(
+        question,
+        sessionState: _sessionState,
+      );
+      final ragQuery = _expandRetrievalQuery(
+        question: question,
+        detectedTopic: preDetection.topic,
+      );
       print('[RETRIEVAL] RAW_QUERY=$question');
       print('[RETRIEVAL] TOPIC=${preDetection.topic}');
       print('[RETRIEVAL] FINAL_SEARCH_QUERY=$ragQuery');
@@ -935,63 +1046,115 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       final ragCheck = await _ragRepository.localRagPreCheck(
         chapterId: widget.chapter.id,
         query: ragQuery,
+        limit: 5,
       );
-      
+
       final hasRelevantLocalContent = ragCheck.hasRelevantLocalContent;
-      
+
       bool backendAvailable = false;
-      if (!hasRelevantLocalContent) {
-        backendAvailable = await _distributedServiceComposer.backendService.isBackendAvailable();
+      if (!hasRelevantLocalContent && distributedStreamingReady) {
+        backendAvailable = await _distributedServiceComposer.backendService
+            .isBackendAvailable();
       }
-      
+
       print('[DIAGNOSTICS] BACKEND_AVAILABLE=$backendAvailable');
-      
-      final memory = _conversationMemoryService.buildMemory(
-        _messages,
-        question: question,
-        policy: _memoryPolicy ?? ChatMemoryPolicy.defaults(_sessionId ?? ''),
+
+      final conversationContext = await _conversationContextBuilder.build(
+        sessionId: _sessionId!,
+        messages: _messages,
+        currentQuestion: question,
+        subject: widget.subject.name,
+        chapter: widget.chapter.title,
       );
-      final conversationHistory = memory.combinedLines.where((l) => l.isNotEmpty).toList();
-      final localCurriculumContext = ragCheck.chunks.map((c) => c.content).toList();
+      final conversationHistory = conversationContext.promptLines;
+      final detailedContext = await _simpleRagService.retrieveContextDetailed(
+        chapterId: widget.chapter.id,
+        query: ragQuery,
+        topK: 5,
+        maxContextChars: 3200,
+      );
+      final localCurriculumContext = detailedContext
+          .take(3)
+          .map(
+            (item) =>
+                '[Source: ${item.sourceTitle} | confidence ${(item.confidence * 100).round()}%] ${_clipText(item.content, 850)}',
+          )
+          .toList();
+      final preparedPrompt = _promptBuilder.buildChapterPrompt(
+        course: widget.course,
+        subject: widget.subject,
+        chapter: widget.chapter,
+        question: question,
+        languageCode: _languageCode,
+        retrievedContext: localCurriculumContext,
+        conversationContext: conversationContext,
+      );
+
+      _logPromptContextAudit(
+        subject: widget.subject.name,
+        chapter: widget.chapter.title,
+        summaryChars: conversationContext.sessionSummary.length,
+        historyChars: conversationContext.recentConversation.join('\n').length,
+        ragChunks: localCurriculumContext.length,
+        ragChars: localCurriculumContext.join('\n').length,
+        promptChars: preparedPrompt.length,
+      );
 
       final responseStream = distributedStreamingReady
-          ? _distributedServiceComposer.hybridInferenceService.streamTutorAnswer(
-              question,
-              backendAvailable: backendAvailable,
-              hasRelevantLocalContent: hasRelevantLocalContent,
-              localCurriculumContext: localCurriculumContext,
-              grade: int.tryParse(RegExp(r'\d+').firstMatch(widget.course.id)?.group(0) ?? ''),
-              subject: widget.subject.name,
-              chapter: widget.chapter.title,
-              language: _languageCode,
-              conversationHistory: conversationHistory,
-              sessionState: _sessionState,
-            )
-          : _gateway.streamResponse(prompt: await _buildModelPrompt(question: question));
+          ? _distributedServiceComposer.hybridInferenceService
+                .streamTutorAnswer(
+                  question,
+                  backendAvailable: backendAvailable,
+                  hasRelevantLocalContent: hasRelevantLocalContent,
+                  localCurriculumContext: localCurriculumContext,
+                  grade: int.tryParse(
+                    RegExp(r'\d+').firstMatch(widget.course.id)?.group(0) ?? '',
+                  ),
+                  subject: widget.subject.name,
+                  chapter: widget.chapter.title,
+                  language: _languageCode,
+                  conversationHistory: conversationHistory,
+                  preparedPrompt: preparedPrompt,
+                  sessionState: _sessionState,
+                )
+          : _gateway.streamResponse(prompt: preparedPrompt);
 
       final primaryTimeout = Duration(
         milliseconds: Platform.isAndroid
             ? 720000
             : (_chatMode == 'fast')
-                ? 90000
-                : (_chatMode == 'balanced')
-                    ? 120000
-                    : 180000,
+            ? 90000
+            : (_chatMode == 'balanced')
+            ? 120000
+            : 180000,
       );
 
-      Future<void> consumeStream({required Duration timeout, required bool isFallback, required Stream<String> stream}) async {
+      Future<void> consumeStream({
+        required Duration timeout,
+        required bool isFallback,
+        required Stream<String> stream,
+      }) async {
         final completer = Completer<void>();
         late final StreamSubscription<String> subscription;
+        final reasoningFilter = ReasoningOutputFilter();
 
         subscription = stream.listen(
           (chunk) {
-            final elapsedSinceStart = DateTime.now().difference(startTime).inMilliseconds;
-            print('[TRACE] UI_RECEIVED chunk_length=${chunk.length} elapsed_ms=$elapsedSinceStart');
+            final visibleChunk = reasoningFilter.push(chunk);
+            if (visibleChunk.isEmpty) {
+              return;
+            }
+            final elapsedSinceStart = DateTime.now()
+                .difference(startTime)
+                .inMilliseconds;
+            print(
+              '[TRACE] UI_RECEIVED chunk_length=${visibleChunk.length} elapsed_ms=$elapsedSinceStart',
+            );
             print('[TRACE] MESSAGE_ID_BEING_UPDATED=$assistantIndex');
-            responseBuffer.write(chunk);
+            responseBuffer.write(visibleChunk);
 
             final nowMs = DateTime.now().millisecondsSinceEpoch;
-            final shouldForceUpdate = chunk.contains('\n');
+            final shouldForceUpdate = visibleChunk.contains('\n');
             if (nowMs - _lastUiUpdateAtMs > 40 || shouldForceUpdate) {
               final liveText = responseBuffer.toString();
               if (liveText.isNotEmpty) lastNonEmptyAssistant = liveText;
@@ -1023,7 +1186,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                     : 'Streaming... ${responseBuffer.length} chars | ~$_liveEstimatedTokens tokens | $_liveTokensPerSec tok/s';
               });
               print("[TRACE] UI_APPEND_END");
-              print("[TRACE] MESSAGE_LENGTH=${_messages[assistantIndex].text.length}");
+              print(
+                "[TRACE] MESSAGE_LENGTH=${_messages[assistantIndex].text.length}",
+              );
 
               _scrollToBottom(animated: false, force: true);
               _lastUiUpdateAtMs = nowMs;
@@ -1056,14 +1221,18 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
 
       try {
-        await consumeStream(timeout: primaryTimeout, isFallback: false, stream: responseStream);
+        await consumeStream(
+          timeout: primaryTimeout,
+          isFallback: false,
+          stream: responseStream,
+        );
       } catch (error) {
         final details = OfflineErrorTaxonomy.fromError(
           error,
           context: OfflineErrorContext.chatInference,
         );
         final shouldFallback =
-          !useAndroidFastPath &&
+            !useAndroidFastPath &&
             _chatMode != 'fast' &&
             (details.category == OfflineErrorCategory.timeout ||
                 details.category == OfflineErrorCategory.network ||
@@ -1093,7 +1262,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         await consumeStream(
           timeout: const Duration(milliseconds: 90000),
           isFallback: true,
-          stream: _gateway.streamResponse(prompt: await _buildModelPrompt(question: question)),
+          stream: _gateway.streamResponse(
+            prompt: await _buildModelPrompt(question: question),
+          ),
         );
       }
     } catch (error) {
@@ -1193,11 +1364,14 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         await _restoreGenerationConfig(previousConfigForShortQuery);
       }
 
-      if (!assistantPersisted && finalAssistant.isNotEmpty && needsTranslation) {
+      if (!assistantPersisted &&
+          finalAssistant.isNotEmpty &&
+          needsTranslation) {
         try {
           if (mounted) {
             setState(() {
-              _inferenceLog = 'Translating to ${_languageCode.toUpperCase()}...';
+              _inferenceLog =
+                  'Translating to ${_languageCode.toUpperCase()}...';
             });
           }
 
@@ -1267,7 +1441,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
             );
 
       if (mounted) {
-        final elapsedMs = DateTime.now().difference(_inferenceStartedAt ?? DateTime.now()).inMilliseconds;
+        final elapsedMs = DateTime.now()
+            .difference(_inferenceStartedAt ?? DateTime.now())
+            .inMilliseconds;
         setState(() {
           _isGenerating = false;
           _questionsAsked = updatedCount;
@@ -1291,15 +1467,20 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
       _scrollToBottom(animated: true, force: true);
     }
-    
+
     final elapsed = DateTime.now().difference(startTime);
     print('[DIAGNOSTICS] TOTAL_REQUEST_TIME=${elapsed.inMilliseconds}ms');
   }
 
-  void _persistUserTurnAsync({required String question, required DateTime timestamp}) {
+  void _persistUserTurnAsync({
+    required String question,
+    required DateTime timestamp,
+  }) {
     unawaited(() async {
       try {
-        await _progressRepository.recordQuestionAsked(chapterId: widget.chapter.id);
+        await _progressRepository.recordQuestionAsked(
+          chapterId: widget.chapter.id,
+        );
         await _progressRepository.recordChatMessage(
           chapterId: widget.chapter.id,
           sessionId: _sessionId!,
@@ -1316,7 +1497,10 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }());
   }
 
-  void _persistAssistantTurnAsync({required String answer, required DateTime timestamp}) {
+  void _persistAssistantTurnAsync({
+    required String answer,
+    required DateTime timestamp,
+  }) {
     unawaited(() async {
       try {
         await _chatSessionRepository.appendMessage(
@@ -1336,19 +1520,27 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   }
 
   Future<String> _buildModelPrompt({required String question}) async {
+    final sessionId = _sessionId;
     if (_hasChapterRagContent && _sessionId != null && _memoryPolicy != null) {
+      final ragQuery = _expandRetrievalQuery(question: question);
       final chapterChunks = await _ragRepository.searchChunksForChapter(
         chapterId: widget.chapter.id,
-        query: question,
-        limit: 4,
+        query: ragQuery,
+        limit: 5,
       );
 
       if (chapterChunks.isNotEmpty) {
-        final memory = _conversationMemoryService.buildMemory(
-          _messages,
-          question: question,
-          policy: _memoryPolicy ?? ChatMemoryPolicy.defaults(_sessionId!),
+        final conversationContext = await _conversationContextBuilder.build(
+          sessionId: sessionId!,
+          messages: _messages,
+          currentQuestion: question,
+          subject: widget.subject.name,
+          chapter: widget.chapter.title,
         );
+        final retrievedContext = chapterChunks
+            .take(3)
+            .map((chunk) => _clipText(chunk.content, 850))
+            .toList(growable: false);
 
         final promptText = _promptBuilder.buildChapterPrompt(
           course: widget.course,
@@ -1356,10 +1548,20 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
           chapter: widget.chapter,
           question: question,
           languageCode: _languageCode,
-          retrievedContext: chapterChunks.map((chunk) => chunk.content).toList(),
-          conversationMemory: memory.combinedLines,
+          retrievedContext: retrievedContext,
+          conversationContext: conversationContext,
         );
-        print('[DIAGNOSTICS] PROMPT_LENGTH=${promptText.length}');
+        _logPromptContextAudit(
+          subject: widget.subject.name,
+          chapter: widget.chapter.title,
+          summaryChars: conversationContext.sessionSummary.length,
+          historyChars: conversationContext.recentConversation
+              .join('\n')
+              .length,
+          ragChunks: retrievedContext.length,
+          ragChars: retrievedContext.join('\n').length,
+          promptChars: promptText.length,
+        );
         return promptText;
       }
     }
@@ -1371,15 +1573,65 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
   Future<String> _runRecoveryPrompt(String recoveryPrompt) async {
     final buffer = StringBuffer();
-    await for (final chunk in (_distributedServiceComposer.isInitialized
-        ? _distributedServiceComposer.hybridInferenceService.streamAnswer(
-            recoveryPrompt,
-            forceLocal: true,
-          )
-        : _gateway.streamResponse(prompt: recoveryPrompt))) {
+    await for (final chunk
+        in (_distributedServiceComposer.isInitialized
+            ? _distributedServiceComposer.hybridInferenceService.streamAnswer(
+                recoveryPrompt,
+                forceLocal: true,
+                language: _languageCode,
+              )
+            : _gateway.streamResponse(prompt: recoveryPrompt))) {
       buffer.write(chunk);
     }
     return _sanitizeAssistantText(buffer.toString()).trim();
+  }
+
+  String _expandRetrievalQuery({
+    required String question,
+    String? detectedTopic,
+  }) {
+    final parts = <String>[
+      widget.subject.name,
+      widget.chapter.title,
+      if (detectedTopic != null && detectedTopic.trim().isNotEmpty)
+        detectedTopic,
+      question,
+    ];
+    final seen = <String>{};
+    return parts
+        .map((part) => part.trim())
+        .where((part) => part.isNotEmpty)
+        .where((part) => seen.add(part.toLowerCase()))
+        .join(' ');
+  }
+
+  String _clipText(String value, int maxChars) {
+    final clean = value.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (clean.length <= maxChars) {
+      return clean;
+    }
+    return '${clean.substring(0, maxChars).trimRight()}...';
+  }
+
+  void _logPromptContextAudit({
+    required String subject,
+    required String chapter,
+    required int summaryChars,
+    required int historyChars,
+    required int ragChunks,
+    required int ragChars,
+    int? promptChars,
+  }) {
+    final audit = <String, dynamic>{
+      'subject': subject,
+      'chapter': chapter,
+      'summary_chars': summaryChars,
+      'history_chars': historyChars,
+      'rag_chunks': ragChunks,
+      'rag_chars': ragChars,
+      if (promptChars != null) 'prompt_chars': promptChars,
+    };
+    print('[PROMPT_AUDIT] ${jsonEncode(audit)}');
   }
 
   Future<GenerationConfig?> _enableFastFallbackConfig() async {
@@ -1471,9 +1723,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         _benchmarkLog =
             'Benchmark done: TTFT ${summary.avgTtftMs}ms | Total ${summary.avgTotalMs}ms | ${summary.avgTokensPerSec.toStringAsFixed(1)} tok/s';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Latency benchmark saved.')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Latency benchmark saved.')));
     } catch (e) {
       if (!mounted) {
         return;
@@ -1481,9 +1733,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       setState(() {
         _benchmarkLog = 'Benchmark failed: $e';
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Benchmark failed: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Benchmark failed: $e')));
     } finally {
       if (mounted) {
         setState(() {
@@ -1516,7 +1768,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   }
 
   String _sanitizeAssistantText(String raw) {
-    var text = raw.replaceAll(_ansiEscape, '').replaceAll('\r', '');
+    var text = ReasoningOutputFilter.stripComplete(
+      raw,
+    ).replaceAll(_ansiEscape, '').replaceAll('\r', '');
 
     // Remove template/control markers emitted by some prompt formats.
     text = text.replaceAll(RegExp(r'<\|[^>]*\|>'), '');
@@ -1609,7 +1863,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         continue;
       }
 
-      if (lower.startsWith('user query:') || lower.startsWith('direct reply:')) {
+      if (lower.startsWith('user query:') ||
+          lower.startsWith('direct reply:')) {
         if (seenAnswerBody) {
           break;
         }
@@ -1664,9 +1919,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       if (RegExp(r'^(build|model|modalities)\s*:').hasMatch(lower)) continue;
       if (trimmed.startsWith('> You are an offline tutor')) continue;
 
-      if (lower.startsWith('what is ')
-          || lower.startsWith('algebra is ')
-          || lower.startsWith('student question')) {
+      if (lower.startsWith('what is ') ||
+          lower.startsWith('algebra is ') ||
+          lower.startsWith('student question')) {
         if (seenAnswerBody && kept.isNotEmpty) {
           break;
         }
@@ -1678,7 +1933,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }
 
     final collapsed = kept.join('\n').trim();
-    return _dedupeParagraphs(collapsed.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim());
+    return _dedupeParagraphs(
+      collapsed.replaceAll(RegExp(r'\n{3,}'), '\n\n').trim(),
+    );
   }
 
   bool _looksLooped(String text) {
@@ -1687,7 +1944,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       return false;
     }
 
-    if (normalized.contains('student question:') || normalized.contains('direct reply:') || normalized.contains('answer:')) {
+    if (normalized.contains('student question:') ||
+        normalized.contains('direct reply:') ||
+        normalized.contains('answer:')) {
       return true;
     }
 
@@ -1698,7 +1957,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         .toList();
 
     for (var index = 1; index < paragraphs.length; index += 1) {
-      if (_normalizeLine(paragraphs[index]) == _normalizeLine(paragraphs[index - 1])) {
+      if (_normalizeLine(paragraphs[index]) ==
+          _normalizeLine(paragraphs[index - 1])) {
         return true;
       }
     }
@@ -1792,7 +2052,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message.isUser ? 'Copied your message.' : 'Copied tutor response.'),
+        content: Text(
+          message.isUser ? 'Copied your message.' : 'Copied tutor response.',
+        ),
         duration: const Duration(milliseconds: 900),
       ),
     );
@@ -1813,15 +2075,15 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                 Text(
                   'Chat Settings',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
                 const SizedBox(height: 8),
                 Text(
                   'Conversation Memory',
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: 8),
                 Wrap(
@@ -1857,8 +2119,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                           semanticRecallEnabled: selected,
                           semanticTopK: selected
                               ? (memoryPolicy.semanticTopK == 0
-                                  ? 2
-                                  : memoryPolicy.semanticTopK)
+                                    ? 2
+                                    : memoryPolicy.semanticTopK)
                               : 0,
                         );
                       },
@@ -1905,7 +2167,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                         },
                       ),
                     ),
-                    if (memoryPolicy.resetPolicy == SessionResetPolicy.inactivity)
+                    if (memoryPolicy.resetPolicy ==
+                        SessionResetPolicy.inactivity)
                       DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
                           value: memoryPolicy.inactivityMinutes,
@@ -1944,17 +2207,15 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isBootstrapping) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
-    
+
     print("[TRACE] CHAT_MESSAGE_COUNT=${_messages.length}");
 
-    final memoryPolicy = _memoryPolicy ??
-        ChatMemoryPolicy.defaults(_sessionId ?? 'session');
-    final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
+    const bool _showDebugTelemetry = false;
 
+    final memoryPolicy =
+        _memoryPolicy ?? ChatMemoryPolicy.defaults(_sessionId ?? 'session');
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 52,
@@ -1979,162 +2240,173 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
             tooltip: 'Index embeddings',
             icon: _isEmbedding
                 ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
                 : const Icon(Icons.auto_awesome_rounded),
           ),
           const SizedBox(width: 4),
         ],
       ),
-      body: SingleChildScrollView(
-        controller: _scrollController,
-        child: Column(
-          children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            color: const Color(0xFFF8FAFC),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _engineLoaded
-                        ? const Color(0xFFD0F0C0).withAlpha(204)
-                        : const Color(0xFFFFC0CB).withAlpha(204),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: _engineLoaded ? Colors.green : Colors.red,
-                      width: 0.5,
+      body: Column(
+        children: [
+          if (_showDebugTelemetry)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              color: const Color(0xFFF8FAFC),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: _engineLoaded
+                          ? const Color(0xFFD0F0C0).withAlpha(204)
+                          : const Color(0xFFFFC0CB).withAlpha(204),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _engineLoaded ? Colors.green : Colors.red,
+                        width: 0.5,
+                      ),
+                    ),
+                    child: Text(
+                      _engineLoaded ? 'Model Ready' : 'Model Not Ready',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: _engineLoaded
+                            ? Colors.green[800]
+                            : Colors.red[800],
+                      ),
                     ),
                   ),
-                  child: Text(
-                    _engineLoaded ? 'Model Ready' : 'Model Not Ready',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: _engineLoaded ? Colors.green[800] : Colors.red[800],
-                    ),
-                  ),
-                ),
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _chatMode,
-                    borderRadius: BorderRadius.circular(12),
-                    items: const [
-                      DropdownMenuItem(value: 'fast', child: Text('Fast')),
-                      DropdownMenuItem(value: 'balanced', child: Text('Balanced')),
-                      DropdownMenuItem(value: 'detailed', child: Text('Detailed')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null || value == _chatMode) {
-                        return;
-                      }
-                      _applyChatMode(value);
-                    },
-                  ),
-                ),
-                DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: _languageCode,
-                    borderRadius: BorderRadius.circular(12),
-                    items: const [
-                      DropdownMenuItem(value: 'en', child: Text('English')),
-                      DropdownMenuItem(value: 'kn', child: Text('Kannada')),
-                    ],
-                    onChanged: (value) {
-                      if (value == null) {
-                        return;
-                      }
-                      setState(() {
-                        _languageCode = value;
-                      });
-                    },
-                  ),
-                ),
-                if (_languageCode != 'en')
                   DropdownButtonHideUnderline(
-                    child: DropdownButton<TranslationEngineId>(
-                      value: _translationConfig.engineId,
+                    child: DropdownButton<String>(
+                      value: _chatMode,
                       borderRadius: BorderRadius.circular(12),
-                      items: TranslationEngineCatalog.kannadaEngines()
-                          .map(
-                            (engine) => DropdownMenuItem<TranslationEngineId>(
-                              value: engine.id,
-                              child: Text(engine.label),
-                            ),
-                          )
-                          .toList(growable: false),
+                      items: const [
+                        DropdownMenuItem(value: 'fast', child: Text('Fast')),
+                        DropdownMenuItem(
+                          value: 'balanced',
+                          child: Text('Balanced'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'detailed',
+                          child: Text('Detailed'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value == null || value == _chatMode) {
+                          return;
+                        }
+                        _applyChatMode(value);
+                      },
+                    ),
+                  ),
+                  DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _languageCode,
+                      borderRadius: BorderRadius.circular(12),
+                      items: const [
+                        DropdownMenuItem(value: 'en', child: Text('English')),
+                        DropdownMenuItem(value: 'kn', child: Text('Kannada')),
+                      ],
                       onChanged: (value) {
                         if (value == null) {
                           return;
                         }
-                        _updateTranslationEngine(value);
+                        setState(() {
+                          _languageCode = value;
+                        });
                       },
                     ),
                   ),
-                if (_languageCode != 'en')
-                  IconButton(
-                    tooltip: 'Kannada translation engines',
-                    onPressed: _showKannadaEngineCatalog,
-                    icon: const Icon(Icons.translate_rounded),
-                  ),
-                if (_isLinux)
-                  OutlinedButton.icon(
-                    onPressed: _pickLinuxExecutable,
-                    icon: const Icon(Icons.terminal_rounded),
-                    label: const Text('Select Llama Runner'),
-                  ),
-                if (_isLinux)
-                  OutlinedButton.icon(
-                    onPressed: _autoDetectLinuxExecutable,
-                    icon: const Icon(Icons.search_rounded),
-                    label: const Text('Auto Detect CLI'),
-                  ),
-                if (_isLinux)
-                  OutlinedButton.icon(
-                    onPressed: _pickLinuxModel,
-                    icon: const Icon(Icons.memory_rounded),
-                    label: const Text('Select GGUF Model'),
-                  ),
-                if (_isLinux)
-                  OutlinedButton.icon(
-                    onPressed: _copyModelToAppStorage,
-                    icon: const Icon(Icons.download_rounded),
-                    label: const Text('Copy Model to App'),
-                  ),
-                if (Platform.isAndroid)
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Fast Native'),
-                      const SizedBox(width: 6),
-                      Switch.adaptive(
-                        value: _androidNativeFastPath,
-                        onChanged: (v) {
-                          setState(() {
-                            _androidNativeFastPath = v;
-                          });
+                  if (_languageCode != 'en')
+                    DropdownButtonHideUnderline(
+                      child: DropdownButton<TranslationEngineId>(
+                        value: _translationConfig.engineId,
+                        borderRadius: BorderRadius.circular(12),
+                        items: TranslationEngineCatalog.kannadaEngines()
+                            .map(
+                              (engine) => DropdownMenuItem<TranslationEngineId>(
+                                value: engine.id,
+                                child: Text(engine.label),
+                              ),
+                            )
+                            .toList(growable: false),
+                        onChanged: (value) {
+                          if (value == null) {
+                            return;
+                          }
+                          _updateTranslationEngine(value);
                         },
                       ),
-                    ],
-                  ),
-                if (_languageCode != 'en' &&
-                    _translationConfig.engineId == TranslationEngineId.apertiumCli)
-                  OutlinedButton.icon(
-                    onPressed: _pickApertiumBinary,
-                    icon: const Icon(Icons.extension_rounded),
-                    label: const Text('Set Apertium'),
-                  ),
-              ],
+                    ),
+                  if (_languageCode != 'en')
+                    IconButton(
+                      tooltip: 'Kannada translation engines',
+                      onPressed: _showKannadaEngineCatalog,
+                      icon: const Icon(Icons.translate_rounded),
+                    ),
+                  if (_isLinux)
+                    OutlinedButton.icon(
+                      onPressed: _pickLinuxExecutable,
+                      icon: const Icon(Icons.terminal_rounded),
+                      label: const Text('Select Llama Runner'),
+                    ),
+                  if (_isLinux)
+                    OutlinedButton.icon(
+                      onPressed: _autoDetectLinuxExecutable,
+                      icon: const Icon(Icons.search_rounded),
+                      label: const Text('Auto Detect CLI'),
+                    ),
+                  if (_isLinux)
+                    OutlinedButton.icon(
+                      onPressed: _pickLinuxModel,
+                      icon: const Icon(Icons.memory_rounded),
+                      label: const Text('Select GGUF Model'),
+                    ),
+                  if (_isLinux)
+                    OutlinedButton.icon(
+                      onPressed: _copyModelToAppStorage,
+                      icon: const Icon(Icons.download_rounded),
+                      label: const Text('Copy Model to App'),
+                    ),
+                  if (Platform.isAndroid)
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Text('Fast Native'),
+                        const SizedBox(width: 6),
+                        Switch.adaptive(
+                          value: _androidNativeFastPath,
+                          onChanged: (v) {
+                            setState(() {
+                              _androidNativeFastPath = v;
+                            });
+                          },
+                        ),
+                      ],
+                    ),
+                  if (_languageCode != 'en' &&
+                      _translationConfig.engineId ==
+                          TranslationEngineId.apertiumCli)
+                    OutlinedButton.icon(
+                      onPressed: _pickApertiumBinary,
+                      icon: const Icon(Icons.extension_rounded),
+                      label: const Text('Set Apertium'),
+                    ),
+                ],
+              ),
             ),
-          ),
-          if (_languageCode != 'en')
+          if (_showDebugTelemetry && _languageCode != 'en')
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -2156,7 +2428,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                 ],
               ),
             ),
-          if (_isLinux)
+          if (_showDebugTelemetry && _isLinux)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
@@ -2189,196 +2461,280 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
             ),
           Container(
             width: double.infinity,
-            color: const Color(0xFFE9F7EF),
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: const BoxDecoration(
+              color: Color(0xFFF7F8F8),
+              border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+            ),
             child: Row(
               children: [
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  size: 16,
+                  color: Color(0xFF0B6E4F),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    '${widget.course.name} > ${widget.subject.name} > ${widget.chapter.title} | Questions: $_questionsAsked | Embeddings: $_indexedChunks/$_totalChunks',
+                    '${widget.subject.name} · ${widget.chapter.title}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: const Color(0xFF4B5563),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+                Text(
+                  _hasChapterRagContent ? 'Chapter sources' : 'General tutor',
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFF0B6E4F),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_showDebugTelemetry)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+              color: const Color(0xFFF8FAFC),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Inference Telemetry',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _runningBenchmark
+                            ? null
+                            : _runLatencyBenchmark,
+                        icon: _runningBenchmark
+                            ? const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Icon(Icons.speed_rounded),
+                        label: const Text('Benchmark'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(
+                    value: _isGenerating ? _inferenceProgressValue() : null,
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _isGenerating
+                        ? 'Generating... ~$_liveEstimatedTokens/$_generationMaxTokens tokens | $_liveTokensPerSec tok/s'
+                        : 'Last run: ${_lastInferenceMs}ms | $_lastInferenceTokens tokens | $_lastInferenceTokensPerSec tok/s',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Chip(
-                  label: Text(_chatScopeLabel),
-                  visualDensity: VisualDensity.compact,
-                  backgroundColor: _hasChapterRagContent
-                      ? const Color(0xFFD7F5E8)
-                      : const Color(0xFFF3F4F6),
-                ),
-              ],
+                  const SizedBox(height: 2),
+                  Text(
+                    _inferenceLog,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _hasChapterRagContent
+                        ? 'Chapter RAG content available. Using chapter-aware chat when needed.'
+                        : 'No chapter RAG content yet. Using general chat mode.',
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _benchmarkLog,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+              itemCount: _messages.length,
+              itemBuilder: (context, index) {
+                return _buildChatMessage(context, _messages[index]);
+              },
             ),
           ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-            color: const Color(0xFFF8FAFC),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Expanded(
-                      child: Text(
-                        'Inference Telemetry',
-                        style: TextStyle(fontWeight: FontWeight.w600),
+          _buildChatComposer(context),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildChatMessage(BuildContext context, TutorMessage message) {
+    final isUser = message.isUser;
+    final availableWidth = MediaQuery.sizeOf(context).width;
+    final maxWidth = availableWidth >= 900
+        ? 720.0
+        : availableWidth * (isUser ? 0.82 : 0.92);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Align(
+        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!isUser) ...[
+                Container(
+                  width: 30,
+                  height: 30,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF0B6E4F),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.school_rounded,
+                    size: 17,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Flexible(
+                child: GestureDetector(
+                  onLongPress: () => _copyMessage(message),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: isUser
+                          ? const Color(0xFF0B6E4F)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isUser ? 14 : 0,
+                        vertical: isUser ? 10 : 2,
                       ),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _runningBenchmark ? null : _runLatencyBenchmark,
-                      icon: _runningBenchmark
-                          ? const SizedBox(
-                              width: 14,
-                              height: 14,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            )
-                          : const Icon(Icons.speed_rounded),
-                      label: const Text('Benchmark'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                LinearProgressIndicator(
-                  value: _isGenerating ? _inferenceProgressValue() : null,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _isGenerating
-                      ? 'Generating... ~$_liveEstimatedTokens/$_generationMaxTokens tokens | $_liveTokensPerSec tok/s'
-                      : 'Last run: ${_lastInferenceMs}ms | $_lastInferenceTokens tokens | $_lastInferenceTokensPerSec tok/s',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _inferenceLog,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _hasChapterRagContent
-                      ? 'Chapter RAG content available. Using chapter-aware chat when needed.'
-                      : 'No chapter RAG content yet. Using general chat mode.',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  _benchmarkLog,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              children: [
-                for (final message in _messages)
-                  Align(
-                    alignment:
-                        message.isUser ? Alignment.centerRight : Alignment.centerLeft,
-                    child: GestureDetector(
-                      onLongPress: () => _copyMessage(message),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.all(12),
-                        constraints: const BoxConstraints(maxWidth: 340),
-                        decoration: BoxDecoration(
-                          color: message.isUser
-                              ? const Color(0xFF0B6E4F)
-                              : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Task 4: Rich asset rendering
-                            if (!message.isUser && AssetMessageRenderer.isAssetMessage(message.text))
-                              AssetMessageRenderer.render(message.text)
-                            else
-                              Text(
-                                message.text.isEmpty && _isGenerating
-                                    ? '...'
-                                    : message.text,
-                                style: TextStyle(
-                                  color: message.isUser
-                                      ? Colors.white
-                                      : Colors.black87,
-                                ),
-                              ),
-                            if (message.text.trim().isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: InkWell(
-                                  onTap: () => _copyMessage(message),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 6,
-                                      vertical: 2,
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(
-                                          Icons.copy_rounded,
-                                          size: 14,
-                                          color: message.isUser
-                                              ? Colors.white.withValues(alpha: 0.9)
-                                              : Colors.black54,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          'Copy',
-                                          style: TextStyle(
-                                            color: message.isUser
-                                                ? Colors.white.withValues(alpha: 0.9)
-                                                : Colors.black54,
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (!isUser &&
+                              AssetMessageRenderer.isAssetMessage(message.text))
+                            AssetMessageRenderer.render(message.text)
+                          else
+                            SelectableText(
+                              message.text.isEmpty && _isGenerating
+                                  ? 'Thinking...'
+                                  : message.text,
+                              style: Theme.of(context).textTheme.bodyLarge
+                                  ?.copyWith(
+                                    color: isUser
+                                        ? Colors.white
+                                        : const Color(0xFF1F2937),
+                                    height: 1.55,
+                                    fontSize: 16,
                                   ),
+                            ),
+                          if (message.text.trim().isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            Align(
+                              alignment: Alignment.centerRight,
+                              child: IconButton(
+                                onPressed: () => _copyMessage(message),
+                                tooltip: 'Copy',
+                                visualDensity: VisualDensity.compact,
+                                constraints: const BoxConstraints(
+                                  minWidth: 32,
+                                  minHeight: 32,
+                                ),
+                                icon: Icon(
+                                  Icons.copy_rounded,
+                                  size: 16,
+                                  color: isUser
+                                      ? Colors.white70
+                                      : const Color(0xFF6B7280),
                                 ),
                               ),
-                            ],
+                            ),
                           ],
-                        ),
+                        ],
                       ),
                     ),
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
-          Padding(
-            padding: EdgeInsets.fromLTRB(12, 8, 12, 8 + bottomInset),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatComposer(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
+      ),
+      child: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.only(bottom: 2),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F8F8),
+              border: Border.all(color: const Color(0xFFD1D5DB)),
+              borderRadius: BorderRadius.circular(8),
+            ),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
                   child: TextField(
                     controller: _inputController,
                     minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.send,
-                    onSubmitted: (_) => _ask(),
+                    maxLines: 5,
+                    textInputAction: TextInputAction.newline,
+                    keyboardType: TextInputType.multiline,
                     decoration: const InputDecoration(
-                      hintText: 'Ask from selected chapter...',
-                      border: OutlineInputBorder(),
+                      hintText: 'Message your tutor',
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.fromLTRB(16, 13, 8, 13),
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  onPressed: _isGenerating ? _stop : _ask,
-                  icon: Icon(_isGenerating ? Icons.stop_rounded : Icons.send_rounded),
+                IconButton(
+                  onPressed: _backendConnected ? _openVoiceTutor : null,
+                  tooltip: _backendConnected
+                      ? 'Voice tutor'
+                      : 'Voice requires backend connection',
+                  icon: const Icon(Icons.mic_none_rounded),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6, bottom: 6),
+                  child: IconButton.filled(
+                    onPressed: _isGenerating ? _stop : _ask,
+                    tooltip: _isGenerating ? 'Stop response' : 'Send',
+                    icon: Icon(
+                      _isGenerating ? Icons.stop_rounded : Icons.arrow_upward,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          ],
         ),
       ),
     );
