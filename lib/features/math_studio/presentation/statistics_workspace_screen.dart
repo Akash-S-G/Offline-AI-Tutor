@@ -6,6 +6,7 @@ import '../domain/challenge.dart';
 import 'widgets/challenge_card.dart';
 import 'widgets/concept_card.dart';
 import 'widgets/observation_panel.dart';
+import 'widgets/math_studio_workspace_shell.dart';
 
 class StatisticsLabScreen extends StatefulWidget {
   final MathChallenge? challenge;
@@ -17,9 +18,11 @@ class StatisticsLabScreen extends StatefulWidget {
 }
 
 class _StatisticsLabScreenState extends State<StatisticsLabScreen> {
-  final TextEditingController _dataController = TextEditingController(text: '1, 4, 7, 9, 10, 4, 6, 7, 7');
+  final TextEditingController _dataController = TextEditingController(
+    text: '1, 4, 7, 9, 10, 4, 6, 7, 7',
+  );
   final TextEditingController _notesController = TextEditingController();
-  
+
   List<double> _data = [];
   String? _error;
 
@@ -45,7 +48,7 @@ class _StatisticsLabScreenState extends State<StatisticsLabScreen> {
   void _processData() {
     final raw = _dataController.text.split(',');
     List<double> parsed = [];
-    
+
     for (final s in raw) {
       final val = double.tryParse(s.trim());
       if (val != null) {
@@ -81,12 +84,12 @@ class _StatisticsLabScreenState extends State<StatisticsLabScreen> {
     for (final v in parsed) {
       counts[v] = (counts[v] ?? 0) + 1;
     }
-    
+
     int maxCount = 0;
     for (final c in counts.values) {
       if (c > maxCount) maxCount = c;
     }
-    
+
     List<double> modes = [];
     if (maxCount > 1) {
       counts.forEach((k, v) {
@@ -109,47 +112,74 @@ class _StatisticsLabScreenState extends State<StatisticsLabScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: IDPColors.background,
-      appBar: AppBar(
-        title: const Text('Statistics Workspace'),
-        backgroundColor: const Color(0xFFDC2626),
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.challenge != null)
-              ChallengeCard(
-                challenge: widget.challenge!,
-                isCompleted: widget.challenge!.verifier({
-                  'mean': _mean,
-                  'modes': _modes,
-                  'median': _median,
-                  'range': _range,
-                }),
-              ),
-            const ConceptCard(
-              title: 'Central Tendency',
-              description: 'Mean, Median, and Mode are measures of central tendency, representing the center or typical value of a dataset.',
-              example: 'A teacher wants to know the average score of a test. She calculates the mean. If one student scored very low (an outlier), she might use the median instead to get a better representation of the typical score.',
-              icon: Icons.auto_graph_rounded,
-              color: Color(0xFFDC2626),
-            ),
-            _buildInputSection(),
-            const SizedBox(height: 24),
-            if (_error != null)
-              Text(_error!, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
-            if (_data.isNotEmpty) ...[
-              _buildStatsGrid(),
-              _buildCharts(),
-            ],
-            ObservationPanel(controller: _notesController),
-          ],
+    return MathStudioWorkspaceShell(
+      title: 'Statistics Workspace',
+      accentColor: const Color(0xFFDC2626),
+      children: [
+        if (widget.challenge != null)
+          ChallengeCard(
+            challenge: widget.challenge!,
+            isCompleted: widget.challenge!.verifier({
+              'mean': _mean,
+              'modes': _modes,
+              'median': _median,
+              'range': _range,
+            }),
+          ),
+        if (widget.challenge != null) const SizedBox(height: 12),
+        const ConceptCard(
+          title: 'Central Tendency',
+          description:
+              'Mean, Median, and Mode are measures of central tendency, representing the center or typical value of a dataset.',
+          example:
+              'A teacher wants to know the average score of a test. She calculates the mean. If one student scored very low (an outlier), she might use the median instead to get a better representation of the typical score.',
+          icon: Icons.auto_graph_rounded,
+          color: Color(0xFFDC2626),
         ),
-      ),
+        const SizedBox(height: 12),
+        _buildInputSection(),
+        const SizedBox(height: 16),
+        if (_error != null)
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.redAccent.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: Colors.redAccent.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Text(
+              _error!,
+              style: const TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        if (_error != null) const SizedBox(height: 12),
+        if (_data.isNotEmpty) ...[
+          _buildStatsGrid(),
+          const SizedBox(height: 16),
+          _buildCharts(),
+          const SizedBox(height: 12),
+        ],
+        if (_data.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: IDPColors.border),
+            ),
+            child: const Text(
+              'Enter comma-separated values to generate statistics and charts.',
+              style: TextStyle(color: IDPColors.textSecondary, height: 1.4),
+            ),
+          ),
+        const SizedBox(height: 12),
+        ObservationPanel(controller: _notesController),
+      ],
     );
   }
 
@@ -164,53 +194,87 @@ class _StatisticsLabScreenState extends State<StatisticsLabScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Data Set (Comma Separated)', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text(
+            'Data Set (Comma Separated)',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 8),
           TextField(
             controller: _dataController,
             decoration: InputDecoration(
               hintText: 'e.g. 1, 4, 7, 9, 10',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
           ),
           const SizedBox(height: 8),
-          Text('Count: ${_data.length}', style: const TextStyle(color: IDPColors.textSecondary)),
+          Text(
+            'Count: ${_data.length}',
+            style: const TextStyle(color: IDPColors.textSecondary),
+          ),
         ],
       ),
     );
   }
 
   Widget _buildStatsGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      crossAxisSpacing: 16,
-      mainAxisSpacing: 16,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 2.5,
-      children: [
-        _buildStatCard('Mean', _mean.toStringAsFixed(2)),
-        _buildStatCard('Median', _median.toStringAsFixed(2)),
-        _buildStatCard('Mode', _modes.isEmpty ? 'None' : _modes.map((e) => e.toStringAsFixed(1)).join(', ')),
-        _buildStatCard('Range', _range.toStringAsFixed(2)),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 520 ? 1 : 2;
+        return GridView.count(
+          crossAxisCount: columns,
+          crossAxisSpacing: 16,
+          mainAxisSpacing: 16,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          childAspectRatio: columns == 1 ? 4.5 : 2.5,
+          children: [
+            _buildStatCard('Mean', _mean.toStringAsFixed(2)),
+            _buildStatCard('Median', _median.toStringAsFixed(2)),
+            _buildStatCard(
+              'Mode',
+              _modes.isEmpty
+                  ? 'None'
+                  : _modes.map((e) => e.toStringAsFixed(1)).join(', '),
+            ),
+            _buildStatCard('Range', _range.toStringAsFixed(2)),
+          ],
+        );
+      },
     );
   }
 
   Widget _buildStatCard(String title, String value) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFDC2626).withOpacity(0.1),
+        color: const Color(0xFFDC2626).withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFDC2626).withOpacity(0.3)),
+        border: Border.all(
+          color: const Color(0xFFDC2626).withValues(alpha: 0.3),
+        ),
       ),
       padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(title, style: const TextStyle(color: Color(0xFF991B1B), fontSize: 12, fontWeight: FontWeight.bold)),
-          Text(value, style: const TextStyle(color: Color(0xFFDC2626), fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Color(0xFF991B1B),
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Color(0xFFDC2626),
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ],
       ),
     );
@@ -219,11 +283,13 @@ class _StatisticsLabScreenState extends State<StatisticsLabScreen> {
   Widget _buildCharts() {
     return Column(
       children: [
-        const Text('Histogram (Frequency)', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+        const Text(
+          'Histogram (Frequency)',
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 12),
-        SizedBox(
-          height: 250,
-          width: double.infinity,
+        AspectRatio(
+          aspectRatio: 1.65,
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -231,9 +297,7 @@ class _StatisticsLabScreenState extends State<StatisticsLabScreen> {
               border: Border.all(color: IDPColors.border),
             ),
             padding: const EdgeInsets.all(16),
-            child: CustomPaint(
-              painter: _HistogramPainter(_data),
-            ),
+            child: CustomPaint(painter: _HistogramPainter(_data)),
           ),
         ),
       ],
@@ -262,7 +326,7 @@ class _HistogramPainter extends CustomPainter {
     final paint = Paint()
       ..color = const Color(0xFFDC2626)
       ..style = PaintingStyle.fill;
-    
+
     final borderPaint = Paint()
       ..color = Colors.white
       ..strokeWidth = 2
@@ -271,16 +335,17 @@ class _HistogramPainter extends CustomPainter {
     for (int i = 0; i < uniqueVals.length; i++) {
       final val = uniqueVals[i];
       final count = counts[val]!;
-      
-      final barHeight = (count / maxCount) * (size.height - 30); // leave room for labels
-      
+
+      final barHeight =
+          (count / maxCount) * (size.height - 30); // leave room for labels
+
       final rect = Rect.fromLTWH(
         i * barWidth,
         size.height - barHeight - 20,
         barWidth,
         barHeight,
       );
-      
+
       canvas.drawRect(rect, paint);
       canvas.drawRect(rect, borderPaint);
 
@@ -292,19 +357,29 @@ class _HistogramPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      
-      tp.paint(canvas, Offset(i * barWidth + barWidth / 2 - tp.width / 2, size.height - 15));
-      
+
+      tp.paint(
+        canvas,
+        Offset(i * barWidth + barWidth / 2 - tp.width / 2, size.height - 15),
+      );
+
       // Count label
       final countTp = TextPainter(
         text: TextSpan(
           text: count.toString(),
-          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      
-      countTp.paint(canvas, Offset(i * barWidth + barWidth / 2 - countTp.width / 2, rect.top + 4));
+
+      countTp.paint(
+        canvas,
+        Offset(i * barWidth + barWidth / 2 - countTp.width / 2, rect.top + 4),
+      );
     }
   }
 

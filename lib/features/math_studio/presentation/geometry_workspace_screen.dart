@@ -8,6 +8,7 @@ import '../application/exploration_repository.dart';
 import 'widgets/challenge_card.dart';
 import 'widgets/concept_card.dart';
 import 'widgets/observation_panel.dart';
+import 'widgets/math_studio_workspace_shell.dart';
 
 enum GeometryShape { triangle, rectangle, circle, polygon, pythagorean, angles }
 
@@ -211,113 +212,128 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: IDPColors.background,
-      appBar: AppBar(
-        title: const Text('Geometry Workspace'),
-        backgroundColor: const Color(0xFF0D9488),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save_rounded),
-            onPressed: () async {
-              final repo = await ExplorationRepository.create();
-              await repo.saveExploration(
-                SavedExploration.create(
-                  title: 'Geometry Snapshot: ${_shape.name}',
-                  type: ExplorationType.geometry,
-                  data: {'shape': _shape.name, 'notes': _notesController.text},
-                ),
-              );
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Workspace saved!')));
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            if (widget.discoveryPrompt != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                color: const Color(0xFF0D9488).withValues(alpha: 0.1),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.lightbulb_outline_rounded,
-                      color: Color(0xFF0F766E),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        widget.discoveryPrompt!,
-                        style: const TextStyle(
-                          color: Color(0xFF134E4A),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    return MathStudioWorkspaceShell(
+      title: 'Geometry Workspace',
+      accentColor: const Color(0xFF0D9488),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.save_rounded),
+          onPressed: () async {
+            final repo = await ExplorationRepository.create();
+            await repo.saveExploration(
+              SavedExploration.create(
+                title: 'Geometry Snapshot: ${_shape.name}',
+                type: ExplorationType.geometry,
+                data: {'shape': _shape.name, 'notes': _notesController.text},
               ),
-            if (widget.challenge != null)
-              ChallengeCard(
-                challenge: widget.challenge!,
-                isCompleted: widget.challenge!.verifier({
-                  'area': _calculateArea(),
-                  'perimeter': _calculatePerimeter(),
-                }),
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Workspace saved!')));
+          },
+        ),
+      ],
+      children: [
+        if (widget.discoveryPrompt != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D9488).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFF0D9488).withValues(alpha: 0.18),
               ),
-            ConceptCard(
-              title: _shape == GeometryShape.pythagorean
-                  ? 'Pythagorean Theorem'
-                  : 'Geometry Properties',
-              description: _shape == GeometryShape.pythagorean
-                  ? 'In a right-angled triangle, the square of the hypotenuse is equal to the sum of the squares of the other two sides.'
-                  : 'Geometry is the study of shapes, sizes, and properties of space.',
-              example: _shape == GeometryShape.pythagorean
-                  ? 'Used in construction to ensure walls are perfectly square (the 3-4-5 rule).'
-                  : 'Architects use geometry to design stable and aesthetically pleasing buildings.',
-              icon: Icons.architecture_rounded,
-              color: const Color(0xFF0D9488),
             ),
-            if (_shape != GeometryShape.pythagorean &&
-                _shape != GeometryShape.angles)
-              _buildToolbar(),
-            SizedBox(
-              height: 450,
-              child: Stack(
-                children: [
-                  GestureDetector(
-                    onPanStart: _onPanStart,
-                    onPanUpdate: _onPanUpdate,
-                    onPanEnd: _onPanEnd,
-                    child: Container(
-                      color: Colors.white,
-                      width: double.infinity,
-                      height: double.infinity,
-                      child: CustomPaint(
-                        painter: _GeometryPainter(
-                          shape: _shape,
-                          points: _points,
-                          circleCenter: _circleCenter,
-                          circleRadius: _circleRadius,
-                        ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.lightbulb_outline_rounded,
+                  color: Color(0xFF0F766E),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.discoveryPrompt!,
+                    style: const TextStyle(
+                      color: Color(0xFF134E4A),
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (widget.discoveryPrompt != null) const SizedBox(height: 12),
+        if (widget.challenge != null)
+          ChallengeCard(
+            challenge: widget.challenge!,
+            isCompleted: widget.challenge!.verifier({
+              'area': _calculateArea(),
+              'perimeter': _calculatePerimeter(),
+            }),
+          ),
+        if (widget.challenge != null) const SizedBox(height: 12),
+        ConceptCard(
+          title: _shape == GeometryShape.pythagorean
+              ? 'Pythagorean Theorem'
+              : 'Geometry Properties',
+          description: _shape == GeometryShape.pythagorean
+              ? 'In a right-angled triangle, the square of the hypotenuse is equal to the sum of the squares of the other two sides.'
+              : 'Geometry is the study of shapes, sizes, and properties of space.',
+          example: _shape == GeometryShape.pythagorean
+              ? 'Used in construction to ensure walls are perfectly square (the 3-4-5 rule).'
+              : 'Architects use geometry to design stable and aesthetically pleasing buildings.',
+          icon: Icons.architecture_rounded,
+          color: const Color(0xFF0D9488),
+        ),
+        if (_shape != GeometryShape.pythagorean &&
+            _shape != GeometryShape.angles)
+          const SizedBox(height: 12),
+        if (_shape != GeometryShape.pythagorean &&
+            _shape != GeometryShape.angles)
+          _buildToolbar(),
+        if (_shape != GeometryShape.pythagorean &&
+            _shape != GeometryShape.angles)
+          const SizedBox(height: 12),
+        AspectRatio(
+          aspectRatio: 1.05,
+          child: Stack(
+            children: [
+              GestureDetector(
+                onPanStart: _onPanStart,
+                onPanUpdate: _onPanUpdate,
+                onPanEnd: _onPanEnd,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: IDPColors.border),
+                  ),
+                  width: double.infinity,
+                  height: double.infinity,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: CustomPaint(
+                      painter: _GeometryPainter(
+                        shape: _shape,
+                        points: _points,
+                        circleCenter: _circleCenter,
+                        circleRadius: _circleRadius,
                       ),
                     ),
                   ),
-                  Positioned(top: 20, right: 20, child: _buildLiveStats()),
-                ],
+                ),
               ),
-            ),
-            ObservationPanel(controller: _notesController),
-          ],
+              Positioned(top: 16, right: 16, child: _buildLiveStats()),
+            ],
+          ),
         ),
-      ),
+        const SizedBox(height: 12),
+        ObservationPanel(controller: _notesController),
+      ],
     );
   }
 

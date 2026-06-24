@@ -8,12 +8,14 @@ import 'geometry_workspace_screen.dart';
 import 'functions_workspace_screen.dart';
 import 'statistics_workspace_screen.dart';
 import 'formula_playground_screen.dart';
+import 'widgets/math_studio_workspace_shell.dart';
 
 class SavedExplorationsScreen extends StatefulWidget {
   const SavedExplorationsScreen({super.key});
 
   @override
-  State<SavedExplorationsScreen> createState() => _SavedExplorationsScreenState();
+  State<SavedExplorationsScreen> createState() =>
+      _SavedExplorationsScreenState();
 }
 
 class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
@@ -35,6 +37,7 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
   Future<void> _loadExplorations() async {
     if (_repository == null) return;
     final exps = await _repository!.getAllExplorations();
+    if (!mounted) return;
     setState(() {
       _explorations = exps;
       _isLoading = false;
@@ -49,9 +52,9 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
 
   Future<void> _rename(SavedExploration exp) async {
     if (_repository == null) return;
-    
+
     final controller = TextEditingController(text: exp.title);
-    
+
     final newTitle = await showDialog<String>(
       context: context,
       builder: (context) {
@@ -80,33 +83,55 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
       await _repository!.renameExploration(exp.id, newTitle.trim());
       await _loadExplorations();
     }
+    controller.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: IDPColors.background,
-      appBar: AppBar(
-        title: const Text('Saved Explorations'),
-        backgroundColor: const Color(0xFF4B5563),
-        foregroundColor: Colors.white,
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _explorations.isEmpty
-              ? _buildEmptyState()
-              : _buildList(),
+    return MathStudioWorkspaceShell(
+      title: 'Saved Explorations',
+      accentColor: const Color(0xFF4B5563),
+      children: [
+        if (_isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_explorations.isEmpty)
+          _buildEmptyState(context)
+        else
+          _buildList(),
+      ],
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
+  Widget _buildEmptyState(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: IDPColors.border),
+      ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: const [
-          Icon(Icons.folder_open_rounded, size: 64, color: Colors.grey),
-          SizedBox(height: 16),
-          Text('No saved explorations yet.', style: TextStyle(fontSize: 18, color: IDPColors.textSecondary)),
+        children: [
+          const Icon(Icons.folder_open_rounded, size: 56, color: Colors.grey),
+          const SizedBox(height: 12),
+          const Text(
+            'No saved explorations yet.',
+            style: TextStyle(fontSize: 18, color: IDPColors.textPrimary),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Create one from Algebra, Geometry, Functions, Statistics, or the Formula Playground.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: IDPColors.textSecondary, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Back to Math Studio'),
+          ),
         ],
       ),
     );
@@ -116,16 +141,24 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
     return ListView.separated(
       padding: const EdgeInsets.all(16),
       itemCount: _explorations.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final exp = _explorations[index];
         return Card(
           elevation: 2,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 8,
+            ),
             leading: _getIconForType(exp.type),
-            title: Text(exp.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+            title: Text(
+              exp.title,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
             subtitle: Text('Saved: ${exp.updatedAt.toString().split('.')[0]}'),
             trailing: PopupMenuButton<String>(
               onSelected: (val) {
@@ -134,7 +167,10 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
               },
               itemBuilder: (context) => [
                 const PopupMenuItem(value: 'rename', child: Text('Rename')),
-                const PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete', style: TextStyle(color: Colors.red)),
+                ),
               ],
             ),
             onTap: () {
@@ -152,7 +188,9 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
                   target = GeometryWorkspaceScreen(initialShape: shape);
                   break;
                 case ExplorationType.functions:
-                  target = FunctionLabScreen(initialFormula: exp.data['formula'] as String?);
+                  target = FunctionLabScreen(
+                    initialFormula: exp.data['formula'] as String?,
+                  );
                   break;
                 case ExplorationType.statistics:
                   target = const StatisticsLabScreen();
@@ -161,7 +199,10 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
                   target = const FormulaPlaygroundScreen();
                   break;
               }
-              Navigator.push(context, MaterialPageRoute(builder: (_) => target));
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => target),
+              );
             },
           ),
         );
@@ -172,15 +213,30 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
   Widget _getIconForType(ExplorationType type) {
     switch (type) {
       case ExplorationType.algebra:
-        return const CircleAvatar(backgroundColor: Color(0xFF6366F1), child: Icon(Icons.calculate_rounded, color: Colors.white));
+        return const CircleAvatar(
+          backgroundColor: Color(0xFF6366F1),
+          child: Icon(Icons.calculate_rounded, color: Colors.white),
+        );
       case ExplorationType.geometry:
-        return const CircleAvatar(backgroundColor: Color(0xFF0D9488), child: Icon(Icons.architecture_rounded, color: Colors.white));
+        return const CircleAvatar(
+          backgroundColor: Color(0xFF0D9488),
+          child: Icon(Icons.architecture_rounded, color: Colors.white),
+        );
       case ExplorationType.functions:
-        return const CircleAvatar(backgroundColor: Color(0xFFD97706), child: Icon(Icons.show_chart_rounded, color: Colors.white));
+        return const CircleAvatar(
+          backgroundColor: Color(0xFFD97706),
+          child: Icon(Icons.show_chart_rounded, color: Colors.white),
+        );
       case ExplorationType.statistics:
-        return const CircleAvatar(backgroundColor: Color(0xFFDC2626), child: Icon(Icons.bar_chart_rounded, color: Colors.white));
+        return const CircleAvatar(
+          backgroundColor: Color(0xFFDC2626),
+          child: Icon(Icons.bar_chart_rounded, color: Colors.white),
+        );
       case ExplorationType.formulaPlayground:
-        return const CircleAvatar(backgroundColor: Color(0xFF8B5CF6), child: Icon(Icons.science_rounded, color: Colors.white));
+        return const CircleAvatar(
+          backgroundColor: Color(0xFF8B5CF6),
+          child: Icon(Icons.science_rounded, color: Colors.white),
+        );
     }
   }
 }

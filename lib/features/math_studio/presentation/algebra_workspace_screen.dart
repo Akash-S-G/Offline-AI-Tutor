@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/theme/idp_colors.dart';
 import 'widgets/observation_panel.dart';
+import 'widgets/math_studio_workspace_shell.dart';
 
 enum EquationMode { linear, quadratic }
 
@@ -51,57 +52,55 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
     final b = bParsed ?? 3;
     final c = cParsed ?? 11;
 
-    final hasInvalidInput = aParsed == null || bParsed == null || cParsed == null;
+    final hasInvalidInput =
+        aParsed == null || bParsed == null || cParsed == null;
 
     final linearSolution = a != 0 ? (c - b) / a : null;
     final discriminant = b * b - 4 * a * c;
     final quadraticCenter = a == 0 ? null : -b / (2 * a);
 
-    return Scaffold(
-      backgroundColor: IDPColors.background,
-      appBar: AppBar(
-        title: const Text('Algebra Workspace'),
-        backgroundColor: const Color(0xFF6366F1),
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Equation Solver',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: IDPColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Solve linear or quadratic equations with step-by-step explanations.',
-              style: TextStyle(color: IDPColors.textSecondary),
-            ),
-            const SizedBox(height: 24),
-            _buildModeSelector(),
-            const SizedBox(height: 24),
-            _buildEquationPreview(a, b, c),
-            const SizedBox(height: 24),
-            _buildInputFields(),
-            if (hasInvalidInput)
-              const Padding(
-                padding: EdgeInsets.only(top: 8.0),
-                child: Text(
-                  'Invalid inputs detected. Using fallback values for calculation.',
-                  style: TextStyle(color: Colors.orange, fontSize: 12),
-                ),
-              ),
-            const SizedBox(height: 24),
-            _buildSolutionCard(a, b, c, linearSolution, discriminant, quadraticCenter),
-            ObservationPanel(controller: _notesController),
-          ],
+    return MathStudioWorkspaceShell(
+      title: 'Algebra Workspace',
+      accentColor: const Color(0xFF6366F1),
+      children: [
+        const Text(
+          'Equation Solver',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.bold,
+            color: IDPColors.textPrimary,
+          ),
         ),
-      ),
+        const SizedBox(height: 6),
+        const Text(
+          'Solve linear or quadratic equations with step-by-step explanations.',
+          style: TextStyle(color: IDPColors.textSecondary, height: 1.4),
+        ),
+        const SizedBox(height: 20),
+        _buildModeSelector(),
+        const SizedBox(height: 20),
+        _buildEquationPreview(a, b, c),
+        const SizedBox(height: 20),
+        _buildInputFields(),
+        if (hasInvalidInput)
+          const Padding(
+            padding: EdgeInsets.only(top: 8.0),
+            child: Text(
+              'Invalid inputs detected. Using fallback values for calculation.',
+              style: TextStyle(color: Colors.orange, fontSize: 12),
+            ),
+          ),
+        const SizedBox(height: 20),
+        _buildSolutionCard(
+          a,
+          b,
+          c,
+          linearSolution,
+          discriminant,
+          quadraticCenter,
+        ),
+        ObservationPanel(controller: _notesController),
+      ],
     );
   }
 
@@ -141,7 +140,7 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
         border: Border.all(color: IDPColors.border),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -162,48 +161,76 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
   }
 
   Widget _buildInputFields() {
-    return Row(
-      children: [
-        Expanded(
-          child: _buildTextField(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isCompact = constraints.maxWidth < 620;
+        final fieldWidth = isCompact
+            ? constraints.maxWidth
+            : (constraints.maxWidth - 24) / 3;
+
+        final fields = [
+          _buildTextField(
             _aController,
             _mode == EquationMode.linear ? 'a (slope)' : 'a (x²)',
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildTextField(
+          _buildTextField(
             _bController,
             _mode == EquationMode.linear ? 'b (intercept)' : 'b (x)',
           ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _buildTextField(
+          _buildTextField(
             _cController,
             _mode == EquationMode.linear ? 'c (result)' : 'c (constant)',
           ),
-        ),
-      ],
+        ];
+
+        if (isCompact) {
+          return Column(
+            children: [
+              fields[0],
+              const SizedBox(height: 12),
+              fields[1],
+              const SizedBox(height: 12),
+              fields[2],
+            ],
+          );
+        }
+
+        return Row(
+          children:
+              fields
+                  .map((field) => SizedBox(width: fieldWidth, child: field))
+                  .expand((widget) => [widget, const SizedBox(width: 12)])
+                  .toList()
+                ..removeLast(),
+        );
+      },
     );
   }
 
   Widget _buildTextField(TextEditingController controller, String label) {
     return TextField(
       controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true, signed: true),
+      keyboardType: const TextInputType.numberWithOptions(
+        decimal: true,
+        signed: true,
+      ),
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
         filled: true,
         fillColor: Colors.white,
       ),
     );
   }
 
-  Widget _buildSolutionCard(double a, double b, double c, double? linearSolution, double discriminant, double? quadraticCenter) {
+  Widget _buildSolutionCard(
+    double a,
+    double b,
+    double c,
+    double? linearSolution,
+    double discriminant,
+    double? quadraticCenter,
+  ) {
     final List<String> steps = _mode == EquationMode.linear
         ? _linearSteps(a, b, c, linearSolution)
         : _quadraticSteps(a, b, c, discriminant, quadraticCenter);
@@ -231,7 +258,7 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: steps.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -241,7 +268,7 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withOpacity(0.1),
+                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -287,7 +314,13 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
     ];
   }
 
-  List<String> _quadraticSteps(double a, double b, double c, double discriminant, double? center) {
+  List<String> _quadraticSteps(
+    double a,
+    double b,
+    double c,
+    double discriminant,
+    double? center,
+  ) {
     if (a == 0) return ['This is not a quadratic equation because a = 0.'];
 
     final desc = discriminant < 0

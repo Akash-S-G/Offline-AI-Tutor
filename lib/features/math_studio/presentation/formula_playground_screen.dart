@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../core/theme/idp_colors.dart';
 import 'widgets/formula_visualizers.dart';
 import 'widgets/observation_panel.dart';
+import 'widgets/math_studio_workspace_shell.dart';
 
 enum FormulaType {
   areaOfCircle,
@@ -17,7 +18,8 @@ class FormulaPlaygroundScreen extends StatefulWidget {
   const FormulaPlaygroundScreen({super.key});
 
   @override
-  State<FormulaPlaygroundScreen> createState() => _FormulaPlaygroundScreenState();
+  State<FormulaPlaygroundScreen> createState() =>
+      _FormulaPlaygroundScreenState();
 }
 
 class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
@@ -101,7 +103,9 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
       case FormulaType.percentage:
         final part = _getVal('part');
         final whole = _getVal('whole');
-        return whole == 0 ? 'Percentage = undefined' : 'Percentage = ${(part / whole) * 100}%';
+        return whole == 0
+            ? 'Percentage = undefined'
+            : 'Percentage = ${(part / whole) * 100}%';
     }
   }
 
@@ -122,59 +126,64 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: IDPColors.background,
-      appBar: AppBar(
-        title: const Text('Formula Playground'),
-        backgroundColor: const Color(0xFF8B5CF6),
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            _buildDropdown(),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF8B5CF6).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF8B5CF6).withOpacity(0.3)),
-              ),
-              child: Text(
-                _getExplanation(),
-                style: const TextStyle(fontSize: 16, color: Color(0xFF4C1D95)),
-              ),
+    return MathStudioWorkspaceShell(
+      title: 'Formula Playground',
+      accentColor: const Color(0xFF8B5CF6),
+      children: [
+        _buildDropdown(),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: const Color(0xFF8B5CF6).withValues(alpha: 0.22),
             ),
-            const SizedBox(height: 24),
-            ..._controllers.keys.map((key) => _buildInputField(key)).toList(),
-            const SizedBox(height: 16),
-            _buildVisualization(),
-            const SizedBox(height: 32),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: IDPColors.border),
-                boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4)),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  _calculateResult(),
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF8B5CF6)),
-                  textAlign: TextAlign.center,
-                ),
-              ),
+          ),
+          child: Text(
+            _getExplanation(),
+            style: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFF4C1D95),
+              height: 1.45,
             ),
-            ObservationPanel(controller: _notesController),
-          ],
+          ),
         ),
-      ),
+        const SizedBox(height: 16),
+        ..._controllers.keys.map(_buildInputField),
+        const SizedBox(height: 8),
+        _buildVisualization(),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: IDPColors.border),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Center(
+            child: Text(
+              _calculateResult(),
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF8B5CF6),
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        ObservationPanel(controller: _notesController),
+      ],
     );
   }
 
@@ -186,51 +195,42 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: IDPColors.border),
       ),
-      child: () {
-        switch (_selectedFormula) {
-          case FormulaType.areaOfCircle:
-            return SizedBox(
-              height: 150,
-              child: CustomPaint(
-                painter: CircleVisualizationPainter(_getVal('radius')),
-              ),
-            );
-          case FormulaType.pythagorean:
-            return SizedBox(
-              height: 150,
-              child: CustomPaint(
-                painter: PythagoreanPainter(_getVal('a'), _getVal('b')),
-              ),
-            );
-          case FormulaType.simpleInterest:
-            return SizedBox(
-              height: 150,
-              child: CustomPaint(
-                painter: InterestPainter(_getVal('principal'), _getVal('rate'), _getVal('time')),
-              ),
-            );
-          case FormulaType.speedDistanceTime:
-            return SizedBox(
-              height: 100,
-              child: CustomPaint(
-                painter: SpeedPainter(_getVal('distance'), _getVal('time')),
-              ),
-            );
-          case FormulaType.percentage:
-            return SizedBox(
-              height: 100,
-              child: CustomPaint(
-                painter: PercentagePainter(_getVal('part'), _getVal('whole')),
-              ),
-            );
-        }
-      }(),
+      child:
+          _selectedFormula == FormulaType.speedDistanceTime ||
+              _selectedFormula == FormulaType.percentage
+          ? AspectRatio(
+              aspectRatio: 3.0,
+              child: CustomPaint(painter: _buildPainter()),
+            )
+          : AspectRatio(
+              aspectRatio: 1.8,
+              child: CustomPaint(painter: _buildPainter()),
+            ),
     );
+  }
+
+  CustomPainter _buildPainter() {
+    switch (_selectedFormula) {
+      case FormulaType.areaOfCircle:
+        return CircleVisualizationPainter(_getVal('radius'));
+      case FormulaType.pythagorean:
+        return PythagoreanPainter(_getVal('a'), _getVal('b'));
+      case FormulaType.simpleInterest:
+        return InterestPainter(
+          _getVal('principal'),
+          _getVal('rate'),
+          _getVal('time'),
+        );
+      case FormulaType.speedDistanceTime:
+        return SpeedPainter(_getVal('distance'), _getVal('time'));
+      case FormulaType.percentage:
+        return PercentagePainter(_getVal('part'), _getVal('whole'));
+    }
   }
 
   Widget _buildDropdown() {
     return DropdownButtonFormField<FormulaType>(
-      value: _selectedFormula,
+      initialValue: _selectedFormula,
       decoration: InputDecoration(
         labelText: 'Select a Formula to Explore',
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -238,11 +238,26 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
         fillColor: Colors.white,
       ),
       items: const [
-        DropdownMenuItem(value: FormulaType.areaOfCircle, child: Text('Area of Circle')),
-        DropdownMenuItem(value: FormulaType.pythagorean, child: Text('Pythagorean Theorem')),
-        DropdownMenuItem(value: FormulaType.simpleInterest, child: Text('Simple Interest')),
-        DropdownMenuItem(value: FormulaType.speedDistanceTime, child: Text('Speed = Distance / Time')),
-        DropdownMenuItem(value: FormulaType.percentage, child: Text('Percentage')),
+        DropdownMenuItem(
+          value: FormulaType.areaOfCircle,
+          child: Text('Area of Circle'),
+        ),
+        DropdownMenuItem(
+          value: FormulaType.pythagorean,
+          child: Text('Pythagorean Theorem'),
+        ),
+        DropdownMenuItem(
+          value: FormulaType.simpleInterest,
+          child: Text('Simple Interest'),
+        ),
+        DropdownMenuItem(
+          value: FormulaType.speedDistanceTime,
+          child: Text('Speed = Distance / Time'),
+        ),
+        DropdownMenuItem(
+          value: FormulaType.percentage,
+          child: Text('Percentage'),
+        ),
       ],
       onChanged: (val) {
         if (val != null) {

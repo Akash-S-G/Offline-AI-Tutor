@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/idp_colors.dart';
-import '../../../core/widgets/idp_core_widgets.dart';
 
 import 'algebra_workspace_screen.dart';
 import 'geometry_workspace_screen.dart';
@@ -23,143 +22,224 @@ class MathStudioHomeScreen extends StatelessWidget {
         backgroundColor: IDPColors.primary,
         foregroundColor: Colors.white,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              'Explore Mathematics',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: IDPColors.textPrimary,
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isWide = constraints.maxWidth >= 700;
+            final crossAxisExtent = isWide ? 240.0 : 180.0;
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Explore Mathematics',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      color: IDPColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Interactive workspaces for understanding mathematical concepts.',
+                    style: TextStyle(
+                      color: IDPColors.textSecondary,
+                      fontSize: 14,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: IDPColors.border),
+                    ),
+                    child: const Text(
+                      'Choose a section. Each workspace keeps the concept, input controls, and visual output together so the page stays readable on phone screens.',
+                      style: TextStyle(
+                        color: IDPColors.textSecondary,
+                        height: 1.45,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  GridView.count(
+                    crossAxisCount: (constraints.maxWidth / crossAxisExtent)
+                        .floor()
+                        .clamp(1, 4),
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    childAspectRatio: isWide ? 1.25 : 1.05,
+                    children: [
+                      _buildCard(
+                        title: 'Guided Explorations',
+                        subtitle: 'Step-by-step math investigations',
+                        icon: Icons.explore_rounded,
+                        color: const Color(0xFF1E3A8A),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ExplorationCatalogScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildCard(
+                        title: 'Algebra',
+                        subtitle: 'Equations and solutions',
+                        icon: Icons.calculate_rounded,
+                        color: const Color(0xFF6366F1),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const AlgebraWorkspaceScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildCard(
+                        title: 'Geometry',
+                        subtitle: 'Shapes, area, perimeter',
+                        icon: Icons.architecture_rounded,
+                        color: const Color(0xFF0D9488),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const GeometryWorkspaceScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildCard(
+                        title: 'Functions',
+                        subtitle: 'Graphs and variables',
+                        icon: Icons.show_chart_rounded,
+                        color: const Color(0xFFD97706),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FunctionLabScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildCard(
+                        title: 'Statistics',
+                        subtitle: 'Mean, median, mode',
+                        icon: Icons.bar_chart_rounded,
+                        color: const Color(0xFFDC2626),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const StatisticsLabScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildCard(
+                        title: 'Playground',
+                        subtitle: 'Formula visualizers',
+                        icon: Icons.science_rounded,
+                        color: const Color(0xFF8B5CF6),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const FormulaPlaygroundScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildCard(
+                        title: 'Saved',
+                        subtitle: 'Open stored workspaces',
+                        icon: Icons.folder_special_rounded,
+                        color: const Color(0xFF4B5563),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SavedExplorationsScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 6),
-            const Text(
-              'Interactive workspaces for understanding mathematical concepts.',
-              style: TextStyle(
-                color: IDPColors.textSecondary,
-                fontSize: 14,
-              ),
-            ),
-            const SizedBox(height: 24),
-            GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              children: [
-                _buildCard(
-                  context: context,
-                  title: 'Guided Explorations',
-                  icon: Icons.explore_rounded,
-                  color: const Color(0xFF1E3A8A),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const ExplorationCatalogScreen()));
-                  },
-                ),
-                _buildCard(
-                  context: context,
-                  title: 'Algebra',
-                  icon: Icons.calculate_rounded,
-                  color: const Color(0xFF6366F1),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const AlgebraWorkspaceScreen()));
-                  },
-                ),
-                _buildCard(
-                  context: context,
-                  title: 'Geometry',
-                  icon: Icons.architecture_rounded,
-                  color: const Color(0xFF0D9488),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const GeometryWorkspaceScreen()));
-                  },
-                ),
-                _buildCard(
-                  context: context,
-                  title: 'Functions',
-                  icon: Icons.show_chart_rounded,
-                  color: const Color(0xFFD97706),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const FunctionLabScreen()));
-                  },
-                ),
-                _buildCard(
-                  context: context,
-                  title: 'Statistics',
-                  icon: Icons.bar_chart_rounded,
-                  color: const Color(0xFFDC2626),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const StatisticsLabScreen()));
-                  },
-                ),
-                _buildCard(
-                  context: context,
-                  title: 'Playground',
-                  icon: Icons.science_rounded,
-                  color: const Color(0xFF8B5CF6),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const FormulaPlaygroundScreen()));
-                  },
-                ),
-                _buildCard(
-                  context: context,
-                  title: 'Saved',
-                  icon: Icons.folder_special_rounded,
-                  color: const Color(0xFF4B5563),
-                  onTap: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SavedExplorationsScreen()));
-                  },
-                ),
-              ],
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
   }
 
   Widget _buildCard({
-    required BuildContext context,
     required String title,
+    required String subtitle,
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
-          border: Border.all(color: color.withOpacity(0.2)),
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(color: color.withValues(alpha: 0.18)),
+            borderRadius: BorderRadius.circular(18),
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: color, size: 28),
               ),
-              child: Icon(icon, color: Colors.white, size: 32),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: color.withOpacity(0.9),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: IDPColors.textSecondary,
+                  height: 1.35,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

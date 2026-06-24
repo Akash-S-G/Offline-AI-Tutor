@@ -15,10 +15,12 @@ class ChallengeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isCompleted ? const Color(0xFF10B981).withOpacity(0.1) : Colors.white,
+        color: isCompleted
+            ? const Color(0xFF10B981).withValues(alpha: 0.08)
+            : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isCompleted ? const Color(0xFF10B981) : IDPColors.border,
@@ -30,7 +32,9 @@ class ChallengeCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isCompleted ? const Color(0xFF10B981) : const Color(0xFFF1F5F9),
+              color: isCompleted
+                  ? const Color(0xFF10B981)
+                  : const Color(0xFFF1F5F9),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -48,7 +52,9 @@ class ChallengeCard extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
-                    color: isCompleted ? const Color(0xFF047857) : const Color(0xFF64748B),
+                    color: isCompleted
+                        ? const Color(0xFF047857)
+                        : const Color(0xFF64748B),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -57,6 +63,7 @@ class ChallengeCard extends StatelessWidget {
                   style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
+                    height: 1.35,
                   ),
                 ),
               ],

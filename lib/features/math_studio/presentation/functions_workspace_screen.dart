@@ -10,6 +10,7 @@ import '../application/exploration_repository.dart';
 import 'widgets/challenge_card.dart';
 import 'widgets/concept_card.dart';
 import 'widgets/observation_panel.dart';
+import 'widgets/math_studio_workspace_shell.dart';
 
 class FunctionLabScreen extends StatefulWidget {
   final String? initialFormula;
@@ -98,84 +99,89 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: IDPColors.background,
-      appBar: AppBar(
-        title: const Text('Functions Workspace'),
-        backgroundColor: const Color(0xFFD97706),
-        foregroundColor: Colors.white,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.save_rounded),
-            onPressed: () async {
-              final repo = await ExplorationRepository.create();
-              await repo.saveExploration(
-                SavedExploration.create(
-                  title: 'Function Snapshot: ${_formulaController.text}',
-                  type: ExplorationType.functions,
-                  data: {
-                    'formula': _formulaController.text,
-                    'variables': _variables,
-                    'notes': _notesController.text,
-                  },
-                ),
-              );
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text('Workspace saved!')));
-            },
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            if (widget.discoveryPrompt != null)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                color: const Color(0xFFD97706).withValues(alpha: 0.1),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.lightbulb_outline_rounded,
-                      color: Color(0xFFB45309),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        widget.discoveryPrompt!,
-                        style: const TextStyle(
-                          color: Color(0xFF78350F),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+    return MathStudioWorkspaceShell(
+      title: 'Functions Workspace',
+      accentColor: const Color(0xFFD97706),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.save_rounded),
+          onPressed: () async {
+            final repo = await ExplorationRepository.create();
+            await repo.saveExploration(
+              SavedExploration.create(
+                title: 'Function Snapshot: ${_formulaController.text}',
+                type: ExplorationType.functions,
+                data: {
+                  'formula': _formulaController.text,
+                  'variables': _variables,
+                  'notes': _notesController.text,
+                },
               ),
-            if (widget.challenge != null)
-              ChallengeCard(
-                challenge: widget.challenge!,
-                isCompleted: widget.challenge!.verifier(_variables),
-              ),
-            const ConceptCard(
-              title: 'Mathematical Functions',
-              description:
-                  'A function relates an input to an output. It is like a machine that has an input and an output, and the output is related somehow to the input.',
-              example:
-                  'The trajectory of a thrown ball is a parabola, modeled by a quadratic function taking time as input and height as output.',
-              icon: Icons.functions_rounded,
-              color: Color(0xFFD97706),
-            ),
-            _buildFormulaInput(),
-            if (_variables.isNotEmpty) _buildSliders(),
-            SizedBox(height: 400, child: _buildGraphArea()),
-            ObservationPanel(controller: _notesController),
-          ],
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Workspace saved!')));
+          },
         ),
-      ),
+      ],
+      children: [
+        if (widget.discoveryPrompt != null)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFD97706).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: const Color(0xFFD97706).withValues(alpha: 0.18),
+              ),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.lightbulb_outline_rounded,
+                  color: Color(0xFFB45309),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    widget.discoveryPrompt!,
+                    style: const TextStyle(
+                      color: Color(0xFF78350F),
+                      fontWeight: FontWeight.w600,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        if (widget.discoveryPrompt != null) const SizedBox(height: 12),
+        if (widget.challenge != null)
+          ChallengeCard(
+            challenge: widget.challenge!,
+            isCompleted: widget.challenge!.verifier(_variables),
+          ),
+        if (widget.challenge != null) const SizedBox(height: 12),
+        const ConceptCard(
+          title: 'Mathematical Functions',
+          description:
+              'A function relates an input to an output. It is like a machine that has an input and an output, and the output is related somehow to the input.',
+          example:
+              'The trajectory of a thrown ball is a parabola, modeled by a quadratic function taking time as input and height as output.',
+          icon: Icons.functions_rounded,
+          color: Color(0xFFD97706),
+        ),
+        const SizedBox(height: 12),
+        _buildFormulaInput(),
+        const SizedBox(height: 12),
+        if (_variables.isNotEmpty) _buildSliders(),
+        if (_variables.isNotEmpty) const SizedBox(height: 12),
+        AspectRatio(aspectRatio: 1.35, child: _buildGraphArea()),
+        const SizedBox(height: 12),
+        ObservationPanel(controller: _notesController),
+      ],
     );
   }
 
@@ -206,33 +212,43 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
 
   Widget _buildSliders() {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: IDPColors.border),
+      ),
       child: Column(
         children: _variables.keys.map((varName) {
-          return Row(
-            children: [
-              Text(
-                '$varName = ${_variables[varName]!.toStringAsFixed(1)}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 88,
+                  child: Text(
+                    '$varName = ${_variables[varName]!.toStringAsFixed(1)}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Slider(
-                  min: -10,
-                  max: 10,
-                  value: _variables[varName]!,
-                  activeColor: const Color(0xFFD97706),
-                  onChanged: (val) {
-                    setState(() {
-                      _variables[varName] = val;
-                    });
-                  },
+                Expanded(
+                  child: Slider(
+                    min: -10,
+                    max: 10,
+                    value: _variables[varName]!,
+                    activeColor: const Color(0xFFD97706),
+                    onChanged: (val) {
+                      setState(() {
+                        _variables[varName] = val;
+                      });
+                    },
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         }).toList(),
       ),
@@ -241,7 +257,7 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
 
   Widget _buildGraphArea() {
     return Container(
-      margin: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
