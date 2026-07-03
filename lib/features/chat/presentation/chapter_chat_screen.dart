@@ -846,6 +846,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     if (question.isEmpty || _isGenerating || _sessionId == null) {
       return;
     }
+    FocusScope.of(context).unfocus();
 
     // ── Cancel any orphaned stream subscription ──
     print(
@@ -2708,6 +2709,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                     maxLines: 5,
                     textInputAction: TextInputAction.newline,
                     keyboardType: TextInputType.multiline,
+                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
                     decoration: const InputDecoration(
                       hintText: 'Message your tutor',
                       border: InputBorder.none,

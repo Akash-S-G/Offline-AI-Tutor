@@ -40,7 +40,6 @@ dependencies:
   flame_forge2d: ^0.19.2+6
   flutter_svg: ^2.3.0
   record: ^6.2.1
-  audioplayers: ^6.7.1
   just_audio: ^0.9.43
   flutter_riverpod: ^2.6.1
   web_socket_channel: ^3.0.2

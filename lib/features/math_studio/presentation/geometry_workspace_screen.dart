@@ -426,14 +426,14 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Area: ${_calculateArea().toStringAsFixed(1)} px²',
+            'Area: ${(_calculateArea() / 100).toStringAsFixed(1)} cm²',
             style: const TextStyle(
               color: Color(0xFF0D9488),
               fontWeight: FontWeight.w600,
             ),
           ),
           Text(
-            'Perimeter: ${_calculatePerimeter().toStringAsFixed(1)} px',
+            'Perimeter: ${(_calculatePerimeter() / 10).toStringAsFixed(1)} cm',
             style: const TextStyle(
               color: Color(0xFF0D9488),
               fontWeight: FontWeight.w600,
@@ -489,6 +489,16 @@ class _GeometryPainter extends CustomPainter {
         6,
         pointPaint,
       ); // Radius handle
+      _paintMeasurementLabel(
+        canvas,
+        'r ${_formatMeasure(circleRadius)}',
+        circleCenter + Offset(circleRadius / 2, -18),
+      );
+      _paintMeasurementLabel(
+        canvas,
+        'd ${_formatMeasure(circleRadius * 2)}',
+        circleCenter + Offset(0, circleRadius + 18),
+      );
     } else if (shape == GeometryShape.pythagorean) {
       if (points.length >= 3) {
         final path = Path()
@@ -527,6 +537,7 @@ class _GeometryPainter extends CustomPainter {
               ..strokeWidth = 2,
           );
         }
+        _paintSideMeasurements(canvas, points, closed: true);
       }
       for (var p in points) {
         canvas.drawCircle(p, 8, pointPaint);
@@ -536,6 +547,8 @@ class _GeometryPainter extends CustomPainter {
         // Draw two intersecting lines
         canvas.drawLine(points[0], points[1], strokePaint);
         canvas.drawLine(points[2], points[3], strokePaint);
+        _paintSegmentMeasurement(canvas, points[0], points[1]);
+        _paintSegmentMeasurement(canvas, points[2], points[3]);
       }
       for (var p in points) {
         canvas.drawCircle(p, 8, pointPaint);
@@ -549,12 +562,89 @@ class _GeometryPainter extends CustomPainter {
         path.close();
         canvas.drawPath(path, fillPaint);
         canvas.drawPath(path, strokePaint);
+        _paintSideMeasurements(canvas, points, closed: true);
       }
 
       for (var p in points) {
         canvas.drawCircle(p, 8, pointPaint);
       }
     }
+  }
+
+  void _paintSideMeasurements(
+    Canvas canvas,
+    List<Offset> vertices, {
+    required bool closed,
+  }) {
+    if (vertices.length < 2) return;
+    final last = closed ? vertices.length : vertices.length - 1;
+    for (int i = 0; i < last; i++) {
+      _paintSegmentMeasurement(
+        canvas,
+        vertices[i],
+        vertices[(i + 1) % vertices.length],
+      );
+    }
+  }
+
+  void _paintSegmentMeasurement(Canvas canvas, Offset a, Offset b) {
+    final length = math.sqrt(
+      math.pow(b.dx - a.dx, 2) + math.pow(b.dy - a.dy, 2),
+    );
+    final midpoint = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
+    final normal = _segmentNormal(a, b);
+    _paintMeasurementLabel(
+      canvas,
+      _formatMeasure(length),
+      midpoint + normal * 14,
+    );
+  }
+
+  Offset _segmentNormal(Offset a, Offset b) {
+    final dx = b.dx - a.dx;
+    final dy = b.dy - a.dy;
+    final length = math.sqrt(dx * dx + dy * dy);
+    if (length == 0) return const Offset(0, -1);
+    return Offset(-dy / length, dx / length);
+  }
+
+  String _formatMeasure(double value) {
+    final cm = value / 10;
+    return '${cm.toStringAsFixed(1)} cm';
+  }
+
+  void _paintMeasurementLabel(Canvas canvas, String text, Offset center) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Color(0xFF134E4A),
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final rect = Rect.fromCenter(
+      center: center,
+      width: painter.width + 12,
+      height: painter.height + 7,
+    );
+    final background = Paint()
+      ..color = Colors.white.withValues(alpha: 0.92)
+      ..style = PaintingStyle.fill;
+    final border = Paint()
+      ..color = const Color(0xFF0D9488).withValues(alpha: 0.22)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+    canvas.drawRRect(rrect, background);
+    canvas.drawRRect(rrect, border);
+    painter.paint(
+      canvas,
+      Offset(center.dx - painter.width / 2, center.dy - painter.height / 2),
+    );
   }
 
   @override

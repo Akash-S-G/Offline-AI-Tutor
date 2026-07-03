@@ -27,59 +27,95 @@ class ExperimentHud extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned(
-      top: 0,
+      top: 6,
       left: 0,
       right: 0,
-      height: 48,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(
-          color: Colors.transparent,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: [
-              if (onExit != null)
-                IconButton(
-                  onPressed: onExit,
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
-                  tooltip: 'Back',
-                  visualDensity: VisualDensity.compact,
+      height: 42,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        child: Row(
+          children: [
+            if (onExit != null)
+              _HudIconButton(
+                tooltip: 'Back',
+                icon: Icons.arrow_back,
+                onPressed: onExit,
+              ),
+            const Spacer(),
+            if (onToggleDeveloper != null)
+              _HudIconButton(
+                tooltip: 'Debug',
+                icon: Icons.bug_report_outlined,
+                onPressed: onToggleDeveloper,
+              ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 280),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.34),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.14),
+                  ),
                 ),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
-                    shadows: [
-                      Shadow(
-                        offset: Offset(0, 1),
-                        blurRadius: 3.0,
-                        color: Colors.black54,
-                      ),
-                    ],
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.right,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 14,
+                      shadows: [
+                        Shadow(
+                          offset: Offset(0, 1),
+                          blurRadius: 3.0,
+                          color: Colors.black54,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              if (onToggleDeveloper != null) ...[
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: onToggleDeveloper,
-                  icon: const Icon(
-                    Icons.bug_report_outlined,
-                    color: Colors.white,
-                  ),
-                  tooltip: 'Debug',
-                  visualDensity: VisualDensity.compact,
-                ),
-              ],
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+    );
+  }
+}
+
+class _HudIconButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  const _HudIconButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.28),
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: IconButton(
+        onPressed: onPressed,
+        icon: Icon(icon, color: Colors.white),
+        tooltip: tooltip,
+        visualDensity: VisualDensity.compact,
       ),
     );
   }

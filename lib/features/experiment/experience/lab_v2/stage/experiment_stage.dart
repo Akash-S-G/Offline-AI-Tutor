@@ -25,8 +25,6 @@ class ExperimentStage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Positioned.fill(
-      top: 48,
-      bottom: 62,
       child: DecoratedBox(
         decoration: const BoxDecoration(color: Color(0xFF020617)),
         child: Stack(

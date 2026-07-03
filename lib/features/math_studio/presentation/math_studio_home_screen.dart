@@ -4,6 +4,7 @@ import '../../../core/theme/idp_colors.dart';
 
 import 'algebra_workspace_screen.dart';
 import 'geometry_workspace_screen.dart';
+import 'geometry_playground_screen.dart';
 import 'functions_workspace_screen.dart';
 import 'statistics_workspace_screen.dart';
 import 'formula_playground_screen.dart';
@@ -74,7 +75,7 @@ class MathStudioHomeScreen extends StatelessWidget {
                     mainAxisSpacing: 16,
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    childAspectRatio: isWide ? 1.25 : 1.05,
+                    childAspectRatio: isWide ? 1.25 : 0.88,
                     children: [
                       _buildCard(
                         title: 'Guided Explorations',
@@ -161,6 +162,20 @@ class MathStudioHomeScreen extends StatelessWidget {
                         },
                       ),
                       _buildCard(
+                        title: '2D Shape Playground',
+                        subtitle: 'Interactive multi-shape canvas',
+                        icon: Icons.dashboard_customize_rounded,
+                        color: const Color(0xFF0F766E),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const GeometryPlaygroundScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                      _buildCard(
                         title: 'Saved',
                         subtitle: 'Open stored workspaces',
                         icon: Icons.folder_special_rounded,
@@ -198,48 +213,97 @@ class MathStudioHomeScreen extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(18),
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border.all(color: color.withValues(alpha: 0.18)),
-            borderRadius: BorderRadius.circular(18),
-          ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: color, size: 28),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final isCompact = constraints.maxHeight < 120;
+
+            return Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: color.withValues(alpha: 0.18)),
+                borderRadius: BorderRadius.circular(18),
               ),
-              const SizedBox(height: 12),
-              Text(
-                title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                subtitle,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: IDPColors.textSecondary,
-                  height: 1.35,
-                ),
-              ),
-            ],
-          ),
+              padding: EdgeInsets.all(isCompact ? 10 : 12),
+              child: isCompact
+                  ? Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: Icon(icon, color: color, size: 20),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                  color: color,
+                                ),
+                              ),
+                              const SizedBox(height: 3),
+                              Text(
+                                subtitle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: IDPColors.textSecondary,
+                                  height: 1.1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Icon(icon, color: color, size: 24),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: IDPColors.textSecondary,
+                            height: 1.15,
+                          ),
+                        ),
+                      ],
+                    ),
+            );
+          },
         ),
       ),
     );

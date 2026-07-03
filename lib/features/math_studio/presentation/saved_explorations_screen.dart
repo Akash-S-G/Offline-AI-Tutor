@@ -139,6 +139,8 @@ class _SavedExplorationsScreenState extends State<SavedExplorationsScreen> {
 
   Widget _buildList() {
     return ListView.separated(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       padding: const EdgeInsets.all(16),
       itemCount: _explorations.length,
       separatorBuilder: (context, index) => const SizedBox(height: 12),

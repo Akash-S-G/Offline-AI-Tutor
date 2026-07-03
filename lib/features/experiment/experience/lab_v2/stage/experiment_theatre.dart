@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
@@ -29,7 +27,7 @@ class ExperimentTheatre extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = SceneTheme.getById(sceneDefinition.theme);
-    
+
     return InteractionFeedbackController(
       child: Semantics(
         label: 'Scene with ${sceneDefinition.actorAssets.length} actors',
@@ -58,10 +56,7 @@ class ExperimentTheatre extends StatelessWidget {
                 world: world,
                 sceneId: sceneDefinition.sceneId,
               ),
-              ToolOverlay(
-                tools: sceneDefinition.tools,
-                world: world,
-              ),
+              ToolOverlay(tools: sceneDefinition.tools, world: world),
             ],
           ),
         ),
@@ -71,19 +66,21 @@ class ExperimentTheatre extends StatelessWidget {
 
   Widget _buildLayer(List<String> assets, double opacity, String layerType) {
     if (assets.isEmpty) return const SizedBox.shrink();
-    if (sceneDefinition.sceneId.contains('pendulum') && layerType == 'actor') return const SizedBox.shrink();
-    if (sceneDefinition.sceneId.contains('plant_growth') && layerType == 'actor') return const SizedBox.shrink();
-    
+    if (sceneDefinition.sceneId.contains('pendulum') && layerType == 'actor') {
+      return const SizedBox.shrink();
+    }
+    if (sceneDefinition.sceneId.contains('plant_growth') &&
+        layerType == 'actor') {
+      return const SizedBox.shrink();
+    }
+
     // Simplistic layout mapping: center them evenly
     return Opacity(
       opacity: opacity,
       child: Stack(
         fit: StackFit.expand,
         children: assets.map((assetPath) {
-          Widget svgNode = SvgPicture.asset(
-            assetPath,
-            fit: BoxFit.contain,
-          );
+          Widget svgNode = SvgPicture.asset(assetPath, fit: BoxFit.contain);
 
           svgNode = VisualResponseController(
             world: world,
@@ -99,15 +96,10 @@ class ExperimentTheatre extends StatelessWidget {
           );
 
           return Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(48.0),
-              child: svgNode,
-            ),
+            child: Padding(padding: const EdgeInsets.all(18), child: svgNode),
           );
         }).toList(),
       ),
     );
   }
 }
-
-

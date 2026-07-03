@@ -20,6 +20,9 @@ class MathStudioWorkspaceShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.viewInsetsOf(context).bottom;
+    final bottomPadding = MediaQuery.viewPaddingOf(context).bottom;
+
     return Scaffold(
       backgroundColor: IDPColors.background,
       appBar: AppBar(
@@ -32,7 +35,13 @@ class MathStudioWorkspaceShell extends StatelessWidget {
         child: Scrollbar(
           thumbVisibility: false,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+            keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              24 + bottomPadding + bottomInset,
+            ),
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxContentWidth),

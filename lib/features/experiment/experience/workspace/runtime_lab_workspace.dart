@@ -179,7 +179,9 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
                           onToggleDeveloper: widget.onToggleDeveloper,
                         ),
                         if (widget.developerMode) ...[
-                          FloatingMissionCard(guidedEngine: widget.guidedEngine),
+                          FloatingMissionCard(
+                            guidedEngine: widget.guidedEngine,
+                          ),
                           ExperimentNarrator(
                             eventBus: widget.world.eventBus,
                             guidedEngine: widget.guidedEngine,
@@ -221,7 +223,8 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
                           visible: _showIntro,
                           onSkip: () => setState(() => _showIntro = false),
                         ),
-                        if (widget.developerMode && widget.developerPanel != null)
+                        if (widget.developerMode &&
+                            widget.developerPanel != null)
                           widget.developerPanel!,
                       ],
                     ),
@@ -235,12 +238,6 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
     );
   }
 
-  void _captureMeasurement() {
-    widget.analytics.measurementCaptures++;
-    widget.onRecordObservation();
-    widget.onFeedback?.call('Measurement Saved');
-  }
-
   void _onFrame(Duration elapsed) {
     if (_lastFrame == Duration.zero) {
       _lastFrame = elapsed;
@@ -251,8 +248,6 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
     if (dt <= 0 || dt > 0.1) return;
     widget.world.tick(dt);
   }
-
-
 
   void _attachGuidedEngine() {
     final engine = widget.guidedEngine;
@@ -314,15 +309,9 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
     if (!height.isFinite || !width.isFinite || height <= 0 || width <= 0) {
       return 0.82;
     }
-    const hudHeight = 48.0;
-    const dockHeight = 58.0;
-    final collapsedSheetHeight = height * 0.05;
-    final graphDockArea = width * 0.24 * (height - hudHeight - dockHeight);
+    const hudHeight = 42.0;
     final developerArea = widget.developerMode ? width * height * 0.35 : 0.0;
-    final coveredArea =
-        (hudHeight + dockHeight + collapsedSheetHeight) * width +
-        graphDockArea +
-        developerArea;
+    final coveredArea = (hudHeight * width) + developerArea;
     final visible = 1 - (coveredArea / (width * height));
     return visible.clamp(0, 1).toDouble();
   }
