@@ -1,8 +1,8 @@
 class SimpleAiChatComponent {
   const SimpleAiChatComponent();
 
-  static final RegExp _greetingPattern = RegExp(
-    r'^(hi|hello|hey|hii+|good\s*(morning|afternoon|evening)|how are you)\b',
+  static final RegExp _standaloneGreetingPattern = RegExp(
+    r'^(hi|hello|hey|hii+|good\s*(morning|afternoon|evening)|how are you)$',
     caseSensitive: false,
   );
 
@@ -12,8 +12,11 @@ class SimpleAiChatComponent {
       return null;
     }
 
-    final normalized = q.toLowerCase();
-    if (_greetingPattern.hasMatch(normalized)) {
+    final normalized = q
+        .toLowerCase()
+        .replaceAll(RegExp(r'[.!?,]+$'), '')
+        .trim();
+    if (_standaloneGreetingPattern.hasMatch(normalized)) {
       if (normalized.contains('how are you')) {
         return 'I am good and ready to help you. Ask me a chapter question and I will explain it step by step.';
       }

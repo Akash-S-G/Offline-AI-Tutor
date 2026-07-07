@@ -66,7 +66,7 @@ void main() {
         id: 'msg_5',
         role: MessageRole.assistant,
         text: 'Tutor response',
-        language: AppLanguage.hindi,
+        language: AppLanguage.kannada,
         timestamp: DateTime.now(),
       );
 

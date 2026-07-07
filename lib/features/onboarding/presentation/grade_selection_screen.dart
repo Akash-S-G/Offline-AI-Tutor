@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:offline_tutor_app/l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'grade_sync_screen.dart';
-import '../../home/presentation/main_dashboard_screen.dart';
 
 class GradeSelectionScreen extends StatefulWidget {
   const GradeSelectionScreen({super.key});
@@ -15,9 +15,10 @@ class _GradeSelectionScreenState extends State<GradeSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Offline Tutor Onboarding'),
+        title: Text(l10n.offlineTutorOnboarding),
         backgroundColor: const Color(0xFF0B6E4F),
         foregroundColor: Colors.white,
       ),
@@ -34,8 +35,8 @@ class _GradeSelectionScreenState extends State<GradeSelectionScreen> {
                 color: Color(0xFF0B6E4F),
               ),
               const SizedBox(height: 24),
-              const Text(
-                'What grade are you studying?',
+              Text(
+                l10n.whatGradeAreYouStudying,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 24,
@@ -43,8 +44,8 @@ class _GradeSelectionScreenState extends State<GradeSelectionScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Select your grade to download the required offline curriculum. This reduces storage usage and sync time.',
+              Text(
+                l10n.selectYourGradeDescription,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 16,
@@ -85,7 +86,7 @@ class _GradeSelectionScreenState extends State<GradeSelectionScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                'Grade $grade',
+                                l10n.gradeLabel(grade),
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
@@ -115,8 +116,8 @@ class _GradeSelectionScreenState extends State<GradeSelectionScreen> {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Continue',
+                child: Text(
+                  l10n.continueLabel,
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
@@ -129,6 +130,7 @@ class _GradeSelectionScreenState extends State<GradeSelectionScreen> {
 
   Future<void> _saveAndContinue() async {
     if (_selectedGrade == null) return;
+    final languageCode = Localizations.localeOf(context).languageCode;
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('selected_grade', _selectedGrade!);
@@ -137,7 +139,10 @@ class _GradeSelectionScreenState extends State<GradeSelectionScreen> {
     
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => GradeSyncScreen(grade: _selectedGrade!),
+        builder: (_) => GradeSyncScreen(
+          grade: _selectedGrade!,
+          languageCode: languageCode,
+        ),
       ),
     );
   }

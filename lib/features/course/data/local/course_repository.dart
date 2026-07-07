@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 
+import '../../../translation/application/content_localization_service.dart';
 import '../../domain/course_tree.dart';
 import 'app_database.dart';
 
@@ -7,6 +8,7 @@ class CourseRepository {
   CourseRepository({AppDatabase? database}) : _database = database ?? AppDatabase.instance;
 
   final AppDatabase _database;
+  final ContentLocalizationService _localizer = ContentLocalizationService();
 
   static const List<String> _upperSubjects = <String>[
     'Mathematics',
@@ -186,7 +188,7 @@ class CourseRepository {
     await batch.commit(noResult: true);
   }
 
-  Future<List<Course>> getCourses() async {
+  Future<List<Course>> getCourses({String languageCode = 'en'}) async {
     final db = await _database.database;
     final rows = await db.query('courses', orderBy: 'name ASC');
 
@@ -214,10 +216,13 @@ class CourseRepository {
       return ga.compareTo(gb);
     });
 
-    return filtered;
+    return _localizeCourses(filtered, languageCode);
   }
 
-  Future<List<Subject>> getSubjects(String courseId) async {
+  Future<List<Subject>> getSubjects(
+    String courseId, {
+    String languageCode = 'en',
+  }) async {
     final db = await _database.database;
     final rows = await db.query(
       'subjects',
@@ -239,7 +244,7 @@ class CourseRepository {
     final gradeMatch = RegExp(r'^course_(\d+)$').firstMatch(courseId);
     final grade = int.tryParse(gradeMatch?.group(1) ?? '');
     if (grade == null) {
-      return all;
+      return _localizeSubjects(all, languageCode);
     }
 
     final allowedNames = _upperSubjects;
@@ -252,10 +257,13 @@ class CourseRepository {
       return ai.compareTo(bi);
     });
 
-    return filtered;
+    return _localizeSubjects(filtered, languageCode);
   }
 
-  Future<List<Chapter>> getChapters(String subjectId) async {
+  Future<List<Chapter>> getChapters(
+    String subjectId, {
+    String languageCode = 'en',
+  }) async {
     final db = await _database.database;
     final rows = await db.query(
       'chapters',
@@ -264,7 +272,7 @@ class CourseRepository {
       orderBy: 'title ASC',
     );
 
-    return rows
+    final chapters = rows
         .map(
           (row) => Chapter(
             id: row['id'] as String,
@@ -274,13 +282,14 @@ class CourseRepository {
           ),
         )
         .toList();
+    return _localizeChapters(chapters, languageCode);
   }
 
-  Future<List<Chapter>> getAllChapters() async {
+  Future<List<Chapter>> getAllChapters({String languageCode = 'en'}) async {
     final db = await _database.database;
     final rows = await db.query('chapters', orderBy: 'title ASC');
 
-    return rows
+    final chapters = rows
         .map(
           (row) => Chapter(
             id: row['id'] as String,
@@ -290,5 +299,36 @@ class CourseRepository {
           ),
         )
         .toList();
+    return _localizeChapters(chapters, languageCode);
+  }
+
+  Future<List<Course>> _localizeCourses(
+    List<Course> courses,
+    String languageCode,
+  ) async {
+    if (languageCode != 'kn') {
+      return courses;
+    }
+    return _localizer.localizeCourses(courses, targetLanguage: languageCode);
+  }
+
+  Future<List<Subject>> _localizeSubjects(
+    List<Subject> subjects,
+    String languageCode,
+  ) async {
+    if (languageCode != 'kn') {
+      return subjects;
+    }
+    return _localizer.localizeSubjects(subjects, targetLanguage: languageCode);
+  }
+
+  Future<List<Chapter>> _localizeChapters(
+    List<Chapter> chapters,
+    String languageCode,
+  ) async {
+    if (languageCode != 'kn') {
+      return chapters;
+    }
+    return _localizer.localizeChapters(chapters, targetLanguage: languageCode);
   }
 }

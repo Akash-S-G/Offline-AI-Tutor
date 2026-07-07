@@ -1,0 +1,91 @@
+{
+  "@@locale": "kn",
+  "appTitle": "ಆಫ್‌ಲೈನ್ ಟ್ಯೂಟರ್",
+  "offlineTutor": "ಆಫ್‌ಲೈನ್ ಟ್ಯೂಟರ್",
+  "learnAnywhereAnytime": "ಎಲ್ಲಿ ಬೇಕಾದರೂ, ಯಾವಾಗ ಬೇಕಾದರೂ ಕಲಿಯಿರಿ",
+  "richContentTitle": "ಸಮೃದ್ಧ ವಿಷಯ",
+  "richContentDescription": "ಪಠ್ಯಪುಸ್ತಕಗಳು, ವೀಡಿಯೊಗಳು ಮತ್ತು ಕಲಿಕಾ ಸಾಮಗ್ರಿಗಳು",
+  "smartTutorTitle": "ಸ್ಮಾರ್ಟ್ ಟ್ಯೂಟರ್",
+  "smartTutorDescription": "ಎಐ ಆಧಾರಿತ ಕಲಿಕಾ ಸಹಾಯ",
+  "communityTitle": "ಸಮುದಾಯ",
+  "communityDescription": "ಸಹಪಾಠಿಗಳೊಂದಿಗೆ ಸಂಪರ್ಕಿಸಿ ಮತ್ತು ಕಲಿಯಿರಿ",
+  "getStarted": "ಪ್ರಾರಂಭಿಸಿ",
+  "offlineTutorOnboarding": "ಆಫ್‌ಲೈನ್ ಟ್ಯೂಟರ್ ಪರಿಚಯ",
+  "whatGradeAreYouStudying": "ನೀವು ಯಾವ ತರಗತಿಯಲ್ಲಿ ಓದುತ್ತಿದ್ದೀರಿ?",
+  "selectYourGradeDescription": "ಅಗತ್ಯವಾದ ಆಫ್‌ಲೈನ್ ಪಠ್ಯಕ್ರಮವನ್ನು ಡೌನ್‌ಲೋಡ್ ಮಾಡಲು ನಿಮ್ಮ ತರಗತಿಯನ್ನು ಆಯ್ಕೆಮಾಡಿ. ಇದು ಸಂಗ್ರಹಣಾ ಬಳಕೆ ಮತ್ತು ಸಿಂಕ್ ಸಮಯವನ್ನು ಕಡಿಮೆ ಮಾಡುತ್ತದೆ.",
+  "continueLabel": "ಮುಂದುವರಿಸಿ",
+  "gradeLabel": "ತರಗತಿ {grade}",
+  "@gradeLabel": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "voiceTutorTitle": "ಧ್ವನಿ ಟ್ಯೂಟರ್",
+  "developerMode": "ಡೆವಲಪರ್ ಮೋಡ್",
+  "languageLabel": "ಭಾಷೆ",
+  "tapMicToStartTalking": "ಮಾತನಾಡಲು ಮೈಕ್ ಅನ್ನು ಒತ್ತಿರಿ",
+  "tapMicToAskQuestion": "ಪ್ರಶ್ನೆ ಕೇಳಲು ಮೈಕ್ ಅನ್ನು ಒತ್ತಿರಿ!",
+  "voiceDebugTitle": "ಧ್ವನಿ ಡೀಬಗ್",
+  "reset": "ಮರುಹೊಂದಿಸಿ",
+  "playRecording": "ರೆಕಾರ್ಡಿಂಗ್ ಪ್ಲೇ ಮಾಡಿ",
+  "permissionLabel": "ಅನುಮತಿ",
+  "recordingLabel": "ರೆಕಾರ್ಡಿಂಗ್",
+  "durationLabel": "ಅವಧಿ",
+  "playingLabel": "ಆಡುತ್ತಿದೆ",
+  "granted": "ಅನುಮೋದಿಸಲಾಗಿದೆ",
+  "notGranted": "ಅನುಮೋದಿಸಲಾಗಿಲ್ಲ",
+  "yes": "ಹೌದು",
+  "no": "ಇಲ್ಲ",
+  "offlineMessage": "ನೀವು ಈಗ ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಇದ್ದೀರಿ. ಸ್ಥಳೀಯ ವೈಶಿಷ್ಟ್ಯಗಳು ಇನ್ನೂ ಲಭ್ಯವಿವೆ.",
+  "retry": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
+  "errorOccurred": "ದೋಷ ಸಂಭವಿಸಿದೆ",
+  "tryAgain": "ಮತ್ತೆ ಪ್ರಯತ್ನಿಸಿ",
+  "manageOfflineContent": "ಆಫ್‌ಲೈನ್ ವಿಷಯ ನಿರ್ವಹಣೆ",
+  "removeGrade": "ತರಗತಿಯನ್ನು ತೆಗೆದುಹಾಕಿ",
+  "removeGradePrompt": "ತರಗತಿ {grade} ಗಾಗಿ ಡೌನ್‌ಲೋಡ್ ಮಾಡಿದ ಎಲ್ಲಾ ವಿಷಯವನ್ನು ತೆಗೆದುಹಾಕುವುದೇ?",
+  "@removeGradePrompt": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "remove": "ತೆಗೆದುಹಾಕಿ",
+  "cancel": "ರದ್ದುಮಾಡಿ",
+  "noGradesInstalled": "ಯಾವುದೇ ತರಗತಿಗಳು ಸ್ಥಾಪಿಸಲ್ಪಟ್ಟಿಲ್ಲ.",
+  "installedSubjects": "ಸ್ಥಾಪಿತ ವಿಷಯಗಳು: {subjects}",
+  "@installedSubjects": {
+    "placeholders": {
+      "subjects": {}
+    }
+  },
+  "reSyncGrade": "ತರಗತಿಯನ್ನು ಮರು-ಸಿಂಕ್ ಮಾಡಿ",
+  "installAdditionalGrade": "ಹೆಚ್ಚುವರಿ ತರಗತಿ ಸ್ಥಾಪಿಸಿ",
+  "modelSelection": "ಮಾದರಿ ಆಯ್ಕೆ",
+  "refresh": "ಪುನಃ ಲೋಡ್",
+  "loaded": "ಲೋಡ್ ಆಗಿದೆ: {value}",
+  "@loaded": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "inferences": "ಅನುಮಾನಗಳು: {count}",
+  "@inferences": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "pickModelFile": ".gguf ಮಾದರಿ ಫೈಲ್ ಆಯ್ಕೆಮಾಡಿ",
+  "validateModel": "ಮಾದರಿಯನ್ನು ಪರಿಶೀಲಿಸಿ",
+  "resetEngine": "ಎಂಜಿನ್ ಮರುಹೊಂದಿಸಿ",
+  "fast": "ವೇಗ",
+  "balanced": "ಸಮತೋಲನ",
+  "deepExplain": "ವಿಸ್ತೃತ ವಿವರ",
+  "saveModelConfiguration": "ಮಾದರಿ ಸಂರಚನೆ ಉಳಿಸಿ",
+  "modelConfigurationUpdated": "ಮಾದರಿ ಸಂರಚನೆ ನವೀಕರಿಸಲಾಗಿದೆ.",
+  "modelEngineReset": "ಮಾದರಿ ಎಂಜಿನ್ ಮರುಹೊಂದಿಸಲಾಗಿದೆ.",
+  "offlineLearningReport": "ಆಫ್‌ಲೈನ್ ಕಲಿಕಾ ವರದಿ",
+  "yourLearningInsights": "ನಿಮ್ಮ ಕಲಿಕಾ ಒಳನೋಟಗಳು",
+  "generatedLocally": "ನಿಮ್ಮ ಸಾಧನದಲ್ಲೇ ಸ್ಥಳೀಯವಾಗಿ ರಚಿಸಲಾಗಿದೆ",
+  "keepLearning": "ನಿಮ್ಮ ಬಲಗಳನ್ನು ಕಂಡುಹಿಡಿಯಲು ಕಲಿಯುವುದನ್ನು ಮುಂದುವರಿಸಿ.",
+  "noMajorWeakAreasDetected": "ಮಹತ್ತರ ದುರ್ಬಲ ಕ್ಷೇತ್ರಗಳು ಕಂಡುಬಂದಿಲ್ಲ. ಶಭಾಷ್!",
+  "completeChapters": "ಬ್ಯಾಡ್ಜ್‌ಗಳನ್ನು ಪಡೆಯಲು ಅಧ್ಯಾಯಗಳು ಮತ್ತು ಕ್ವಿಜ್‌ಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ."
+}

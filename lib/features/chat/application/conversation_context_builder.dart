@@ -65,6 +65,7 @@ class ConversationContextBuilder {
     final normalizedQuestion = _normalize(currentQuestion);
     final meaningful = messages
         .where((message) => message.text.trim().isNotEmpty)
+        .where((message) => !_isNoisyHistoryMessage(message.text))
         .toList(growable: true);
 
     if (meaningful.isNotEmpty &&
@@ -218,4 +219,22 @@ class ConversationContextBuilder {
   }
 
   String _summaryKey(String sessionId) => 'chat_session_summary_v1_$sessionId';
+
+  bool _isNoisyHistoryMessage(String text) {
+    final lower = text.toLowerCase();
+    return lower.contains('educational context:') ||
+        lower.contains('priority context:') ||
+        lower.contains('session summary:') ||
+        lower.contains('recent conversation:') ||
+        lower.contains('relevant notes:') ||
+        lower.contains('student question:') ||
+        lower.contains('tutor answer:') ||
+        lower.contains('answer:') && lower.contains('question:') ||
+        lower.contains('failed to process your question') ||
+        lower.contains('please try again') ||
+        lower.contains('context:') && lower.contains('[source') ||
+        lower.startsWith('session memory reset') ||
+        lower.startsWith('you are learning ') ||
+        lower.contains('ask your doubt to start');
+  }
 }

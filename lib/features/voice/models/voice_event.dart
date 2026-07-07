@@ -30,8 +30,9 @@ class VoiceEvent {
 
   /// Deserialize a JSON map from the WebSocket.
   factory VoiceEvent.fromJson(Map<String, dynamic> json) {
+    final rawType = json['type'] as String? ?? 'unknown';
     return VoiceEvent(
-      type: json['type'] as String? ?? 'unknown',
+      type: _normalizeType(rawType),
       payload: json['payload'] as Map<String, dynamic>? ?? const {},
       sessionId: json['session_id'] as String?,
       deviceId: json['device_id'] as String?,
@@ -55,6 +56,15 @@ class VoiceEvent {
     if (sequence != null) map['sequence'] = sequence;
     if (data != null) map['data'] = data;
     return map;
+  }
+
+  static String _normalizeType(String type) {
+    return switch (type) {
+      // Backward compatibility with older voice routes.
+      'audio_data' => VoiceEventType.audioChunk,
+      'audio_start' => VoiceEventType.sessionStart,
+      _ => type,
+    };
   }
 
   @override

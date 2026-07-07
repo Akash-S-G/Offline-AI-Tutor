@@ -28,12 +28,14 @@ import '../../shared/application/offline_error_taxonomy.dart';
 class P2PScreen extends StatefulWidget {
   const P2PScreen({
     required this.courseRepository,
+    required this.languageCode,
     this.initialChapterId,
     this.quickSendPreset = false,
     super.key,
   });
 
   final CourseRepository courseRepository;
+  final String languageCode;
   final String? initialChapterId;
   final bool quickSendPreset;
 
@@ -167,7 +169,9 @@ class _P2PScreenState extends State<P2PScreen> {
       final peers = await _service.listPeers();
       final received = await _service.listReceivedBundles();
       final pendingIncoming = await _service.listPendingIncomingTransfers();
-      final rawChapters = await widget.courseRepository.getAllChapters();
+      final rawChapters = await widget.courseRepository.getAllChapters(
+        languageCode: widget.languageCode,
+      );
       final chapterById = <String, Chapter>{};
       for (final chapter in rawChapters) {
         chapterById[chapter.id] ??= chapter;

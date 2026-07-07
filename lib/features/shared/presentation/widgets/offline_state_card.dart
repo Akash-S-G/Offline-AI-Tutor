@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_tutor_app/l10n/app_localizations.dart';
 
 class OfflineStateCard extends StatelessWidget {
   final String message;
@@ -6,12 +7,14 @@ class OfflineStateCard extends StatelessWidget {
 
   const OfflineStateCard({
     super.key,
-    this.message = 'You are currently offline. Local features are still available.',
+    this.message = '',
     this.onRetry,
   });
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final resolvedMessage = message.isEmpty ? l10n.offlineMessage : message;
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.all(16),
@@ -24,11 +27,11 @@ class OfflineStateCard extends StatelessWidget {
         children: [
           Icon(Icons.wifi_off, color: Colors.orange.shade700),
           const SizedBox(width: 16),
-          Expanded(child: Text(message, style: TextStyle(color: Colors.orange.shade900))),
+          Expanded(child: Text(resolvedMessage, style: TextStyle(color: Colors.orange.shade900))),
           if (onRetry != null)
             TextButton(
               onPressed: onRetry,
-              child: const Text('RETRY'),
+              child: Text(l10n.retry),
             ),
         ],
       ),

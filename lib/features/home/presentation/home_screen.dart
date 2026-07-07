@@ -11,10 +11,12 @@ import '../../settings/presentation/model_selection_screen.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
     required this.courseRepository,
+    required this.languageCode,
     super.key,
   });
 
   final CourseRepository courseRepository;
+  final String languageCode;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -38,7 +40,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadInitial() async {
-    final courses = await widget.courseRepository.getCourses();
+    final courses = await widget.courseRepository.getCourses(
+      languageCode: widget.languageCode,
+    );
     if (courses.isEmpty) {
       setState(() {
         _loading = false;
@@ -47,11 +51,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     final selectedCourse = courses.first;
-    final subjects = await widget.courseRepository.getSubjects(selectedCourse.id);
+    final subjects = await widget.courseRepository.getSubjects(
+      selectedCourse.id,
+      languageCode: widget.languageCode,
+    );
     final selectedSubject = subjects.isEmpty ? null : subjects.first;
     final chapters = selectedSubject == null
         ? <Chapter>[]
-        : await widget.courseRepository.getChapters(selectedSubject.id);
+        : await widget.courseRepository.getChapters(
+            selectedSubject.id,
+            languageCode: widget.languageCode,
+          );
 
     setState(() {
       _courses = courses;
@@ -69,11 +79,17 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    final subjects = await widget.courseRepository.getSubjects(course.id);
+    final subjects = await widget.courseRepository.getSubjects(
+      course.id,
+      languageCode: widget.languageCode,
+    );
     final selectedSubject = subjects.isEmpty ? null : subjects.first;
     final chapters = selectedSubject == null
         ? <Chapter>[]
-        : await widget.courseRepository.getChapters(selectedSubject.id);
+        : await widget.courseRepository.getChapters(
+            selectedSubject.id,
+            languageCode: widget.languageCode,
+          );
 
     setState(() {
       _selectedCourse = course;
@@ -89,7 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
 
-    final chapters = await widget.courseRepository.getChapters(subject.id);
+    final chapters = await widget.courseRepository.getChapters(
+      subject.id,
+      languageCode: widget.languageCode,
+    );
 
     setState(() {
       _selectedSubject = subject;
@@ -131,7 +150,10 @@ class _HomeScreenState extends State<HomeScreen> {
   void _openP2P() {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => P2PScreen(courseRepository: widget.courseRepository),
+        builder: (_) => P2PScreen(
+          courseRepository: widget.courseRepository,
+          languageCode: widget.languageCode,
+        ),
       ),
     );
   }
@@ -141,6 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute<void>(
         builder: (_) => ProgressDashboardScreen(
           courseRepository: widget.courseRepository,
+          languageCode: widget.languageCode,
         ),
       ),
     );

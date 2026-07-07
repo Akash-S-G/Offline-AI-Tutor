@@ -9,7 +9,12 @@ import '../../voice/providers/voice_provider.dart';
 /// Same state animations as [MicButton] but sized for small children
 /// with prominent press affordance.
 class HugeMicButton extends ConsumerWidget {
-  const HugeMicButton({super.key});
+  const HugeMicButton({
+    super.key,
+    this.languageCode = 'en',
+  });
+
+  final String languageCode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -17,19 +22,22 @@ class HugeMicButton extends ConsumerWidget {
     final notifier = ref.read(voiceProvider.notifier);
 
     return GestureDetector(
-      onTap: () => _handleTap(voice.state, notifier),
+      onTap: () => _handleTap(voice.state, notifier, languageCode),
       child: _HugeMicVisual(state: voice.state),
     );
   }
 
-  void _handleTap(VoiceState state, VoiceNotifier notifier) {
+  void _handleTap(VoiceState state, VoiceNotifier notifier, String languageCode) {
     switch (state) {
       case VoiceState.idle:
-        notifier.startRecording();
+        notifier.startRecording(languageCode: languageCode);
+        break;
       case VoiceState.listening:
         notifier.stopRecording();
+        break;
       case VoiceState.speaking:
         notifier.stopPlayback();
+        break;
       case VoiceState.processing:
       case VoiceState.error:
         break;

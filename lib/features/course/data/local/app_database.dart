@@ -17,7 +17,7 @@ class AppDatabase {
 
     _database = await openDatabase(
       fullPath,
-      version: 15,
+      version: 16,
       onCreate: (db, version) async {
         await _createBaseTables(db);
         await _createRagTables(db);
@@ -90,6 +90,9 @@ class AppDatabase {
         }
         if (oldVersion < 15) {
           await _createRagFtsArtifacts(db);
+        }
+        if (oldVersion < 16) {
+          await _createTranslationCacheTables(db);
         }
       },
     );
@@ -467,6 +470,30 @@ class AppDatabase {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_material_pack_items_grade_subject
       ON material_pack_items(grade, subject, medium);
+    ''');
+  }
+
+  Future<void> _createTranslationCacheTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS translation_cache (
+        cache_key TEXT PRIMARY KEY,
+        artifact_type TEXT NOT NULL,
+        content_id TEXT,
+        source_language TEXT NOT NULL,
+        target_language TEXT NOT NULL,
+        source_hash TEXT NOT NULL,
+        source_text TEXT NOT NULL,
+        translated_text TEXT NOT NULL,
+        engine_id TEXT NOT NULL,
+        fallback_used INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_translation_cache_lookup
+      ON translation_cache(target_language, artifact_type, source_hash);
     ''');
   }
 }

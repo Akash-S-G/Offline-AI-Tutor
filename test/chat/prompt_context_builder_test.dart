@@ -86,18 +86,21 @@ void main() {
       expect(prompt.length, lessThanOrEqualTo(3900));
       expect(
         prompt.indexOf('Subject: Physics'),
-        lessThan(prompt.indexOf('Session Summary:')),
+        lessThan(prompt.indexOf('Session summary:')),
       );
       expect(
-        prompt.indexOf('Session Summary:'),
-        lessThan(prompt.indexOf('Recent Conversation:')),
+        prompt.indexOf('Session summary:'),
+        lessThan(prompt.indexOf('Recent conversation:')),
       );
       expect(
-        prompt.indexOf('Recent Conversation:'),
-        lessThan(prompt.indexOf('Relevant Notes:')),
+        prompt.indexOf('Recent conversation:'),
+        lessThan(prompt.indexOf('Relevant notes:')),
       );
-      expect(prompt, contains('Do not reveal internal reasoning.'));
-      expect(prompt, contains('Student Question: Why does it go farther?'));
+      expect(
+        prompt,
+        contains('Do not reveal internal reasoning or chain of thought.'),
+      );
+      expect(prompt, contains('Student question: Why does it go farther?'));
       expect(promptBuilder.lastAudit['final_prompt'], prompt);
       expect(promptBuilder.lastAudit['retrieved_chunks'], hasLength(3));
       expect(
@@ -115,6 +118,20 @@ void main() {
       expect(cleaned, isNot(contains('secret')));
       expect(cleaned, contains('Answer first.'));
       expect(cleaned, contains('Visible.'));
+    });
+
+    test('prompt echo scaffolding is stripped from final output', () {
+      final cleaned = ReasoningOutputFilter.stripComplete('''
+EDUCATIONAL CONTEXT: ----------------------------------------
+[Source 1] (relevance: 0.66) Example note
+QUESTION: hi explain this chapter
+ANSWER:
+A sector is a part of a circle.
+''');
+
+      expect(cleaned, isNot(contains('EDUCATIONAL CONTEXT')));
+      expect(cleaned, isNot(contains('QUESTION: hi explain this chapter')));
+      expect(cleaned, contains('A sector is a part of a circle.'));
     });
   });
 }

@@ -19,19 +19,20 @@ class TutorPromptBuilder {
     required ConversationContext conversationContext,
     Map<String, dynamic>? experimentContext,
   }) {
-    final tutorLanguage = languageCode == 'kn'
-        ? 'Kannada with simple English terms'
+    final isKannada = languageCode == 'kn';
+    final tutorLanguage = isKannada
+        ? 'Kannada in natural school-level language. Use Kannada script by default. Keep only essential scientific names, formulas, and fixed technical terms in English when Kannada terms would be unclear.'
         : 'English';
     final systemPrompt = _budget.clip('''
 You are an educational tutor.
-Use the current subject, chapter and recent conversation when answering.
-Prefer curriculum content before general knowledge.
-Keep explanations age appropriate.
-Answer directly and clearly.
+Answer only the student's question.
+Use the current subject, chapter, and recent conversation as support.
+Do not repeat the question, the context labels, or any prompt text.
+Keep explanations age appropriate, direct, and clear.
 If the question is ambiguous, interpret it using the current learning topic.
-Do not reveal internal reasoning.
-Do not output chain of thought.
-Provide only the final answer.
+Do not reveal internal reasoning or chain of thought.
+If the active language is Kannada, answer in Kannada unless the student explicitly asks for English.
+If the question mixes English and Kannada, respond naturally in Kannada and preserve formulas, names, and symbols.
 ''', _budget.systemChars);
 
     final curriculumSection = _budget.clip('''
@@ -43,12 +44,12 @@ Chapter Summary: ${chapter.summary}
 ''', _budget.curriculumChars);
 
     final summarySection = conversationContext.sessionSummary.trim().isEmpty
-        ? 'Session Summary:\nNo compact session summary is available yet.'
-        : 'Session Summary:\n${_budget.clip(conversationContext.sessionSummary, _budget.summaryChars)}';
+        ? 'Session summary: none yet.'
+        : 'Session summary:\n${_budget.clip(conversationContext.sessionSummary, _budget.summaryChars)}';
 
     final historySection = conversationContext.recentConversation.isEmpty
-        ? 'Recent Conversation:\nNo prior conversation available for this session.'
-        : 'Recent Conversation:\n${_budget.fitLines(conversationContext.recentConversation, _budget.historyChars).join('\n')}';
+        ? 'Recent conversation: none yet.'
+        : 'Recent conversation:\n${_budget.fitLines(conversationContext.recentConversation, _budget.historyChars).join('\n')}';
 
     final ragItems = _budget.fitLines(
       retrievedContext
@@ -64,8 +65,8 @@ Chapter Summary: ${chapter.summary}
       _budget.ragChars,
     );
     final contextSection = ragItems.isEmpty
-        ? 'Relevant Notes:\nNo syllabus notes available for this chapter yet. Use chapter summary and standard textbook logic.'
-        : 'Relevant Notes:\n${ragItems.join('\n')}';
+        ? 'Relevant notes: none yet. Use the chapter summary and standard textbook logic.'
+        : 'Relevant notes:\n${ragItems.join('\n')}';
 
     final experimentSection =
         experimentContext == null || experimentContext.isEmpty
@@ -75,27 +76,23 @@ Chapter Summary: ${chapter.summary}
     final prompt = _budget.hardCapPrompt('''
 $systemPrompt
 
-Priority Context:
-1. Subject and chapter
 $curriculumSection
 $experimentSection
-2. Session summary
 $summarySection
 
-3. Recent conversation
 $historySection
 
-4. Curriculum retrieval
 $contextSection
 
 Rules:
 1. Answer in simple words.
 2. Use the subject, chapter, summary, recent conversation, and notes in that order.
-3. Do not repeat the question.
+3. Do not repeat the question or the context labels.
 4. Do not include tags like <think>, <reasoning>, <analysis>, <|Question|>, <|Answer|>, or <|Roleplay|>.
+5. Return only the final answer.
 
-Student Question: ${_budget.clip(question, _budget.questionChars)}
-Tutor Answer:
+Student question: ${_budget.clip(question, _budget.questionChars)}
+Answer:
 ''');
 
     lastAudit = <String, dynamic>{

@@ -68,6 +68,7 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
   final AudioRecorderService _recorder;
   final AudioPlayerService _player;
   final VoiceStreamPlayer _streamPlayer;
+  String _languageCode = 'en';
 
   Timer? _durationTimer;
   StreamSubscription<bool>? _playingSub;
@@ -76,7 +77,8 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
   // ─── Public API ─────────────────────────────────────────────────
 
   /// Request mic permission and start recording.
-  Future<void> startRecording() async {
+  Future<void> startRecording({String languageCode = 'en'}) async {
+    _languageCode = languageCode;
     final granted = await _permissions.requestMicrophonePermission();
     if (!granted) {
       state = state.copyWith(hasPermission: false, state: VoiceState.error);
@@ -89,6 +91,8 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
       await _streamPlayer.interrupt();
       
       await _recorder.startRecording();
+      final conn = ref.read(voiceConnectionProvider.notifier);
+      conn.socket.sendSessionStart(_languageCode);
       state = state.copyWith(
         state: VoiceState.listening,
         recordingDuration: Duration.zero,
@@ -100,7 +104,7 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
   }
 
   /// Stop recording, send to server, and wait for response.
-  Future<void> stopRecording() async {
+  Future<void> stopRecording({Map<String, dynamic>? context}) async {
     _stopDurationTimer();
     try {
       final path = await _recorder.stopRecording();
@@ -112,9 +116,11 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
       if (path != null) {
         final bytes = await File(path).readAsBytes();
         final conn = ref.read(voiceConnectionProvider.notifier);
-        conn.socket.sendSessionStart('en');
         conn.socket.sendAudioChunk(bytes, 1);
-        conn.socket.sendAudioComplete('en');
+        conn.socket.sendAudioComplete(
+          _languageCode,
+          context: context,
+        );
       }
     } catch (_) {
       state = state.copyWith(state: VoiceState.error);
@@ -156,6 +162,7 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
     } catch (_) {
       // Best-effort cleanup.
     }
+    _languageCode = 'en';
     state = const VoiceProviderState();
   }
 

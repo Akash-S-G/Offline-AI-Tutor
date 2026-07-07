@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:offline_tutor_app/features/language/models/app_language.dart';
 import 'package:offline_tutor_app/features/language/providers/language_provider.dart';
 import 'package:offline_tutor_app/features/language/widgets/language_selector.dart';
+import 'package:offline_tutor_app/l10n/app_localizations.dart';
 import 'package:offline_tutor_app/features/tutor/screens/primary_voice_tutor_screen.dart';
 import 'package:offline_tutor_app/features/tutor/widgets/huge_mic_button.dart';
 import 'package:offline_tutor_app/features/tutor/widgets/large_response_card.dart';
@@ -16,6 +16,8 @@ void main() {
   Widget wrap(Widget child) {
     return ProviderScope(
       child: MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
         home: Scaffold(body: child),
       ),
     );

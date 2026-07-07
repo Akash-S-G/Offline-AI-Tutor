@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:offline_tutor_app/l10n/app_localizations.dart';
 
 import '../../tutor/models/conversation_state.dart';
 import '../models/voice_state.dart';
@@ -32,17 +33,18 @@ class _VoiceDebugScreenState extends ConsumerState<VoiceDebugScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final voice = ref.watch(voiceProvider);
     final theme = Theme.of(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Voice Debug'),
+        title: Text(l10n.voiceDebugTitle),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             onPressed: () => ref.read(voiceProvider.notifier).reset(),
-            tooltip: 'Reset',
+            tooltip: l10n.reset,
           ),
         ],
       ),
@@ -79,26 +81,26 @@ class _VoiceDebugScreenState extends ConsumerState<VoiceDebugScreen> {
 
               // ─ Info cards ─
               _InfoTile(
-                label: 'Permission',
-                value: voice.hasPermission ? 'Granted' : 'Not granted',
+                label: l10n.permissionLabel,
+                value: voice.hasPermission ? l10n.granted : l10n.notGranted,
                 icon: voice.hasPermission ? Icons.check_circle : Icons.block,
                 color: voice.hasPermission ? Colors.green : Colors.red,
               ),
               _InfoTile(
-                label: 'Recording',
+                label: l10n.recordingLabel,
                 value: voice.currentRecording ?? '—',
                 icon: Icons.audio_file_rounded,
                 color: theme.colorScheme.primary,
               ),
               _InfoTile(
-                label: 'Duration',
+                label: l10n.durationLabel,
                 value: _formatDuration(voice.recordingDuration),
                 icon: Icons.timer_rounded,
                 color: theme.colorScheme.secondary,
               ),
               _InfoTile(
-                label: 'Playing',
-                value: voice.isPlaying ? 'Yes' : 'No',
+                label: l10n.playingLabel,
+                value: voice.isPlaying ? l10n.yes : l10n.no,
                 icon: Icons.play_arrow_rounded,
                 color: voice.isPlaying ? Colors.green : Colors.grey,
               ),
@@ -112,14 +114,14 @@ class _VoiceDebugScreenState extends ConsumerState<VoiceDebugScreen> {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: OutlinedButton.icon(
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Play Recording'),
+                    label: Text(l10n.playRecording),
                     onPressed: () =>
                         ref.read(voiceProvider.notifier).playRecording(),
                   ),
                 ),
 
               // ─ Mic ─
-              const MicButton(),
+              const MicButton(languageCode: 'en'),
               const SizedBox(height: 32),
             ],
           ),

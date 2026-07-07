@@ -313,9 +313,7 @@ class HybridInferenceService {
           );
         }
 
-        await for (final chunk in backendStream.timeout(
-          const Duration(seconds: 5),
-        )) {
+        await for (final chunk in backendStream) {
           print("[TRACE] HYBRID_RECEIVED=$chunk");
           print("[TRACE] HYBRID_FORWARDING=$chunk");
           yield chunk;
@@ -328,6 +326,30 @@ class HybridInferenceService {
       } catch (e) {
         print('[DIAGNOSTICS] BACKEND_TUTOR_FAILED');
         print('[DIAGNOSTICS] BACKEND_ERROR=$e');
+        final shouldRetryWithoutContext = _isInvalidCharacterBackendError(e);
+        if (shouldRetryWithoutContext && backendAvailable) {
+          print('[DIAGNOSTICS] BACKEND_RETRY_WITH_MINIMAL_PAYLOAD');
+          try {
+            final minimalBackendStream =
+                _backendService.streamTutorAnswer(
+                  question: question,
+                  grade: grade,
+                  subject: subject,
+                  chapter: chapter,
+                  language: language,
+                );
+            await for (final chunk in minimalBackendStream) {
+              yield chunk;
+            }
+            print('[DIAGNOSTICS] FINAL_EXECUTION_PATH=BACKEND_RAG_MINIMAL');
+            final totalMs = DateTime.now().difference(startTime).inMilliseconds;
+            print('[DIAGNOSTICS] TOTAL_EXECUTION_TIME_MS=$totalMs');
+            return;
+          } catch (retryError) {
+            print('[DIAGNOSTICS] BACKEND_MINIMAL_RETRY_FAILED');
+            print('[DIAGNOSTICS] BACKEND_MINIMAL_ERROR=$retryError');
+          }
+        }
         print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_START');
         executionMode = TutorExecutionMode.knowledgeFallback;
       }
@@ -387,21 +409,26 @@ Question: $question
     if (executionMode == TutorExecutionMode.knowledgeFallback) {
       print('[DIAGNOSTICS] EXECUTION_MODE=KNOWLEDGE_FALLBACK');
       final localBuffer = StringBuffer();
-      final localPrompt =
-          preparedPrompt ??
-          '''
+      final compactContext = (localCurriculumContext ?? const <String>[])
+          .take(3)
+          .map(_cleanFallbackContextLine)
+          .where((line) => line.isNotEmpty)
+          .join('\n');
+      final localPrompt = '''
 You are an offline school tutor.
-The requested topic was not found in the local curriculum database.
-Answer using your general knowledge.
-Rules:
-* Explain in simple language.
-* Use age appropriate examples.
-* Be educational and factual.
-* State uncertainty when necessary.
-* Do not invent textbook references.
-* Keep answers concise.
+Answer the student's question directly in simple words.
+Use the chapter context below only if it helps.
+Do not repeat the context headings, labels, or the question.
+If the question is just a greeting, respond briefly and invite a chapter question.
+Keep the answer concise and educational.
 
+Subject: ${subject ?? 'Unknown'}
+Chapter: ${chapter ?? 'Unknown'}
 Question: $question
+Context:
+$compactContext
+
+Answer:
 ''';
       print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_PROMPT_BUILT');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
@@ -497,6 +524,21 @@ Question: $question
     }
 
     return cached.response;
+  }
+
+  String _cleanFallbackContextLine(String line) {
+    final normalized = line
+        .replaceAll(RegExp(r'[^\p{L}\p{M}\p{N}\p{P}\p{Zs}\n\r\t]', unicode: true), ' ')
+        .replaceAll(RegExp(r'[\u0000-\u001F\u007F]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+    return normalized;
+  }
+
+  bool _isInvalidCharacterBackendError(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('invalid argument') &&
+        message.contains('invalid characters');
   }
 }
 

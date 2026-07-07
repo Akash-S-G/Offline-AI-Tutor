@@ -67,39 +67,82 @@ class MockVoiceSocketService extends VoiceSocketService {
   }
 
   Future<void> _simulateBackendPipeline() async {
-    // 1. Send partial transcript
+    // 1. Session acknowledged
+    _mockEventController.add(const VoiceEvent(
+      type: VoiceEventType.sessionAcknowledged,
+      payload: {'message': 'session ready'},
+      language: 'en',
+    ));
+
+    // 2. Send transcribing status
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+    _mockEventController.add(const VoiceEvent(
+      type: VoiceEventType.transcribing,
+      payload: {'status': 'transcribing'},
+      language: 'en',
+    ));
+
+    // 3. Send partial transcript
     await Future<void>.delayed(const Duration(milliseconds: 600));
     _mockEventController.add(const VoiceEvent(
       type: VoiceEventType.partialTranscript,
       payload: {'text': 'I am testing the...'},
+      language: 'en',
     ));
 
-    // 2. Send final transcript
+    // 4. Send final transcript
     await Future<void>.delayed(const Duration(milliseconds: 600));
     _mockEventController.add(const VoiceEvent(
       type: VoiceEventType.finalTranscript,
       payload: {'text': 'I am testing the mock integration pipeline.'},
+      language: 'en',
     ));
 
-    // 3. Send assistant reply text
+    // 5. Send assistant thinking / response chunks
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    _mockEventController.add(const VoiceEvent(
+      type: VoiceEventType.thinking,
+      payload: {'status': 'thinking'},
+      language: 'en',
+    ));
+
     await Future<void>.delayed(const Duration(milliseconds: 800));
     _mockEventController.add(const VoiceEvent(
-      type: VoiceEventType.assistantMessage,
+      type: VoiceEventType.responseChunk,
       payload: {
-        'text': 'This is a mock response from the simulated backend.',
-        'language': 'en'
+        'text': 'This is a mock response from the simulated backend.'
       },
+      language: 'en',
     ));
 
-    // 4. Send mock audio chunks
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    _mockEventController.add(const VoiceEvent(
+      type: VoiceEventType.responseComplete,
+      payload: {},
+      language: 'en',
+    ));
+
+    // 6. Generate audio
     await Future<void>.delayed(const Duration(milliseconds: 300));
-    // We send a small valid WAV header so the player doesn't crash, 
-    // or we can just send empty bytes if the player handles it gracefully.
-    // For simplicity, we send empty bytes in this mock, but ideally a valid 
-    // empty WAV or silent WAV. We'll send an empty list.
+    _mockEventController.add(const VoiceEvent(
+      type: VoiceEventType.generatingAudio,
+      payload: {'status': 'generating_audio'},
+      language: 'en',
+    ));
+
+    // 7. Send mock audio chunks
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     _mockEventController.add(VoiceEvent(
       type: VoiceEventType.audioChunk,
       payload: {'audio': base64Encode(Uint8List(0))},
+      language: 'en',
+    ));
+
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    _mockEventController.add(const VoiceEvent(
+      type: VoiceEventType.audioComplete,
+      payload: {'status': 'audio_complete'},
+      language: 'en',
     ));
   }
 

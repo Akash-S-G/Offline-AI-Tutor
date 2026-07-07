@@ -119,17 +119,21 @@ class VoiceConnectionNotifier extends StateNotifier<VoiceConnectionState> {
 final voiceConnectionProvider =
     StateNotifierProvider<VoiceConnectionNotifier, VoiceConnectionState>((ref) {
       final session = ref.watch(sessionProvider);
-      final activeEndpoint = ref.watch(
-        backendDiscoveryProvider.select((service) => service.activeEndpoint),
-      );
       final notifier = VoiceConnectionNotifier();
 
       notifier.socket.activeSession = session;
 
-      if (activeEndpoint != null) {
-        // Convert http:// to ws:// for the socket connection
+      String? activeEndpoint;
+      try {
+        activeEndpoint = ref.watch(
+          backendDiscoveryProvider.select((service) => service.activeEndpoint),
+        );
+      } catch (_) {
+        activeEndpoint = null;
+      }
+
+      if (activeEndpoint != null && activeEndpoint.isNotEmpty) {
         final wsUrl = activeEndpoint.replaceFirst('http', 'ws');
-        // Connect automatically using the discovered endpoint
         notifier.connect('$wsUrl/api/v1/voice/stream');
       }
 

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_tutor_app/l10n/app_localizations.dart';
 
 /// Large response card for primary school mode.
 ///
@@ -19,6 +20,7 @@ class LargeResponseCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = AppLocalizations.of(context)!;
 
     return Container(
       width: double.infinity,
@@ -36,7 +38,7 @@ class LargeResponseCard extends StatelessWidget {
         ],
       ),
       child: Text(
-        text.isEmpty ? 'Tap the mic to ask a question!' : text,
+        text.isEmpty ? l10n.tapMicToAskQuestion : text,
         textAlign: TextAlign.center,
         maxLines: maxLines,
         overflow: TextOverflow.ellipsis,

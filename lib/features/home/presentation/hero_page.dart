@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_tutor_app/l10n/app_localizations.dart';
 
 /// Hero/Intro page for the Offline Tutor app
 class HeroPage extends StatefulWidget {
@@ -45,6 +46,7 @@ class _HeroPageState extends State<HeroPage> with SingleTickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     const primary = Color(0xFF0B6E4F);
     const accent = Color(0xFFFF6B35);
     const surface = Color(0xFFF7FCFA);
@@ -72,10 +74,10 @@ class _HeroPageState extends State<HeroPage> with SingleTickerProviderStateMixin
                       width: 120,
                       height: 120,
                       decoration: BoxDecoration(
-                        color: surface.withOpacity(0.1),
+                        color: surface.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                         border: Border.all(
-                          color: surface.withOpacity(0.3),
+                          color: surface.withValues(alpha: 0.3),
                           width: 2,
                         ),
                       ),
@@ -95,8 +97,8 @@ class _HeroPageState extends State<HeroPage> with SingleTickerProviderStateMixin
                       opacity: _fadeAnimation,
                       child: Column(
                         children: [
-                          const Text(
-                            'Offline Tutor',
+                          Text(
+                            l10n.offlineTutor,
                             style: TextStyle(
                               fontSize: 42,
                               fontWeight: FontWeight.bold,
@@ -106,10 +108,10 @@ class _HeroPageState extends State<HeroPage> with SingleTickerProviderStateMixin
                           ),
                           const SizedBox(height: 12),
                           Text(
-                            'Learn Anywhere, Anytime',
+                            l10n.learnAnywhereAnytime,
                             style: TextStyle(
                               fontSize: 18,
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                               fontWeight: FontWeight.w300,
                               letterSpacing: 0.5,
                             ),
@@ -128,20 +130,20 @@ class _HeroPageState extends State<HeroPage> with SingleTickerProviderStateMixin
                       children: [
                         _FeatureItem(
                           icon: Icons.book_rounded,
-                          title: 'Rich Content',
-                          description: 'Textbooks, videos, and materials',
+                          title: l10n.richContentTitle,
+                          description: l10n.richContentDescription,
                         ),
                         const SizedBox(height: 20),
                         _FeatureItem(
                           icon: Icons.person_rounded,
-                          title: 'Smart Tutor',
-                          description: 'AI-powered learning assistance',
+                          title: l10n.smartTutorTitle,
+                          description: l10n.smartTutorDescription,
                         ),
                         const SizedBox(height: 20),
                         _FeatureItem(
                           icon: Icons.share_rounded,
-                          title: 'Community',
-                          description: 'Connect and learn with peers',
+                          title: l10n.communityTitle,
+                          description: l10n.communityDescription,
                         ),
                       ],
                     ),
@@ -167,11 +169,11 @@ class _HeroPageState extends State<HeroPage> with SingleTickerProviderStateMixin
                             ),
                             elevation: 8,
                           ),
-                          child: const Row(
+                          child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Text(
-                                'Get Started',
+                                l10n.getStarted,
                                 style: TextStyle(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
@@ -214,7 +216,7 @@ class _FeatureItem extends StatelessWidget {
           width: 60,
           height: 60,
           decoration: BoxDecoration(
-            color: const Color(0xFFFF6B35).withOpacity(0.2),
+            color: const Color(0xFFFF6B35).withValues(alpha: 0.2),
             shape: BoxShape.circle,
           ),
           child: Icon(
@@ -241,7 +243,7 @@ class _FeatureItem extends StatelessWidget {
                 description,
                 style: TextStyle(
                   fontSize: 14,
-                  color: Colors.white.withOpacity(0.7),
+                  color: Colors.white.withValues(alpha: 0.7),
                   fontWeight: FontWeight.w400,
                 ),
               ),

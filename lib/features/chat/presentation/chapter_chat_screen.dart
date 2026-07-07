@@ -952,7 +952,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
     final distributedStreamingReady = _distributedServiceComposer.isInitialized;
 
-    if (!_engineLoaded) {
+    final canUseDistributedBackend =
+        Platform.isLinux && _distributedServiceComposer.isInitialized;
+    if (!_engineLoaded && !canUseDistributedBackend) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -1325,7 +1327,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
 
       if (finalAssistant.isEmpty) {
-        finalAssistant = responseBuffer.toString().trim();
+        finalAssistant = _sanitizeAssistantText(
+          responseBuffer.toString(),
+        ).trim();
       }
 
       if (finalAssistant.isNotEmpty && mounted) {
@@ -1946,8 +1950,15 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     }
 
     if (normalized.contains('student question:') ||
+        normalized.contains('educational context:') ||
+        normalized.contains('session summary:') ||
+        normalized.contains('recent conversation:') ||
+        normalized.contains('relevant notes:') ||
+        normalized.contains('priority context:') ||
+        normalized.contains('tutor answer:') ||
         normalized.contains('direct reply:') ||
-        normalized.contains('answer:')) {
+        normalized.contains('answer:') ||
+        normalized.contains('question:')) {
       return true;
     }
 

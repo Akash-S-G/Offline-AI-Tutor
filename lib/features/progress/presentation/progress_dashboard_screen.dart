@@ -9,10 +9,12 @@ import '../../assessment/domain/quiz_result.dart';
 class ProgressDashboardScreen extends StatefulWidget {
   const ProgressDashboardScreen({
     required this.courseRepository,
+    required this.languageCode,
     super.key,
   });
 
   final CourseRepository courseRepository;
+  final String languageCode;
 
   @override
   State<ProgressDashboardScreen> createState() =>
@@ -47,16 +49,23 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   }
 
   Future<void> _loadData() async {
-    final courses = await widget.courseRepository.getCourses();
+    final courses = await widget.courseRepository.getCourses(
+      languageCode: widget.languageCode,
+    );
     final chapters = <Chapter>[];
     final chapterTitleById = <String, String>{};
     final chapterSubjectById = <String, String>{};
 
     for (final course in courses) {
-      final subjects = await widget.courseRepository.getSubjects(course.id);
+      final subjects = await widget.courseRepository.getSubjects(
+        course.id,
+        languageCode: widget.languageCode,
+      );
       for (final subject in subjects) {
-        final subjectChapters =
-            await widget.courseRepository.getChapters(subject.id);
+        final subjectChapters = await widget.courseRepository.getChapters(
+          subject.id,
+          languageCode: widget.languageCode,
+        );
         chapters.addAll(subjectChapters);
         for (final chapter in subjectChapters) {
           chapterTitleById[chapter.id] = chapter.title;

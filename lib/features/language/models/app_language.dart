@@ -9,11 +9,6 @@ enum AppLanguage {
     displayName: 'English',
     nativeName: 'English',
   ),
-  hindi(
-    code: 'hi',
-    displayName: 'Hindi',
-    nativeName: 'हिन्दी',
-  ),
   kannada(
     code: 'kn',
     displayName: 'Kannada',

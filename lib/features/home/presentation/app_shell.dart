@@ -101,6 +101,7 @@ class _AppShellState extends State<AppShell> {
           _AppEntry.onboarding => const GradeSelectionScreen(),
           _AppEntry.dashboard => MainDashboardScreen(
             courseRepository: widget.courseRepository,
+            languageCode: widget.languageProvider.languageCode,
           ),
         };
       },

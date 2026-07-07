@@ -17,7 +17,6 @@ void main() {
   group('AppLanguage', () {
     test('fromCode returns correct language for known codes', () {
       expect(AppLanguage.fromCode('en'), AppLanguage.english);
-      expect(AppLanguage.fromCode('hi'), AppLanguage.hindi);
       expect(AppLanguage.fromCode('kn'), AppLanguage.kannada);
     });
 
@@ -30,9 +29,6 @@ void main() {
       expect(AppLanguage.english.code, 'en');
       expect(AppLanguage.english.displayName, 'English');
       expect(AppLanguage.english.nativeName, 'English');
-
-      expect(AppLanguage.hindi.code, 'hi');
-      expect(AppLanguage.hindi.nativeName, 'हिन्दी');
 
       expect(AppLanguage.kannada.code, 'kn');
       expect(AppLanguage.kannada.nativeName, 'ಕನ್ನಡ');
@@ -78,15 +74,15 @@ void main() {
       final provider = LanguageProvider();
       await provider.initialize();
 
-      await provider.setLanguage(AppLanguage.hindi);
+      await provider.setLanguage(AppLanguage.kannada);
 
-      expect(provider.currentLanguage, AppLanguage.hindi);
-      expect(provider.languageCode, 'hi');
+      expect(provider.currentLanguage, AppLanguage.kannada);
+      expect(provider.languageCode, 'kn');
 
       // Create a fresh provider to confirm persistence
       final provider2 = LanguageProvider();
       await provider2.initialize();
-      expect(provider2.currentLanguage, AppLanguage.hindi);
+      expect(provider2.currentLanguage, AppLanguage.kannada);
     });
 
     test('notifies listeners on language change', () async {

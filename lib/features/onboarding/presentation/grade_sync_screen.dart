@@ -8,8 +8,13 @@ import '../application/background_prefetch_service.dart';
 
 class GradeSyncScreen extends StatefulWidget {
   final int grade;
+  final String languageCode;
 
-  const GradeSyncScreen({super.key, required this.grade});
+  const GradeSyncScreen({
+    super.key,
+    required this.grade,
+    required this.languageCode,
+  });
 
   @override
   State<GradeSyncScreen> createState() => _GradeSyncScreenState();
@@ -134,8 +139,10 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
 
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) =>
-              MainDashboardScreen(courseRepository: CourseRepository()),
+          builder: (_) => MainDashboardScreen(
+            courseRepository: CourseRepository(),
+            languageCode: widget.languageCode,
+          ),
         ),
       );
     }
@@ -230,6 +237,7 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
                     MaterialPageRoute(
                       builder: (_) => MainDashboardScreen(
                         courseRepository: CourseRepository(),
+                        languageCode: widget.languageCode,
                       ),
                     ),
                   );

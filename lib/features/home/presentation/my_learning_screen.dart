@@ -16,7 +16,12 @@ import '../../onboarding/presentation/grade_sync_screen.dart';
 import 'subject_screen.dart';
 
 class MyLearningScreen extends StatefulWidget {
-  const MyLearningScreen({super.key});
+  const MyLearningScreen({
+    required this.languageCode,
+    super.key,
+  });
+
+  final String languageCode;
 
   @override
   State<MyLearningScreen> createState() => _MyLearningScreenState();
@@ -58,7 +63,9 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
     final profile = await insights.generateProfile();
 
     // Fetch curriculum
-    final curriculum = await _curriculumRepo.getCurriculum();
+    final curriculum = await _curriculumRepo.getCurriculum(
+      languageCode: widget.languageCode,
+    );
     
     // Find the grade matching selected grade
     final matchedGrade = curriculum.firstWhere(
@@ -126,7 +133,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
       return ListView.separated(
         padding: const EdgeInsets.all(IDPSpacing.lg),
         itemCount: 5,
-        separatorBuilder: (_, __) => const SizedBox(height: IDPSpacing.md),
+        separatorBuilder: (_, _) => const SizedBox(height: IDPSpacing.md),
         itemBuilder: (_, index) => IDPSkeletonLoader(
           width: double.infinity,
           height: index == 0 ? 150 : 80,
@@ -432,7 +439,10 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => GradeSyncScreen(grade: _selectedGrade),
+                  builder: (_) => GradeSyncScreen(
+                    grade: _selectedGrade,
+                    languageCode: widget.languageCode,
+                  ),
                 ),
               ).then((_) => _loadData());
             },

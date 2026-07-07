@@ -1,0 +1,91 @@
+{
+  "@@locale": "en",
+  "appTitle": "Offline Tutor",
+  "offlineTutor": "Offline Tutor",
+  "learnAnywhereAnytime": "Learn Anywhere, Anytime",
+  "richContentTitle": "Rich Content",
+  "richContentDescription": "Textbooks, videos, and materials",
+  "smartTutorTitle": "Smart Tutor",
+  "smartTutorDescription": "AI-powered learning assistance",
+  "communityTitle": "Community",
+  "communityDescription": "Connect and learn with peers",
+  "getStarted": "Get Started",
+  "offlineTutorOnboarding": "Offline Tutor Onboarding",
+  "whatGradeAreYouStudying": "What grade are you studying?",
+  "selectYourGradeDescription": "Select your grade to download the required offline curriculum. This reduces storage usage and sync time.",
+  "continueLabel": "Continue",
+  "gradeLabel": "Grade {grade}",
+  "@gradeLabel": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "voiceTutorTitle": "Voice Tutor",
+  "developerMode": "Developer Mode",
+  "languageLabel": "Language",
+  "tapMicToStartTalking": "Tap the mic to start talking",
+  "tapMicToAskQuestion": "Tap the mic to ask a question!",
+  "voiceDebugTitle": "Voice Debug",
+  "reset": "Reset",
+  "playRecording": "Play Recording",
+  "permissionLabel": "Permission",
+  "recordingLabel": "Recording",
+  "durationLabel": "Duration",
+  "playingLabel": "Playing",
+  "granted": "Granted",
+  "notGranted": "Not granted",
+  "yes": "Yes",
+  "no": "No",
+  "offlineMessage": "You are currently offline. Local features are still available.",
+  "retry": "RETRY",
+  "errorOccurred": "An error occurred",
+  "tryAgain": "Try Again",
+  "manageOfflineContent": "Manage Offline Content",
+  "removeGrade": "Remove Grade",
+  "removeGradePrompt": "Remove all downloaded content for Grade {grade}?",
+  "@removeGradePrompt": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "remove": "Remove",
+  "cancel": "Cancel",
+  "noGradesInstalled": "No grades installed.",
+  "installedSubjects": "Installed subjects: {subjects}",
+  "@installedSubjects": {
+    "placeholders": {
+      "subjects": {}
+    }
+  },
+  "reSyncGrade": "Re-sync Grade",
+  "installAdditionalGrade": "Install Additional Grade",
+  "modelSelection": "Model Selection",
+  "refresh": "Refresh",
+  "loaded": "Loaded: {value}",
+  "@loaded": {
+    "placeholders": {
+      "value": {}
+    }
+  },
+  "inferences": "Inferences: {count}",
+  "@inferences": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "pickModelFile": "Pick .gguf model file",
+  "validateModel": "Validate Model",
+  "resetEngine": "Reset Engine",
+  "fast": "Fast",
+  "balanced": "Balanced",
+  "deepExplain": "Deep Explain",
+  "saveModelConfiguration": "Save Model Configuration",
+  "modelConfigurationUpdated": "Model configuration updated.",
+  "modelEngineReset": "Model engine reset.",
+  "offlineLearningReport": "Offline Learning Report",
+  "yourLearningInsights": "Your Learning Insights",
+  "generatedLocally": "Generated locally on your device",
+  "keepLearning": "Keep learning to discover your strengths.",
+  "noMajorWeakAreasDetected": "No major weak areas detected. Great job!",
+  "completeChapters": "Complete chapters and quizzes to earn badges."
+}

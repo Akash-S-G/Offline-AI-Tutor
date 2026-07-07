@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../content_packs/data/local/content_pack_repository.dart';
-import '../../rag/data/local/rag_repository.dart';
 import '../../onboarding/presentation/grade_selection_screen.dart';
 import '../../onboarding/presentation/grade_sync_screen.dart';
-import 'package:sqflite/sqflite.dart';
 import '../../course/data/local/app_database.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -140,8 +138,14 @@ class _ManageContentScreenState extends State<ManageContentScreen> {
   }
 
   void _resyncGrade(int grade) {
+    final languageCode = Localizations.localeOf(context).languageCode;
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => GradeSyncScreen(grade: grade)),
+      MaterialPageRoute(
+        builder: (_) => GradeSyncScreen(
+          grade: grade,
+          languageCode: languageCode,
+        ),
+      ),
     ).then((_) => _loadData());
   }
 

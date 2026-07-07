@@ -20,7 +20,6 @@ import 'my_learning_screen.dart';
 import '../../math_studio/presentation/math_studio_home_screen.dart';
 import 'quiz_assessment_screen.dart';
 
-import '../../experiment/builder/screens/experiment_builder_screen.dart';
 import '../../experiment_sharing/screens/experiment_share_screen.dart';
 import '../../experiment_sharing/controllers/experiment_sharing_controller.dart';
 import '../../experiment_sharing/repositories/experiment_sharing_repository.dart';
@@ -28,7 +27,6 @@ import '../../experiment/builder/storage/builder_draft_manager.dart';
 import '../../experiment/builder/storage/builder_draft_repository.dart';
 import '../../experiment/builder/data/repositories/experiment_manifest_repository.dart';
 import '../../experiment/builder/data/api/experiment_manifest_api_service.dart';
-import '../../experiment/presentation/screens/experiment_hub_screen.dart';
 import '../../experiment/phet/presentation/experiment_catalog_screen.dart';
 import '../../network/domain/backend_config.dart';
 import '../../network/presentation/classroom_connection_banner.dart';
@@ -40,9 +38,14 @@ import '../../classroom/screens/teacher_dashboard_screen.dart';
 import '../../classroom/screens/student_dashboard_screen.dart';
 
 class MainDashboardScreen extends StatefulWidget {
-  const MainDashboardScreen({required this.courseRepository, super.key});
+  const MainDashboardScreen({
+    required this.courseRepository,
+    required this.languageCode,
+    super.key,
+  });
 
   final CourseRepository courseRepository;
+  final String languageCode;
 
   @override
   State<MainDashboardScreen> createState() => _MainDashboardScreenState();
@@ -187,7 +190,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   Future<void> _loadInitial() async {
     try {
-      final courses = await widget.courseRepository.getCourses();
+      final courses = await widget.courseRepository.getCourses(
+        languageCode: widget.languageCode,
+      );
       if (courses.isEmpty) {
         if (mounted) {
           setState(() {
@@ -200,11 +205,15 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
       final selectedCourse = courses.first;
       final subjects = await widget.courseRepository.getSubjects(
         selectedCourse.id,
+        languageCode: widget.languageCode,
       );
       final selectedSubject = subjects.isEmpty ? null : subjects.first;
       final chapters = selectedSubject == null
           ? <Chapter>[]
-          : await widget.courseRepository.getChapters(selectedSubject.id);
+          : await widget.courseRepository.getChapters(
+              selectedSubject.id,
+              languageCode: widget.languageCode,
+            );
 
       if (mounted) {
         setState(() {
@@ -230,11 +239,17 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Future<void> _onCourseChanged(Course? course) async {
     if (course == null) return;
 
-    final subjects = await widget.courseRepository.getSubjects(course.id);
+    final subjects = await widget.courseRepository.getSubjects(
+      course.id,
+      languageCode: widget.languageCode,
+    );
     final selectedSubject = subjects.isEmpty ? null : subjects.first;
     final chapters = selectedSubject == null
         ? <Chapter>[]
-        : await widget.courseRepository.getChapters(selectedSubject.id);
+        : await widget.courseRepository.getChapters(
+            selectedSubject.id,
+            languageCode: widget.languageCode,
+          );
 
     setState(() {
       _selectedCourse = course;
@@ -248,7 +263,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Future<void> _onSubjectChanged(Subject? subject) async {
     if (subject == null) return;
 
-    final chapters = await widget.courseRepository.getChapters(subject.id);
+    final chapters = await widget.courseRepository.getChapters(
+      subject.id,
+      languageCode: widget.languageCode,
+    );
 
     setState(() {
       _selectedSubject = subject;
@@ -315,7 +333,10 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Future<void> _navigateP2PForTest() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => P2PScreen(courseRepository: widget.courseRepository),
+        builder: (_) => P2PScreen(
+          courseRepository: widget.courseRepository,
+          languageCode: widget.languageCode,
+        ),
       ),
     );
 
@@ -337,6 +358,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           courseRepository: widget.courseRepository,
           initialChapterId: chapter.id,
           quickSendPreset: true,
+          languageCode: widget.languageCode,
         ),
       ),
     );
@@ -483,7 +505,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               child: IndexedStack(
                 index: _currentIndex,
                 children: [
-                  const MyLearningScreen(),
+                  MyLearningScreen(languageCode: widget.languageCode),
                   _buildToolsTab(),
                   _buildSettingsTab(),
                 ],
@@ -497,8 +519,6 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
 
   Widget _buildToolsTab() {
     const primary = Color(0xFF0B6E4F);
-    const accent = Color(0xFFFF6B35);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
@@ -691,6 +711,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
               MaterialPageRoute<void>(
                 builder: (_) => ProgressDashboardScreen(
                   courseRepository: widget.courseRepository,
+                  languageCode: widget.languageCode,
                 ),
               ),
             ),

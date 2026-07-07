@@ -3,6 +3,7 @@ import 'dart:io';
 
 import '../../chat/data/tutor_inference_gateway.dart';
 import '../data/local/translation_engine_config_service.dart';
+import '../data/local/translation_cache_repository.dart';
 import '../domain/translation_engine_catalog.dart';
 
 class TranslationResult {
@@ -18,16 +19,22 @@ class TranslationResult {
 }
 
 class SeparateTranslationLayerService {
-  SeparateTranslationLayerService({required TutorInferenceGateway gateway})
-      : _gateway = gateway;
+  SeparateTranslationLayerService({
+    required TutorInferenceGateway gateway,
+    TranslationCacheRepository? cacheRepository,
+  })  : _gateway = gateway,
+        _cacheRepository = cacheRepository ?? TranslationCacheRepository();
 
   final TutorInferenceGateway _gateway;
+  final TranslationCacheRepository _cacheRepository;
 
   Future<TranslationResult> translate({
     required String text,
     required String sourceLang,
     required String targetLang,
     required TranslationEngineConfig config,
+    String artifactType = 'generic',
+    String? contentId,
   }) async {
     final clean = text.trim();
     if (clean.isEmpty || sourceLang == targetLang) {
@@ -35,6 +42,23 @@ class SeparateTranslationLayerService {
         translated: text,
         engineUsed: config.engineId,
         fallbackUsed: false,
+      );
+    }
+
+    final cached = await _cacheRepository.find(
+      artifactType: artifactType,
+      sourceLanguage: sourceLang,
+      targetLanguage: targetLang,
+      sourceText: clean,
+      contentId: contentId,
+    );
+    if (cached != null) {
+      return TranslationResult(
+        translated: cached.translatedText,
+        engineUsed: TranslationEngineCatalog.parseId(
+          cached.engineId,
+        ),
+        fallbackUsed: cached.fallbackUsed,
       );
     }
 
@@ -49,6 +73,16 @@ class SeparateTranslationLayerService {
               : config.apertiumExecutablePath.trim(),
         );
         if (apertium != null && apertium.trim().isNotEmpty) {
+          await _cacheRepository.upsert(
+            artifactType: artifactType,
+            sourceLanguage: sourceLang,
+            targetLanguage: targetLang,
+            sourceText: clean,
+            translatedText: apertium.trim(),
+            engineId: TranslationEngineId.apertiumCli.name,
+            fallbackUsed: false,
+            contentId: contentId,
+          );
           return TranslationResult(
             translated: apertium.trim(),
             engineUsed: TranslationEngineId.apertiumCli,
@@ -61,6 +95,16 @@ class SeparateTranslationLayerService {
           sourceLang: sourceLang,
           targetLang: targetLang,
         );
+        await _cacheRepository.upsert(
+          artifactType: artifactType,
+          sourceLanguage: sourceLang,
+          targetLanguage: targetLang,
+          sourceText: clean,
+          translatedText: llmFallback,
+          engineId: TranslationEngineId.llmPromptTranslator.name,
+          fallbackUsed: true,
+          contentId: contentId,
+        );
         return TranslationResult(
           translated: llmFallback,
           engineUsed: TranslationEngineId.llmPromptTranslator,
@@ -71,6 +115,16 @@ class SeparateTranslationLayerService {
           text: clean,
           sourceLang: sourceLang,
           targetLang: targetLang,
+        );
+        await _cacheRepository.upsert(
+          artifactType: artifactType,
+          sourceLanguage: sourceLang,
+          targetLanguage: targetLang,
+          sourceText: clean,
+          translatedText: llm,
+          engineId: TranslationEngineId.llmPromptTranslator.name,
+          fallbackUsed: false,
+          contentId: contentId,
         );
         return TranslationResult(
           translated: llm,
@@ -87,6 +141,16 @@ class SeparateTranslationLayerService {
           text: clean,
           sourceLang: sourceLang,
           targetLang: targetLang,
+        );
+        await _cacheRepository.upsert(
+          artifactType: artifactType,
+          sourceLanguage: sourceLang,
+          targetLanguage: targetLang,
+          sourceText: clean,
+          translatedText: llmFallback,
+          engineId: TranslationEngineId.llmPromptTranslator.name,
+          fallbackUsed: true,
+          contentId: contentId,
         );
         return TranslationResult(
           translated: llmFallback,

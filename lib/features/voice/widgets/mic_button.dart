@@ -11,7 +11,12 @@ import '../providers/voice_provider.dart';
 /// - **processing**: spinning indicator
 /// - **speaking**: equalizer-style animation
 class MicButton extends ConsumerWidget {
-  const MicButton({super.key});
+  const MicButton({
+    super.key,
+    this.languageCode = 'en',
+  });
+
+  final String languageCode;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -20,19 +25,22 @@ class MicButton extends ConsumerWidget {
     final theme = Theme.of(context);
 
     return GestureDetector(
-      onTap: () => _handleTap(voice.state, notifier),
+      onTap: () => _handleTap(voice.state, notifier, languageCode),
       child: _AnimatedMic(state: voice.state, theme: theme),
     );
   }
 
-  void _handleTap(VoiceState state, VoiceNotifier notifier) {
+  void _handleTap(VoiceState state, VoiceNotifier notifier, String languageCode) {
     switch (state) {
       case VoiceState.idle:
-        notifier.startRecording();
+        notifier.startRecording(languageCode: languageCode);
+        break;
       case VoiceState.listening:
         notifier.stopRecording();
+        break;
       case VoiceState.speaking:
         notifier.stopPlayback();
+        break;
       case VoiceState.processing:
       case VoiceState.error:
         break;

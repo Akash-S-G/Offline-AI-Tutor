@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_tutor_app/l10n/app_localizations.dart';
 
 class ErrorStateCard extends StatelessWidget {
   final String error;
@@ -12,6 +13,7 @@ class ErrorStateCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.all(16),
@@ -27,7 +29,7 @@ class ErrorStateCard extends StatelessWidget {
             children: [
               Icon(Icons.error_outline, color: Colors.red.shade700),
               const SizedBox(width: 16),
-              Expanded(child: Text('An error occurred', style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold))),
+              Expanded(child: Text(l10n.errorOccurred, style: TextStyle(color: Colors.red.shade900, fontWeight: FontWeight.bold))),
             ],
           ),
           const SizedBox(height: 8),
@@ -37,7 +39,7 @@ class ErrorStateCard extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
+              label: Text(l10n.tryAgain),
               style: ElevatedButton.styleFrom(foregroundColor: Colors.red.shade900, backgroundColor: Colors.red.shade100),
             )
           ]

@@ -331,17 +331,28 @@ class BackendApiService {
     
 
     final body = <String, dynamic>{
-      'question': question,
+      'question': _sanitizeBackendText(question),
       'stream': true,
     };
 
     if (grade != null) body['grade'] = grade;
-    if (subject != null && subject.isNotEmpty) body['subject'] = subject;
-    if (chapter != null && chapter.isNotEmpty) body['chapter'] = chapter;
-    if (language != null && language.isNotEmpty) body['language'] = language;
-    if (context != null && context.isNotEmpty) body['context'] = context;
+    if (subject != null && subject.isNotEmpty) {
+      body['subject'] = _sanitizeBackendText(subject);
+    }
+    if (chapter != null && chapter.isNotEmpty) {
+      body['chapter'] = _sanitizeBackendText(chapter);
+    }
+    if (language != null && language.isNotEmpty) {
+      body['language'] = _sanitizeBackendText(language);
+    }
+    if (context != null && context.isNotEmpty) {
+      body['context'] = _sanitizeBackendText(context);
+    }
     if (conversationHistory != null && conversationHistory.isNotEmpty) {
-      body['conversation_history'] = conversationHistory;
+      body['conversation_history'] = conversationHistory
+          .where((line) => line.trim().isNotEmpty)
+          .map(_sanitizeBackendText)
+          .toList(growable: false);
     }
     if (sessionId != null && sessionId.isNotEmpty) {
       body['session_id'] = sessionId;
@@ -352,7 +363,8 @@ class BackendApiService {
 
     // Task E: Log exact request payload for 400 debugging
     print('[BACKEND] REQUEST_JSON=${body.keys.toList()}');
-    print('[BACKEND] REQUEST_QUESTION=${question.substring(0, question.length > 100 ? 100 : question.length)}');
+    final sanitizedQuestion = body['question'] as String;
+    print('[BACKEND] REQUEST_QUESTION=${sanitizedQuestion.substring(0, sanitizedQuestion.length > 100 ? 100 : sanitizedQuestion.length)}');
 
     try {
       final startTime = DateTime.now();
@@ -414,6 +426,42 @@ class BackendApiService {
       );
       rethrow;
     }
+  }
+
+  String _sanitizeBackendText(String input) {
+    final buffer = StringBuffer();
+    for (final rune in input.runes) {
+      if (_isAllowedBackendRune(rune)) {
+        buffer.writeCharCode(rune);
+      } else {
+        buffer.write(' ');
+      }
+    }
+
+    final normalized = buffer
+        .toString()
+        .replaceAll(RegExp(r'[\u0000-\u001F\u007F]'), ' ')
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .trim();
+
+    if (normalized.length <= 2400) {
+      return normalized;
+    }
+
+    return normalized.substring(0, 2400).trimRight();
+  }
+
+  bool _isAllowedBackendRune(int rune) {
+    if (rune == 0x09 || rune == 0x0A || rune == 0x0D || rune == 0x20) {
+      return true;
+    }
+    if (rune >= 0x21 && rune <= 0x7E) {
+      return true;
+    }
+    if (rune >= 0x0C80 && rune <= 0x0CFF) {
+      return true;
+    }
+    return false;
   }
 
   /// Stream a planner lesson response

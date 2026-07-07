@@ -4,14 +4,18 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import '../../../content_packs/data/local/content_pack_repository.dart';
 import '../../domain/curriculum_models.dart';
+import '../../../translation/application/content_localization_service.dart';
 
 class CurriculumRepository {
   CurriculumRepository({ContentPackRepository? packRepository})
       : _packRepo = packRepository ?? ContentPackRepository();
 
   final ContentPackRepository _packRepo;
+  final ContentLocalizationService _localizer = ContentLocalizationService();
 
-  Future<List<CurriculumGrade>> getCurriculum() async {
+  Future<List<CurriculumGrade>> getCurriculum({
+    String languageCode = 'en',
+  }) async {
     final installedPacks = await _packRepo.listInstalledPacks();
     final Map<int, Map<String, List<CurriculumChapter>>> grouped = {};
 
@@ -87,7 +91,10 @@ class CurriculumRepository {
     });
 
     curriculum.sort((a, b) => a.grade.compareTo(b.grade));
-    return curriculum;
+    if (languageCode != 'kn') {
+      return curriculum;
+    }
+    return _localizer.localizeCurriculum(curriculum, targetLanguage: languageCode);
   }
 
   String _normalizeSubjectName(String name) {

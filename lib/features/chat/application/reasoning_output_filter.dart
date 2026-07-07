@@ -29,14 +29,95 @@ class ReasoningOutputFilter {
   }
 
   static String stripComplete(String text) {
-    var output = text;
+    var output = text.replaceAll('\r', '');
     for (final tag in const <String>['think', 'reasoning', 'analysis']) {
       output = output.replaceAll(
         RegExp('<$tag[^>]*>[\\s\\S]*?</$tag>', caseSensitive: false),
         '',
       );
     }
+    output = _stripPromptEcho(output);
     return output;
+  }
+
+  static String _stripPromptEcho(String text) {
+    final lines = text.split('\n');
+    final kept = <String>[];
+    var startedAnswer = false;
+
+    for (final line in lines) {
+      final trimmed = line.trim();
+      if (trimmed.isEmpty) {
+        if (startedAnswer && kept.isNotEmpty && kept.last.isNotEmpty) {
+          kept.add('');
+        }
+        continue;
+      }
+
+      final lower = trimmed.toLowerCase();
+      if (_isPromptScaffoldLine(lower)) {
+        continue;
+      }
+
+      if (lower.startsWith('answer:') || lower.startsWith('tutor answer:')) {
+        final colonIndex = trimmed.indexOf(':');
+        final remainder = colonIndex >= 0
+            ? trimmed.substring(colonIndex + 1).trim()
+            : '';
+        if (remainder.isNotEmpty) {
+          kept.add(remainder);
+          startedAnswer = true;
+        }
+        continue;
+      }
+
+      if (lower.startsWith('student question:') ||
+          lower.startsWith('question:') ||
+          lower.startsWith('user query:') ||
+          lower.startsWith('recent conversation:') ||
+          lower.startsWith('session summary:') ||
+          lower.startsWith('priority context:') ||
+          lower.startsWith('relevant notes:') ||
+          lower.startsWith('context:') ||
+          lower.startsWith('educational context:')) {
+        continue;
+      }
+
+      if (trimmed.startsWith('[') && lower.contains('source')) {
+        continue;
+      }
+
+      startedAnswer = true;
+      kept.add(line);
+    }
+
+    return kept.join('\n').replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
+  }
+
+  static bool _isPromptScaffoldLine(String lower) {
+    return lower.startsWith('system:') ||
+        lower.startsWith('instruction:') ||
+        lower.startsWith('instructions:') ||
+        lower.startsWith('educational context:') ||
+        lower.startsWith('priority context:') ||
+        lower.startsWith('session summary:') ||
+        lower.startsWith('recent conversation:') ||
+        lower.startsWith('relevant notes:') ||
+        lower.startsWith('context:') ||
+        lower.startsWith('student question:') ||
+        lower.startsWith('question:') ||
+        lower.startsWith('student:') ||
+        lower.startsWith('tutor:') ||
+        lower.startsWith('answer:') ||
+        lower.startsWith('tutor answer:') ||
+        lower.startsWith('user query:') ||
+        lower.startsWith('[source') ||
+        RegExp(r'^[\-\s=]{3,}$').hasMatch(lower) ||
+        lower.contains('do not reveal internal reasoning') ||
+        lower.contains('do not output chain of thought') ||
+        lower.contains('provide only the final answer') ||
+        lower.contains('answer only') ||
+        lower.contains('return one short answer only');
   }
 
   bool _hasOpenReasoningTag(String text) {

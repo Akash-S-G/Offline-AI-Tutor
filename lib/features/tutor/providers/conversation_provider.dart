@@ -67,28 +67,30 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
   // ─── Public API ─────────────────────────────────────────────────
 
   /// Start a new conversation turn: begin recording.
-  Future<void> startListening() async {
+  Future<void> startListening({String languageCode = 'en'}) async {
     await _streamPlayer.interrupt(); // Instantly stop any ongoing playback
     state = state.copyWith(
       state: ConversationState.listening,
       partialTranscript: '',
       finalTranscript: '',
     );
-    await ref.read(voiceProvider.notifier).startRecording();
+    await ref.read(voiceProvider.notifier).startRecording(languageCode: languageCode);
   }
 
   /// Stop recording and send audio to server.
   Future<void> stopListeningAndSend() async {
     state = state.copyWith(state: ConversationState.uploading);
     _requestTimestamp = DateTime.now();
-    await ref.read(voiceProvider.notifier).stopRecording();
-
-    // Signal audio complete to server with current simulation context
-    final socket = ref.read(voiceConnectionProvider.notifier).socket;
-    final context = ref.read(simulationContextProvider);
-    socket.sendAudioComplete('en', context: context.hasContext ? context.toJson() : null);
+    await ref.read(voiceProvider.notifier).stopRecording(
+      context: _buildContextPayload(),
+    );
 
     state = state.copyWith(state: ConversationState.transcribing);
+  }
+
+  Map<String, dynamic>? _buildContextPayload() {
+    final context = ref.read(simulationContextProvider);
+    return context.hasContext ? context.toJson() : null;
   }
 
   /// Handle a transcript received from server.
@@ -117,9 +119,17 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
       timestamp: DateTime.now(),
     );
 
+    final updatedMessages = [...state.messages];
+    if (updatedMessages.isNotEmpty &&
+        updatedMessages.last.role == MessageRole.assistant) {
+      updatedMessages[updatedMessages.length - 1] = message;
+    } else {
+      updatedMessages.add(message);
+    }
+
     state = state.copyWith(
       state: ConversationState.speaking,
-      messages: [...state.messages, message],
+      messages: updatedMessages,
       responseLatency: latency,
     );
   }
@@ -160,24 +170,84 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
           event.payload['text'] as String? ?? '',
           isFinal: false,
         );
+        break;
+      case VoiceEventType.sessionAcknowledged:
+        state = state.copyWith(state: ConversationState.listening);
+        break;
       case VoiceEventType.finalTranscript:
         final text = event.payload['text'] as String? ?? '';
         onTranscriptReceived(text, isFinal: true);
         // Add student message to history
-        addStudentMessage(text, AppLanguage.english); // Language resolved by server
+        addStudentMessage(
+          text,
+          AppLanguage.fromCode(event.language ?? event.payload['language'] as String? ?? 'en'),
+        );
         state = state.copyWith(state: ConversationState.translating);
+        break;
+      case VoiceEventType.responseChunk:
+        final chunk = event.payload['text'] as String? ?? '';
+        if (chunk.isNotEmpty) {
+          final currentMessages = [...state.messages];
+          if (currentMessages.isNotEmpty &&
+              currentMessages.last.role == MessageRole.assistant) {
+            final last = currentMessages.removeLast();
+            currentMessages.add(
+              ConversationMessage(
+                id: last.id,
+                role: last.role,
+                text: '${last.text}$chunk',
+                language: last.language,
+                timestamp: last.timestamp,
+              ),
+            );
+            state = state.copyWith(
+              messages: currentMessages,
+              state: ConversationState.thinking,
+            );
+          } else {
+            currentMessages.add(
+              ConversationMessage(
+                id: 'msg_${++_messageCounter}',
+                role: MessageRole.assistant,
+                text: chunk,
+                language: AppLanguage.fromCode(
+                  event.language ?? event.payload['language'] as String? ?? 'en',
+                ),
+                timestamp: DateTime.now(),
+              ),
+            );
+            state = state.copyWith(
+              messages: currentMessages,
+              state: ConversationState.thinking,
+            );
+          }
+        }
+        break;
+      case VoiceEventType.responseComplete:
+        state = state.copyWith(state: ConversationState.generatingAudio);
+        break;
       case VoiceEventType.assistantMessage:
         final text = event.payload['text'] as String? ?? '';
         final langCode = event.payload['language'] as String? ?? 'en';
         onAssistantResponse(text, AppLanguage.fromCode(langCode));
+        break;
+      case VoiceEventType.generatingAudio:
+        state = state.copyWith(state: ConversationState.generatingAudio);
+        break;
       case VoiceEventType.audioChunk:
         final base64Chunk = event.payload['audio'] as String?;
         if (base64Chunk != null) {
           _streamPlayer.queueAudioChunk(base64Chunk);
         }
         state = state.copyWith(state: ConversationState.speaking);
+        break;
+      case VoiceEventType.audioComplete:
+        _streamPlayer.markComplete();
+        state = state.copyWith(state: ConversationState.idle);
+        break;
       case VoiceEventType.error:
         state = state.copyWith(state: ConversationState.error);
+        break;
       default:
         break;
     }

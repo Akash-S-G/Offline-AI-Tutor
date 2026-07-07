@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:offline_tutor_app/l10n/app_localizations.dart';
 
 import 'bootstrap/critical_bootstrap.dart';
 import 'bootstrap/startup_coordinator.dart';
@@ -59,15 +61,28 @@ class OfflineTutorApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Offline Tutor',
-      debugShowCheckedModeBanner: false,
-      theme: IDPTheme.lightTheme,
-      home: AppShell(
-        courseRepository: courseRepository,
-        startupCoordinator: startupCoordinator,
-        languageProvider: languageProvider,
-      ),
+    return ListenableBuilder(
+      listenable: languageProvider,
+      builder: (context, _) {
+        return MaterialApp(
+          onGenerateTitle: (context) => AppLocalizations.of(context)!.appTitle,
+          debugShowCheckedModeBanner: false,
+          theme: IDPTheme.lightTheme,
+          locale: Locale(languageProvider.languageCode),
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+          ],
+          supportedLocales: AppLocalizations.supportedLocales,
+          home: AppShell(
+            courseRepository: courseRepository,
+            startupCoordinator: startupCoordinator,
+            languageProvider: languageProvider,
+          ),
+        );
+      },
     );
   }
 }
