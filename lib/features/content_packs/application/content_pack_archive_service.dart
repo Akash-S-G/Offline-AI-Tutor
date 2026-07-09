@@ -9,6 +9,7 @@ import '../data/local/content_pack_repository.dart';
 import '../domain/content_pack_models.dart';
 import '../../course/data/install/pdf_install_service.dart';
 import '../../course/data/local/app_database.dart';
+import 'content_pack_sync_service.dart';
 import 'package:sqflite/sqflite.dart';
 
 class PackArchiveExportResult {
@@ -118,6 +119,7 @@ class ContentPackArchiveService {
     String archivePath, {
     bool allowReplaceSameOrOlder = false,
     void Function(String message)? onProgress,
+    RemoteContentPack? remotePackOverride,
   }) async {
     final db = await AppDatabase.instance.database;
     final packsBefore = Sqflite.firstIntValue(
@@ -263,8 +265,10 @@ class ContentPackArchiveService {
       throw Exception('Invalid pack archive: empty manifest');
     }
 
-    final packId =
+    final basePackId =
         manifest['packId'] as String? ?? manifest['pack_id'] as String?;
+    final packId = remotePackOverride?.packId ?? basePackId;
+    
     if (packId == null || packId.trim().isEmpty) {
       throw Exception('Invalid pack archive: packId missing');
     }
@@ -317,8 +321,11 @@ class ContentPackArchiveService {
       (result) => !result.installSuccess,
     );
     if (failedPdfResults.isNotEmpty) {
-      throw Exception(
-        'PDF installation failed for $packId: '
+      // PDF is optional — log a warning but do NOT block the pack import.
+      // The pack content (quizzes, flashcards, concepts, etc.) is still valid
+      // and should be usable without a source PDF.
+      print(
+        '[PACK] PDF_WARNING packId=$packId: '
         '${failedPdfResults.map((r) => r.failureReason).join('; ')}',
       );
     }
@@ -354,10 +361,10 @@ class ContentPackArchiveService {
           title: item['title'] as String? ?? p.basename(relative),
           relativePath: relative,
           absolutePath: absolute,
-          grade: item['grade'] as int?,
-          subject: item['subject'] as String?,
-          medium: item['medium'] as String?,
-          chapterId: item['chapterId'] as String?,
+          grade: remotePackOverride?.gradeMin ?? item['grade'] as int?,
+          subject: remotePackOverride?.subject ?? item['subject'] as String?,
+          medium: remotePackOverride?.medium ?? item['medium'] as String?,
+          chapterId: remotePackOverride?.chapter ?? item['chapterId'] as String?,
           languageCode: item['languageCode'] as String?,
           orderIndex: item['orderIndex'] as int? ?? i,
           sizeBytes: stat.size,
@@ -389,9 +396,9 @@ class ContentPackArchiveService {
             title: 'Source PDF',
             relativePath: 'source.pdf',
             absolutePath: sourcePdf.path,
-            grade: _readGrade(manifest),
-            subject: manifest['subject']?.toString(),
-            medium: manifest['medium']?.toString(),
+            grade: remotePackOverride?.gradeMin ?? _readGrade(manifest),
+            subject: remotePackOverride?.subject ?? manifest['subject']?.toString(),
+            medium: remotePackOverride?.medium ?? manifest['medium']?.toString(),
             chapterId: packId,
             languageCode: _readLanguage(manifest),
             orderIndex: packItems.length,
@@ -420,11 +427,11 @@ class ContentPackArchiveService {
 
     final packManifest = ContentPackManifest(
       packId: packId,
-      title: manifest['title'] as String? ?? packId,
-      medium: manifest['medium'] as String? ?? 'Mixed',
-      subject: manifest['subject'] as String? ?? 'All Subjects',
-      gradeMin: manifest['gradeMin'] as int? ?? 1,
-      gradeMax: manifest['gradeMax'] as int? ?? 10,
+      title: remotePackOverride?.title ?? manifest['title'] as String? ?? packId,
+      medium: remotePackOverride?.medium ?? manifest['medium'] as String? ?? 'Mixed',
+      subject: remotePackOverride?.subject ?? manifest['subject'] as String? ?? 'All Subjects',
+      gradeMin: remotePackOverride?.gradeMin ?? _readGrade(manifest) ?? 1,
+      gradeMax: remotePackOverride?.gradeMax ?? _readGrade(manifest) ?? 10,
       version: incomingVersion,
       manifestPath: manifestFile.path,
       rootPath: contentDir.path,
@@ -496,7 +503,9 @@ class ContentPackArchiveService {
     }
 
     final grade = _readGrade(manifest);
-    final subject = manifest['subject']?.toString().trim() ?? '';
+    final rawSubject = manifest['subject']?.toString().trim() ?? '';
+    // Normalize subject for PDF resolve (backend uses "maths" not "mathematics")
+    final subject = rawSubject.toLowerCase() == 'mathematics' ? 'maths' : rawSubject;
     final chapter = manifest['chapter']?.toString().trim().isNotEmpty == true
         ? manifest['chapter'].toString().trim()
         : manifest['title']?.toString().trim() ?? '';

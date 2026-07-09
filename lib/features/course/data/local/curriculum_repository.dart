@@ -2,13 +2,14 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
+
 import '../../../content_packs/data/local/content_pack_repository.dart';
 import '../../domain/curriculum_models.dart';
 import '../../../translation/application/content_localization_service.dart';
 
 class CurriculumRepository {
   CurriculumRepository({ContentPackRepository? packRepository})
-      : _packRepo = packRepository ?? ContentPackRepository();
+    : _packRepo = packRepository ?? ContentPackRepository();
 
   final ContentPackRepository _packRepo;
   final ContentLocalizationService _localizer = ContentLocalizationService();
@@ -27,14 +28,15 @@ class CurriculumRepository {
         }
 
         final manifestContent = await manifestFile.readAsString();
-        final manifestData = jsonDecode(manifestContent) as Map<String, dynamic>;
+        final manifestData =
+            jsonDecode(manifestContent) as Map<String, dynamic>;
 
         // Extract and normalize metadata
         final grade = manifestData['grade'] as int? ?? pack.gradeMin;
         final rawSubject = manifestData['subject'] as String? ?? pack.subject;
         final subject = _normalizeSubjectName(rawSubject);
         final chapterTitle = manifestData['chapter'] as String? ?? pack.title;
-        
+
         // Load summary from summaries.json if manifest has none
         var summary = manifestData['summary'] as String? ?? '';
         if (summary.isEmpty) {
@@ -77,24 +79,26 @@ class CurriculumRepository {
       subjectMap.forEach((subjectName, chapters) {
         // Sort chapters alphabetically by title
         chapters.sort((a, b) => a.title.compareTo(b.title));
-        subjects.add(CurriculumSubject(
-          name: subjectName,
-          grade: grade,
-          chapters: chapters,
-        ));
+        subjects.add(
+          CurriculumSubject(
+            name: subjectName,
+            grade: grade,
+            chapters: chapters,
+          ),
+        );
       });
       subjects.sort((a, b) => a.name.compareTo(b.name));
-      curriculum.add(CurriculumGrade(
-        grade: grade,
-        subjects: subjects,
-      ));
+      curriculum.add(CurriculumGrade(grade: grade, subjects: subjects));
     });
 
     curriculum.sort((a, b) => a.grade.compareTo(b.grade));
     if (languageCode != 'kn') {
       return curriculum;
     }
-    return _localizer.localizeCurriculum(curriculum, targetLanguage: languageCode);
+    return _localizer.localizeCurriculum(
+      curriculum,
+      targetLanguage: languageCode,
+    );
   }
 
   String _normalizeSubjectName(String name) {
@@ -111,7 +115,9 @@ class CurriculumRepository {
     if (lower == 'kannada') {
       return 'Kannada';
     }
-    if (lower == 'social science' || lower == 'social_science' || lower == 'socialscience') {
+    if (lower == 'social science' ||
+        lower == 'social_science' ||
+        lower == 'socialscience') {
       return 'Social Science';
     }
     return _capitalize(name);
@@ -121,11 +127,14 @@ class CurriculumRepository {
     if (text.isEmpty) {
       return text;
     }
-    return text.split(' ').map((word) {
-      if (word.isEmpty) {
-        return '';
-      }
-      return word[0].toUpperCase() + word.substring(1).toLowerCase();
-    }).join(' ');
+    return text
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) {
+            return '';
+          }
+          return word[0].toUpperCase() + word.substring(1).toLowerCase();
+        })
+        .join(' ');
   }
 }

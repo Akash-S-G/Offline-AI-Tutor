@@ -739,7 +739,8 @@ async def _planner_tutor_response(payload: dict[str, Any], normalized_topic: str
 
 def _planner_stream(response: dict[str, Any]) -> StreamingResponse:
     async def stream() -> Any:
-        yield f"data: {json.dumps({'chunk': response.get('answer', ''), 'done': True})}\n\n"
+        answer = response.get("answer", "")
+        yield f"data: {json.dumps({'token': answer, 'chunk': answer, 'answer': answer, 'done': True})}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(stream(), media_type="text/event-stream")

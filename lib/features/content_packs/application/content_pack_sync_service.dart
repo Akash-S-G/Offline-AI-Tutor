@@ -17,6 +17,7 @@ class RemoteContentPack {
     required this.title,
     required this.medium,
     required this.subject,
+    this.chapter,
     required this.gradeMin,
     required this.gradeMax,
     required this.version,
@@ -27,6 +28,7 @@ class RemoteContentPack {
   final String title;
   final String medium;
   final String subject;
+  final String? chapter;
   final int gradeMin;
   final int gradeMax;
   final int version;
@@ -36,27 +38,53 @@ class RemoteContentPack {
     Map<String, dynamic> map, {
     required Uri catalogUri,
   }) {
-    final packId = (map['packId'] as String? ?? '').trim();
+    // Support both camelCase and snake_case keys from different backends
+    final packId = (map['packId'] as String?
+            ?? map['pack_id'] as String?
+            ?? '')
+        .trim();
     if (packId.isEmpty) {
-      throw FormatException('Catalog pack entry missing packId');
+      throw FormatException('Catalog pack entry missing packId/pack_id');
     }
 
-    final rawArchive = (map['archiveUrl'] as String? ?? map['archive_url'] as String? ?? '').trim();
+    final rawArchive =
+        (map['archiveUrl'] as String?
+            ?? map['archive_url'] as String?
+            ?? map['download_url'] as String?
+            ?? '')
+            .trim();
     if (rawArchive.isEmpty) {
-      throw FormatException('Catalog pack entry missing archiveUrl for $packId');
+      throw FormatException(
+        'Catalog pack entry missing archiveUrl for $packId',
+      );
     }
 
     final archiveUri = Uri.parse(rawArchive);
+
+    // Parse version: can be int (1) or string ("1.0.0")
+    int parsedVersion = 1;
+    final rawVersion = map['version'];
+    if (rawVersion is int) {
+      parsedVersion = rawVersion;
+    } else if (rawVersion is String) {
+      final parts = rawVersion.split('.');
+      if (parts.isNotEmpty) {
+        parsedVersion = int.tryParse(parts.first) ?? 1;
+      }
+    }
 
     return RemoteContentPack(
       packId: packId,
       title: (map['title'] as String? ?? packId).trim(),
       medium: (map['medium'] as String? ?? 'Mixed').trim(),
       subject: (map['subject'] as String? ?? 'All Subjects').trim(),
-      gradeMin: map['gradeMin'] as int? ?? map['grade_min'] as int? ?? 1,
-      gradeMax: map['gradeMax'] as int? ?? map['grade_max'] as int? ?? 10,
-      version: map['version'] as int? ?? 1,
-      archiveUrl: archiveUri.hasScheme ? archiveUri : catalogUri.resolveUri(archiveUri),
+      chapter: map['chapter'] as String?,
+      gradeMin: int.tryParse(map['grade']?.toString() ?? '') ?? map['gradeMin'] as int? ?? map['grade_min'] as int? ?? 1,
+      gradeMax: int.tryParse(map['grade']?.toString() ?? '') ?? map['gradeMax'] as int? ?? map['grade_max'] as int? ?? 10,
+      version: parsedVersion,
+      archiveUrl: archiveUri.hasScheme
+          ? archiveUri
+          : catalogUri.resolveUri(archiveUri),
     );
   }
 }
@@ -86,7 +114,8 @@ class RemotePackSyncEntry {
 
   bool get isInstalled => installed != null;
 
-  bool get hasUpdate => installed != null && remote.version > installed!.version;
+  bool get hasUpdate =>
+      installed != null && remote.version > installed!.version;
 }
 
 class ContentPackSyncPlan {
@@ -143,7 +172,7 @@ class HotspotHealthReport {
 
 class ContentPackSyncService {
   const ContentPackSyncService({ContentPackPolicyService? policyService})
-      : _policyService = policyService ?? const ContentPackPolicyService();
+    : _policyService = policyService ?? const ContentPackPolicyService();
 
   final ContentPackPolicyService _policyService;
 
@@ -152,47 +181,36 @@ class ContentPackSyncService {
     List<int>? preferredPorts,
     List<String>? serviceTypes,
   }) async {
-    AppEnvironment.log(
-      'SYNC',
-      'Discovering content catalog URLs',
-    );
-    
+    AppEnvironment.log('SYNC', 'Discovering content catalog URLs');
+
     final hosts = <String>[
       ...(preferredHosts ??
           const <String>[
-          'school-content.local',
-          'schoolcontent.local',
-          'raspberrypi.local',
-          '192.168.50.1',
-          '192.168.1.10',
-          '192.168.0.10',
+            'school-content.local',
+            'schoolcontent.local',
+            'raspberrypi.local',
+            '192.168.50.1',
+            '192.168.1.10',
+            '192.168.0.10',
           ]),
     ];
     final ports = preferredPorts ?? const <int>[8080, 8000, 5000];
-    final mdnsServiceTypes = serviceTypes ??
-        const <String>[
-          '_schoolcontent._tcp.local',
-          '_http._tcp.local',
-        ];
+    final mdnsServiceTypes =
+        serviceTypes ??
+        const <String>['_schoolcontent._tcp.local', '_http._tcp.local'];
 
     final discovered = <String>{};
-    
+
     // Add configured content pipeline URL as primary source
     try {
       final configuredUrl = AppEnvironment.contentPipelineUrl;
       if (configuredUrl.isNotEmpty) {
         final catalogUrl = '$configuredUrl/catalog.json';
         discovered.add(catalogUrl);
-        AppEnvironment.log(
-          'SYNC',
-          'Added configured catalog: $catalogUrl',
-        );
+        AppEnvironment.log('SYNC', 'Added configured catalog: $catalogUrl');
       }
     } catch (e) {
-      AppEnvironment.log(
-        'SYNC',
-        'Failed to add configured catalog URL: $e',
-      );
+      AppEnvironment.log('SYNC', 'Failed to add configured catalog URL: $e');
     }
 
     // Probe hotspot/LAN gateway candidates first.
@@ -229,10 +247,14 @@ class ContentPackSyncService {
               );
 
               for (final address in aRecords) {
-                discovered.add('http://${address.address.address}:${service.port}/catalog.json');
+                discovered.add(
+                  'http://${address.address.address}:${service.port}/catalog.json',
+                );
               }
 
-              discovered.add('http://${service.target}:${service.port}/catalog.json');
+              discovered.add(
+                'http://${service.target}:${service.port}/catalog.json',
+              );
             }
           }
         }
@@ -274,10 +296,7 @@ class ContentPackSyncService {
       throw const FormatException('Catalog URL must use http or https.');
     }
 
-    AppEnvironment.log(
-      'SYNC',
-      'Fetching catalog from: $catalogUrl',
-    );
+    AppEnvironment.log('SYNC', 'Fetching catalog from: $catalogUrl');
 
     final client = HttpClient();
     try {
@@ -298,7 +317,9 @@ class ContentPackSyncService {
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
       final list = decoded['packs'] as List<dynamic>?;
       if (list == null) {
-        throw const FormatException('Catalog JSON must include a packs[] array.');
+        throw const FormatException(
+          'Catalog JSON must include a packs[] array.',
+        );
       }
 
       // Keep only the highest version for each pack id.
@@ -315,7 +336,9 @@ class ContentPackSyncService {
       }
 
       final packs = byId.values.toList()
-        ..sort((a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()));
+        ..sort(
+          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+        );
 
       AppEnvironment.log(
         'SYNC',
@@ -332,29 +355,33 @@ class ContentPackSyncService {
     }
   }
 
-  Future<ContentPackCatalogSnapshot> fetchCatalogFromBackend(BackendApiService backendService) async {
-    AppEnvironment.log(
-      'SYNC',
-      'Fetching catalog from backend API',
-    );
+  Future<ContentPackCatalogSnapshot> fetchCatalogFromBackend(
+    BackendApiService backendService,
+  ) async {
+    AppEnvironment.log('SYNC', 'Fetching catalog from backend API');
     final response = await backendService.listPacks();
     if (response.isFailure) {
-      throw HttpException('Failed to fetch packs from backend: ${response.message}');
+      throw HttpException(
+        'Failed to fetch packs from backend: ${response.message}',
+      );
     }
 
     final rawPacks = response.data ?? <dynamic>[];
     final byId = <String, RemoteContentPack>{};
-    
+
     final catalogUri = Uri.parse('${RuntimeBackendUrl().current}/packs');
 
     for (final item in rawPacks) {
       if (item is! Map<String, dynamic>) continue;
-      
-      if (item.containsKey('download_url') && !item.containsKey('archive_url') && !item.containsKey('archiveUrl')) {
+
+      if (item.containsKey('download_url') &&
+          !item.containsKey('archive_url') &&
+          !item.containsKey('archiveUrl')) {
         item['archive_url'] = item['download_url'];
       }
       if (!item.containsKey('archive_url') && item.containsKey('pack_id')) {
-        item['archive_url'] = '${RuntimeBackendUrl().current}/packs/${item['pack_id']}/download';
+        item['archive_url'] =
+            '${RuntimeBackendUrl().current}/packs/${item['pack_id']}/download';
       }
 
       try {
@@ -388,39 +415,24 @@ class ContentPackSyncService {
     try {
       uri = Uri.parse(catalogUrl.trim());
     } catch (_) {
-      AppEnvironment.log(
-        'SYNC',
-        'Failed to parse catalog URL: $catalogUrl',
-      );
+      AppEnvironment.log('SYNC', 'Failed to parse catalog URL: $catalogUrl');
       return false;
     }
     if (!uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
-      AppEnvironment.log(
-        'SYNC',
-        'Invalid catalog URL scheme: $catalogUrl',
-      );
+      AppEnvironment.log('SYNC', 'Invalid catalog URL scheme: $catalogUrl');
       return false;
     }
 
-    AppEnvironment.log(
-      'SYNC',
-      'Checking if catalog is reachable: $catalogUrl',
-    );
+    AppEnvironment.log('SYNC', 'Checking if catalog is reachable: $catalogUrl');
 
     final client = HttpClient();
     client.connectionTimeout = const Duration(seconds: 2);
     try {
       final isReachable = await _isCatalogReachable(client, uri);
       if (isReachable) {
-        AppEnvironment.log(
-          'SYNC',
-          'Catalog is reachable',
-        );
+        AppEnvironment.log('SYNC', 'Catalog is reachable');
       } else {
-        AppEnvironment.log(
-          'SYNC',
-          'Catalog is not reachable',
-        );
+        AppEnvironment.log('SYNC', 'Catalog is not reachable');
       }
       return isReachable;
     } finally {
@@ -457,7 +469,10 @@ class ContentPackSyncService {
 
     final selectedClient = HttpClient();
     selectedClient.connectionTimeout = const Duration(seconds: 2);
-    final selectedReachable = await _isCatalogReachable(selectedClient, parsedCatalog);
+    final selectedReachable = await _isCatalogReachable(
+      selectedClient,
+      parsedCatalog,
+    );
     selectedClient.close(force: true);
     final remainingBytes = await _sumRemainingBytes(remainingQueue);
     final estimatedSeconds = _estimateSeconds(remainingBytes, statuses);
@@ -489,7 +504,9 @@ class ContentPackSyncService {
           (remote) => RemotePackSyncEntry(
             remote: remote,
             installed: installedById[remote.packId],
-            matchesMandatoryRule: mandatoryRules.any((rule) => _matchesRule(remote, rule)),
+            matchesMandatoryRule: mandatoryRules.any(
+              (rule) => _matchesRule(remote, rule),
+            ),
           ),
         )
         .toList(growable: false);
@@ -501,22 +518,11 @@ class ContentPackSyncService {
     final queue = <RemoteContentPack>[];
     final queuedIds = <String>{};
 
-    for (final rule in missingRules) {
-      final matches = snapshot.packs
-          .where((pack) => _matchesRule(pack, rule))
-          .toList()
-        ..sort((a, b) => b.version.compareTo(a.version));
-      if (matches.isEmpty) {
+    for (final entry in entries) {
+      if (!entry.matchesMandatoryRule) {
         continue;
       }
-      final selected = matches.first;
-      if (queuedIds.add(selected.packId)) {
-        queue.add(selected);
-      }
-    }
-
-    for (final entry in entries) {
-      if (!entry.matchesMandatoryRule || !entry.hasUpdate) {
+      if (entry.isInstalled && !entry.hasUpdate) {
         continue;
       }
       if (queuedIds.add(entry.remote.packId)) {
@@ -533,17 +539,45 @@ class ContentPackSyncService {
   }
 
   bool _matchesRule(RemoteContentPack pack, RequiredContentPackRule rule) {
-    final packSubject = pack.subject.trim().toLowerCase();
-    final ruleSubject = rule.subject.trim().toLowerCase();
-    final subjectMatch = packSubject == 'all subjects' || packSubject == ruleSubject;
+    final packSubject = _normalizeSubject(pack.subject);
+    final ruleSubject = _normalizeSubject(rule.subject);
+    final subjectMatch =
+        packSubject == 'all subjects' || packSubject == ruleSubject;
 
     final packMedium = pack.medium.trim().toLowerCase();
     final ruleMedium = rule.medium.trim().toLowerCase();
     final mediumMatch = packMedium == 'mixed' || packMedium == ruleMedium;
 
-    final gradeMatch = pack.gradeMin <= rule.gradeMin && pack.gradeMax >= rule.gradeMax;
+    final gradeMatch =
+        !(pack.gradeMax < rule.gradeMin || pack.gradeMin > rule.gradeMax);
 
-    return subjectMatch && mediumMatch && gradeMatch && pack.version >= rule.minVersion;
+    return subjectMatch &&
+        mediumMatch &&
+        gradeMatch &&
+        pack.version >= rule.minVersion;
+  }
+
+  String _normalizeSubject(String subject) {
+    final lower = subject.trim().toLowerCase().replaceAll('_', ' ');
+    if (lower == 'maths' || lower == 'mathematics') {
+      return 'maths';
+    }
+    if (lower == 'science') {
+      return 'science';
+    }
+    if (lower == 'english') {
+      return 'english';
+    }
+    if (lower == 'kannada') {
+      return 'kannada';
+    }
+    if (lower == 'social science' || lower == 'socialscience') {
+      return 'social science';
+    }
+    if (lower == 'all subjects') {
+      return 'all subjects';
+    }
+    return lower;
   }
 
   Future<bool> _isCatalogReachable(HttpClient client, Uri uri) async {
@@ -555,7 +589,8 @@ class ContentPackSyncService {
       }
       final body = await utf8.decodeStream(response);
       final decoded = jsonDecode(body);
-      return decoded is Map<String, dynamic> && decoded['packs'] is List<dynamic>;
+      return decoded is Map<String, dynamic> &&
+          decoded['packs'] is List<dynamic>;
     } catch (_) {
       return false;
     }
@@ -635,7 +670,20 @@ class ContentPackSyncService {
     }
 
     final found = <String>{};
-    final priorityOctets = <int>[1, 10, 20, 30, 40, 50, 100, 150, 193, 200, 220, 254];
+    final priorityOctets = <int>[
+      1,
+      10,
+      20,
+      30,
+      40,
+      50,
+      100,
+      150,
+      193,
+      200,
+      220,
+      254,
+    ];
 
     Future<void> probe(String prefix, int port, int octet) async {
       if (octet < 1 || octet > 254) {
@@ -698,7 +746,11 @@ class ContentPackSyncService {
     final sw = Stopwatch()..start();
     var tcpReachable = false;
     try {
-      final socket = await Socket.connect(host, port, timeout: const Duration(milliseconds: 900));
+      final socket = await Socket.connect(
+        host,
+        port,
+        timeout: const Duration(milliseconds: 900),
+      );
       socket.destroy();
       tcpReachable = true;
     } catch (_) {

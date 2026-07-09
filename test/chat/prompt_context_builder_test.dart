@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:offline_tutor_app/features/chat/application/conversation_context_builder.dart';
 import 'package:offline_tutor_app/features/chat/application/prompt_budget_manager.dart';
 import 'package:offline_tutor_app/features/chat/application/reasoning_output_filter.dart';
+import 'package:offline_tutor_app/features/chat/application/streaming_output_normalizer.dart';
 import 'package:offline_tutor_app/features/chat/application/tutor_prompt_builder.dart';
 import 'package:offline_tutor_app/features/chat/domain/tutor_message.dart';
 import 'package:offline_tutor_app/features/course/domain/course_tree.dart';
@@ -132,6 +133,27 @@ A sector is a part of a circle.
       expect(cleaned, isNot(contains('EDUCATIONAL CONTEXT')));
       expect(cleaned, isNot(contains('QUESTION: hi explain this chapter')));
       expect(cleaned, contains('A sector is a part of a circle.'));
+    });
+
+    test('streaming normalizer avoids cumulative chunk duplication', () {
+      final first = StreamingOutputNormalizer.delta(
+        '',
+        'Real numbers are all numbers on the number line.',
+      );
+      final second = StreamingOutputNormalizer.delta(
+        'Real numbers are all numbers on the number line.',
+        'Real numbers are all numbers on the number line. They include rational and irrational numbers.',
+      );
+
+      expect(
+        first,
+        contains('Real numbers are all numbers on the number line.'),
+      );
+      expect(second, contains('They include rational and irrational numbers.'));
+      expect(
+        second,
+        isNot(contains('Real numbers are all numbers on the number line.')),
+      );
     });
   });
 }

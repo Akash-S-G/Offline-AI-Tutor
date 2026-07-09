@@ -37,6 +37,7 @@ class SyncManager {
 
   /// Queue for managing sync operations
   final SyncQueue syncQueue = SyncQueue();
+  final ContentPackRepository _contentPackRepository = ContentPackRepository();
   final StreamController<String> _progressController =
       StreamController<String>.broadcast();
 
@@ -48,7 +49,11 @@ class SyncManager {
     }
   }
 
-  /// Check for pack updates from backend, optionally filtered by grade
+  /// Fetch the backend pack catalog, optionally filtered by grade.
+  ///
+  /// This returns the full matching catalog for the UI, not just packs that
+  /// still need to be installed. Callers that want installable-only work should
+  /// keep using [processPackUpdates], which performs the local install check.
   Future<List<PackSyncEntry>> checkForPackUpdates({int? grade}) async {
     try {
       // Consult cached backend status to avoid redundant 30s timeout
@@ -63,10 +68,7 @@ class SyncManager {
 
       AppEnvironment.log('SYNC', '[SyncManager] Checking for pack updates');
 
-      var endpoint = _runtimeEndpoints().packsSync;
-      if (grade != null) {
-        endpoint += '?grade=$grade';
-      }
+      final endpoint = '${_runtimeEndpoints().baseUrl}/packs';
       print('[URL] SERVICE=SyncManager URL=$endpoint');
       print('[SYNC] ACTIVE_URL=$endpoint');
       print('[SYNC] REQUEST_URL=$endpoint');
@@ -83,34 +85,58 @@ class SyncManager {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final validPacks = <PackSyncEntry>[];
+        final validPacksById = <String, PackSyncEntry>{};
 
-        final packsList = data['packs'];
+        final packsList = <dynamic>[
+          ...(data['packs'] as List<dynamic>? ?? const <dynamic>[]),
+          ...(data['cached'] as List<dynamic>? ?? const <dynamic>[]),
+        ];
 
-        if (packsList is List) {
-          int count = 0;
-          for (final pkg in packsList) {
-            if (pkg is Map<String, dynamic>) {
-              try {
-                final entry = PackSyncEntry.fromJson(pkg);
-                validPacks.add(entry);
-                if (count < 5) {
-                  print('[SYNC] PACK_ID=${entry.packId}');
-                  print('[SYNC] DOWNLOAD_URL=${entry.downloadUrl}');
-                }
-                count++;
-              } catch (e) {
-                AppEnvironment.log(
-                  'SYNC',
-                  '[SyncManager] Failed to parse pack entry: $e',
+        for (final pkg in packsList) {
+          if (pkg is Map<String, dynamic>) {
+            try {
+              final entry = PackSyncEntry.fromJson(pkg);
+              if (grade != null && entry.grade != grade) {
+                print(
+                  '[SYNC] SKIP_GRADE_MISMATCH packId=${entry.packId} packGrade=${entry.grade} requestedGrade=$grade',
                 );
+                continue;
               }
+              final existing = validPacksById[entry.packId];
+              if (existing == null ||
+                  _parseVersion(entry.version) >
+                      _parseVersion(existing.version)) {
+                validPacksById[entry.packId] = entry;
+              }
+              if (validPacksById.length <= 5) {
+                print('[SYNC] PACK_ID=${entry.packId}');
+                print('[SYNC] DOWNLOAD_URL=${entry.downloadUrl}');
+              }
+            } catch (e) {
+              AppEnvironment.log(
+                'SYNC',
+                '[SyncManager] Failed to parse pack entry: $e',
+              );
             }
           }
         }
 
-        print('[SYNC] PACK_COUNT_RECEIVED=${validPacks.length}');
-        return validPacks;
+        print('[SYNC] PACK_COUNT_RECEIVED=${validPacksById.length}');
+        return validPacksById.values.toList()..sort((a, b) {
+          final gradeA = a.grade ?? 0;
+          final gradeB = b.grade ?? 0;
+          final gradeCompare = gradeA.compareTo(gradeB);
+          if (gradeCompare != 0) {
+            return gradeCompare;
+          }
+          final subjectCompare = (a.subject ?? '').toLowerCase().compareTo(
+            (b.subject ?? '').toLowerCase(),
+          );
+          if (subjectCompare != 0) {
+            return subjectCompare;
+          }
+          return a.packId.compareTo(b.packId);
+        });
       } else {
         AppEnvironment.log(
           'SYNC',
@@ -124,9 +150,11 @@ class SyncManager {
     }
   }
 
-  /// Process the pack updates and enqueue download operations
-  Future<void> processPackUpdates(List<PackSyncEntry> updates) async {
-    if (updates.isEmpty) return;
+  /// Process the pack updates and enqueue download operations.
+  ///
+  /// Returns the number of packs that were actually queued for download.
+  Future<int> processPackUpdates(List<PackSyncEntry> updates) async {
+    if (updates.isEmpty) return 0;
 
     AppEnvironment.log(
       'SYNC',
@@ -134,18 +162,24 @@ class SyncManager {
     );
     print('[SYNC] PACKS_REQUIRING_UPDATE=${updates.length}');
 
+    var queuedCount = 0;
     for (final entry in updates) {
+      if (!await _needsPackInstall(entry)) {
+        print(
+          '[SYNC] SKIP_ALREADY_INSTALLED packId=${entry.packId} version=${entry.version}',
+        );
+        continue;
+      }
+
       final packId = entry.packId;
       var downloadUrl =
           entry.downloadUrl ??
-          '${_runtimeEndpoints().packsSync}/$packId/download';
+          '${_runtimeEndpoints().baseUrl}/packs/$packId/download';
       if (downloadUrl.startsWith('/')) {
-        final baseUrl = _runtimeEndpoints().packsSync.replaceAll(
-          '/packs/sync',
-          '',
-        );
+        final baseUrl = _runtimeEndpoints().baseUrl;
         downloadUrl = '$baseUrl$downloadUrl';
       }
+
       syncQueue.enqueue(
         PackDownloadOperation(
           id: 'download_$packId',
@@ -155,7 +189,37 @@ class SyncManager {
           onProgress: _emitProgress,
         ),
       );
+      queuedCount++;
     }
+
+    return queuedCount;
+  }
+
+  Future<bool> _needsPackInstall(PackSyncEntry entry) async {
+    final local = await _contentPackRepository.getPackById(entry.packId);
+    if (local == null) {
+      return true;
+    }
+
+    final localRoot = local.rootPath.trim();
+    final localRootExists =
+        localRoot.isNotEmpty && await Directory(localRoot).exists();
+    if (!localRootExists) {
+      return true;
+    }
+
+    final incomingVersion = _parseVersion(entry.version);
+    return incomingVersion > local.version;
+  }
+
+  int _parseVersion(String version) {
+    final trimmed = version.trim();
+    if (trimmed.isEmpty) {
+      return 1;
+    }
+
+    final major = trimmed.split('.').first.trim();
+    return int.tryParse(major) ?? 1;
   }
 
   /// Sync specific pack with backend
@@ -163,7 +227,7 @@ class SyncManager {
     try {
       AppEnvironment.log('SYNC', '[SyncManager] Syncing pack: $packId');
 
-      final endpoint = '${_runtimeEndpoints().packsSync}/$packId';
+      final endpoint = '${_runtimeEndpoints().baseUrl}/packs/$packId';
 
       final delta = {
         'action': 'sync',

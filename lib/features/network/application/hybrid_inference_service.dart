@@ -238,7 +238,9 @@ class HybridInferenceService {
     }
 
     TutorExecutionMode executionMode;
-    if (hasRelevantLocalContent) {
+    final localAvailable = _localInference.isReady;
+
+    if (hasRelevantLocalContent && localAvailable) {
       executionMode = TutorExecutionMode.curriculumRag;
     } else {
       if (backendAvailable && _networkState.quality != NetworkQuality.offline) {
@@ -330,14 +332,13 @@ class HybridInferenceService {
         if (shouldRetryWithoutContext && backendAvailable) {
           print('[DIAGNOSTICS] BACKEND_RETRY_WITH_MINIMAL_PAYLOAD');
           try {
-            final minimalBackendStream =
-                _backendService.streamTutorAnswer(
-                  question: question,
-                  grade: grade,
-                  subject: subject,
-                  chapter: chapter,
-                  language: language,
-                );
+            final minimalBackendStream = _backendService.streamTutorAnswer(
+              question: question,
+              grade: grade,
+              subject: subject,
+              chapter: chapter,
+              language: language,
+            );
             await for (final chunk in minimalBackendStream) {
               yield chunk;
             }
@@ -414,7 +415,8 @@ Question: $question
           .map(_cleanFallbackContextLine)
           .where((line) => line.isNotEmpty)
           .join('\n');
-      final localPrompt = '''
+      final localPrompt =
+          '''
 You are an offline school tutor.
 Answer the student's question directly in simple words.
 Use the chapter context below only if it helps.
@@ -528,7 +530,10 @@ Answer:
 
   String _cleanFallbackContextLine(String line) {
     final normalized = line
-        .replaceAll(RegExp(r'[^\p{L}\p{M}\p{N}\p{P}\p{Zs}\n\r\t]', unicode: true), ' ')
+        .replaceAll(
+          RegExp(r'[^\p{L}\p{M}\p{N}\p{P}\p{Zs}\n\r\t]', unicode: true),
+          ' ',
+        )
         .replaceAll(RegExp(r'[\u0000-\u001F\u007F]'), ' ')
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();

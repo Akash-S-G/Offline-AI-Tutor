@@ -2,14 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import '../../educational/application/sync_manager.dart';
-import '../../network/domain/endpoint_builder.dart';
-import '../../network/domain/runtime_backend_url.dart';
 import '../../../config/app_environment.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../educational/domain/pack_sync_entry.dart';
 
 const String prefetchTaskName = 'backgroundPrefetchTask';
 
@@ -28,7 +23,8 @@ void callbackDispatcher() {
 
       final battery = Battery();
       final batteryState = await battery.batteryState;
-      if (batteryState != BatteryState.charging && batteryState != BatteryState.full) {
+      if (batteryState != BatteryState.charging &&
+          batteryState != BatteryState.full) {
         AppEnvironment.log('SYNC', '[Prefetch] Skipping: Device not charging');
         return true;
       }
@@ -40,23 +36,9 @@ void callbackDispatcher() {
         return true;
       }
 
-      final url = RuntimeBackendUrl().current;
-      final endpoint = '${EndpointBuilder(baseUrl: url).packsRecommended}?grade=$grade';
-      
-      AppEnvironment.log('SYNC', '[Prefetch] Fetching recommended packs: $endpoint');
-
-      final response = await http.get(Uri.parse(endpoint)).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final packsList = data['packs'];
-
-        if (packsList is List) {
-          final syncManager = SyncManager();
-          final entries = packsList.map((pkg) => PackSyncEntry.fromJson(pkg)).toList();
-          await syncManager.processPackUpdates(entries);
-        }
-      }
+      final syncManager = SyncManager();
+      final updates = await syncManager.checkForPackUpdates(grade: grade);
+      await syncManager.processPackUpdates(updates);
 
       return true;
     } catch (e) {
@@ -68,8 +50,13 @@ void callbackDispatcher() {
 
 class BackgroundPrefetchService {
   static Future<void> initialize() async {
-    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
-      AppEnvironment.log('SYNC', '[Prefetch] Workmanager not supported on this platform. Skipping initialization.');
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
+      AppEnvironment.log(
+        'SYNC',
+        '[Prefetch] Workmanager not supported on this platform. Skipping initialization.',
+      );
       return;
     }
 
@@ -80,7 +67,9 @@ class BackgroundPrefetchService {
   }
 
   static void schedulePrefetch() {
-    if (kIsWeb || (defaultTargetPlatform != TargetPlatform.android && defaultTargetPlatform != TargetPlatform.iOS)) {
+    if (kIsWeb ||
+        (defaultTargetPlatform != TargetPlatform.android &&
+            defaultTargetPlatform != TargetPlatform.iOS)) {
       return;
     }
 

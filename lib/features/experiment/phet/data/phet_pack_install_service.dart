@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -33,16 +34,77 @@ class PhetPackInstallService {
         .any((file) => p.basename(file.path) == 'catalog.json');
   }
 
+  Future<int?> _installedVersion() async {
+    final pack = await _repository.getPackById(PhetCatalogService.packId);
+    return pack?.version;
+  }
+
+  Future<int?> _remoteVersion() async {
+    final url =
+        '${RuntimeBackendUrl().current}/packs/${PhetCatalogService.packId}/manifest';
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 10);
+
+    try {
+      final request = await client.getUrl(Uri.parse(url));
+      final response = await request.close();
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        return null;
+      }
+
+      final decoded = jsonDecode(await utf8.decodeStream(response));
+      if (decoded is Map<String, dynamic>) {
+        final directVersion = _parseVersion(decoded['version']);
+        if (directVersion != null) {
+          return directVersion;
+        }
+
+        final nestedManifest = decoded['manifest'];
+        if (nestedManifest is Map<String, dynamic>) {
+          return _parseVersion(nestedManifest['version']);
+        }
+      }
+
+      return null;
+    } catch (_) {
+      return null;
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  int? _parseVersion(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      final major = value.trim().split('.').first.trim();
+      return int.tryParse(major);
+    }
+    return null;
+  }
+
   Future<void> install({
     void Function(String message, double? progress)? onProgress,
   }) async {
-    if (await isInstalled()) {
-      onProgress?.call('PhET pack is already installed.', 1);
-      return;
-    }
     final existingRecord = await _repository.getPackById(
       PhetCatalogService.packId,
     );
+    final localVersion = existingRecord?.version ?? await _installedVersion();
+    final remoteVersion = await _remoteVersion();
+
+    if (localVersion != null && remoteVersion != null) {
+      if (remoteVersion <= localVersion && await isInstalled()) {
+        onProgress?.call('PhET pack is already up to date.', 1);
+        return;
+      }
+    } else if (await isInstalled()) {
+      onProgress?.call('PhET pack is already installed.', 1);
+      return;
+    }
 
     final tempDirectory = await getTemporaryDirectory();
     final archive = File(
@@ -78,7 +140,7 @@ class PhetPackInstallService {
       onProgress?.call('Installing simulations...', null);
       await _archiveService.importPackArchive(
         archive.path,
-        allowReplaceSameOrOlder: existingRecord != null,
+        allowReplaceSameOrOlder: false,
         onProgress: (message) => onProgress?.call(message, null),
       );
       onProgress?.call('PhET simulations are ready offline.', 1);

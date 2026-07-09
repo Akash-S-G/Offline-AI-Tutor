@@ -337,7 +337,10 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
         } else {
           downloadedPath = await _downloadPackArchive(remote.archiveUrl);
         }
-        await _archiveService.importPackArchive(downloadedPath);
+        await _archiveService.importPackArchive(
+          downloadedPath,
+          remotePackOverride: remote,
+        );
         installedCount += 1;
       } on PackVersionConflictException catch (e) {
         skippedCount += 1;

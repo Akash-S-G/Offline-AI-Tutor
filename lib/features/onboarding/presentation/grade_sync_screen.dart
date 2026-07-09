@@ -59,7 +59,7 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
 
     try {
       // PHASE 2: CATALOG LOADING
-      // Instead of GET /packs/catalog, we fetch sync with grade to get the filtered list
+      // Load the pack inventory from the older /packs endpoint and filter locally.
       final packs = await _syncManager.checkForPackUpdates(grade: widget.grade);
 
       double totalSizeMb = 0;
@@ -67,13 +67,9 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
 
       for (var pack in packs) {
         totalSizeMb += (pack.sizeBytes ?? 5000000) / (1024 * 1024);
-
-        // Extract subject from packId (e.g., chapter_7_science_nutrition_in_plants_english -> science)
-        final parts = pack.packId.split('_');
-        if (parts.length > 2) {
-          subjects.add(
-            parts[2].replaceAll(RegExp(r'[^a-zA-Z]'), '').toUpperCase(),
-          );
+        final subjectLabel = _displaySubject(pack.subject ?? '');
+        if (subjectLabel.isNotEmpty) {
+          subjects.add(subjectLabel);
         }
       }
 
@@ -94,6 +90,38 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
         });
       }
     }
+  }
+
+  String _displaySubject(String rawSubject) {
+    final cleaned = rawSubject.trim().replaceAll('_', ' ');
+    if (cleaned.isEmpty) {
+      return '';
+    }
+
+    final lower = cleaned.toLowerCase();
+    if (lower == 'maths' || lower == 'mathematics') {
+      return 'Mathematics';
+    }
+    if (lower == 'science') {
+      return 'Science';
+    }
+    if (lower == 'social science' || lower == 'socialscience') {
+      return 'Social Science';
+    }
+    if (lower == 'english') {
+      return 'English';
+    }
+    if (lower == 'kannada') {
+      return 'Kannada';
+    }
+
+    return cleaned
+        .split(RegExp(r'\s+'))
+        .map((part) {
+          if (part.isEmpty) return '';
+          return part[0].toUpperCase() + part.substring(1).toLowerCase();
+        })
+        .join(' ');
   }
 
   Future<void> _startSync() async {
@@ -118,11 +146,14 @@ class _GradeSyncScreenState extends State<GradeSyncScreen> {
       }
 
       try {
-        await _syncManager.processPackUpdates([pack]);
+        final queuedCount = await _syncManager.processPackUpdates([pack]);
+        if (queuedCount == 0) {
+          continue;
+        }
         while (_syncManager.syncQueue.getStatus()['isProcessing'] == true) {
           await Future.delayed(const Duration(milliseconds: 500));
         }
-        successCount++;
+        successCount += queuedCount;
         if (mounted) {
           setState(() {
             _downloadedPacks = successCount;

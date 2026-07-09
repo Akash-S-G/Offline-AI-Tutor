@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'backend_availability_cache.dart';
 import '../../../config/app_environment.dart';
+import '../../chat/application/streaming_output_normalizer.dart';
 import '../domain/backend_config.dart';
 import '../domain/backend_response.dart';
 import 'backend_http_client.dart';
@@ -14,8 +15,8 @@ class BackendApiService {
   BackendApiService({
     required BackendConfig config,
     BackendHttpClient? httpClient,
-  })  : _config = config,
-        _httpClient = httpClient ?? BackendHttpClient(config: config);
+  }) : _config = config,
+       _httpClient = httpClient ?? BackendHttpClient(config: config);
 
   final BackendConfig _config;
   final BackendHttpClient _httpClient;
@@ -75,7 +76,9 @@ class BackendApiService {
       stopwatch.stop();
       final available = response.isSuccess;
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_END');
-      print('[DIAGNOSTICS] HEALTH_RESPONSE_TIME=${stopwatch.elapsedMilliseconds}ms');
+      print(
+        '[DIAGNOSTICS] HEALTH_RESPONSE_TIME=${stopwatch.elapsedMilliseconds}ms',
+      );
       print('[HEALTH] RESPONSE_TIME_MS=${stopwatch.elapsedMilliseconds}');
       print('[HEALTH] STATUS_CODE=${response.statusCode}');
       print('[HEALTH] RESPONSE_BODY=${response.data}');
@@ -87,7 +90,9 @@ class BackendApiService {
     } catch (e) {
       stopwatch.stop();
       print('[DIAGNOSTICS] BACKEND_HEALTH_CHECK_END (FAILED)');
-      print('[DIAGNOSTICS] HEALTH_RESPONSE_TIME=${stopwatch.elapsedMilliseconds}ms');
+      print(
+        '[DIAGNOSTICS] HEALTH_RESPONSE_TIME=${stopwatch.elapsedMilliseconds}ms',
+      );
       print('[DIAGNOSTICS] BACKEND_ERROR=$e');
       print('[HEALTH] RESPONSE_TIME_MS=${stopwatch.elapsedMilliseconds}');
       print('[HEALTH] JSON_PARSE_SUCCESS=false');
@@ -122,10 +127,7 @@ class BackendApiService {
       body['system_prompt'] = systemPrompt;
     }
 
-    final response = await _httpClient.post(
-      '/ai/chat',
-      body: body,
-    );
+    final response = await _httpClient.post('/ai/chat', body: body);
 
     if (response.isFailure) {
       return BackendResponse.failure(
@@ -155,11 +157,8 @@ class BackendApiService {
     String? language,
     int maxTokens = 512,
   }) async* {
-    AppEnvironment.log(
-      'BACKEND',
-      'Starting streaming answer request',
-    );
-    
+    AppEnvironment.log('BACKEND', 'Starting streaming answer request');
+
     final body = <String, dynamic>{
       'question': question,
       'max_tokens': maxTokens,
@@ -177,7 +176,10 @@ class BackendApiService {
     }
 
     try {
-      await for (final chunk in _httpClient.stream('/ai/chat/stream', body: body)) {
+      await for (final chunk in _httpClient.stream(
+        '/ai/chat/stream',
+        body: body,
+      )) {
         final trimmed = chunk.trim();
         if (trimmed.isEmpty || trimmed.startsWith(':')) {
           continue;
@@ -186,10 +188,7 @@ class BackendApiService {
         if (trimmed.startsWith('data:')) {
           final jsonStr = trimmed.substring(5).trim();
           if (jsonStr == '[DONE]') {
-            AppEnvironment.log(
-              'BACKEND',
-              'Stream completed',
-            );
+            AppEnvironment.log('BACKEND', 'Stream completed');
             break;
           }
           try {
@@ -207,10 +206,7 @@ class BackendApiService {
         }
       }
     } catch (error) {
-      AppEnvironment.log(
-        'BACKEND',
-        'Stream error: $error',
-      );
+      AppEnvironment.log('BACKEND', 'Stream error: $error');
       rethrow;
     }
   }
@@ -222,10 +218,7 @@ class BackendApiService {
   }) async {
     final response = await _httpClient.post(
       '/rag/retrieve',
-      body: <String, dynamic>{
-        'query': query,
-        'limit': limit,
-      },
+      body: <String, dynamic>{'query': query, 'limit': limit},
     );
 
     if (response.isFailure) {
@@ -271,7 +264,9 @@ class BackendApiService {
   }
 
   /// Get pack manifest
-  Future<BackendResponse<Map<String, dynamic>>> getPackManifest(String id) async {
+  Future<BackendResponse<Map<String, dynamic>>> getPackManifest(
+    String id,
+  ) async {
     final response = await _httpClient.get('/packs/$id/manifest');
     if (response.isFailure) {
       return BackendResponse.failure(
@@ -300,7 +295,9 @@ class BackendApiService {
       request.headers.set('Authorization', 'Bearer ${_config.apiKey}');
       final response = await request.close();
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw HttpException('Pack download failed with HTTP ${response.statusCode}');
+        throw HttpException(
+          'Pack download failed with HTTP ${response.statusCode}',
+        );
       }
       final file = File(savePath);
       await response.pipe(file.openWrite());
@@ -324,11 +321,7 @@ class BackendApiService {
   }) async* {
     print('[DIAGNOSTICS] ENTERING BackendApiService.streamTutorAnswer()');
     print('[DIAGNOSTICS] REQUEST_START (BACKEND)');
-    AppEnvironment.log(
-      'BACKEND',
-      'Starting streaming tutor answer request',
-    );
-    
+    AppEnvironment.log('BACKEND', 'Starting streaming tutor answer request');
 
     final body = <String, dynamic>{
       'question': _sanitizeBackendText(question),
@@ -364,16 +357,21 @@ class BackendApiService {
     // Task E: Log exact request payload for 400 debugging
     print('[BACKEND] REQUEST_JSON=${body.keys.toList()}');
     final sanitizedQuestion = body['question'] as String;
-    print('[BACKEND] REQUEST_QUESTION=${sanitizedQuestion.substring(0, sanitizedQuestion.length > 100 ? 100 : sanitizedQuestion.length)}');
+    print(
+      '[BACKEND] REQUEST_QUESTION=${sanitizedQuestion.substring(0, sanitizedQuestion.length > 100 ? 100 : sanitizedQuestion.length)}',
+    );
 
     try {
       final startTime = DateTime.now();
       print('[DIAGNOSTICS] REQUEST_SENT (BACKEND)');
       var isFirstToken = true;
+      var emittedText = '';
       await for (final chunk in _httpClient.stream('/ai/tutor', body: body)) {
         print("[TRACE] RAW_STREAM_CHUNK=$chunk");
         if (isFirstToken) {
-          final firstTokenMs = DateTime.now().difference(startTime).inMilliseconds;
+          final firstTokenMs = DateTime.now()
+              .difference(startTime)
+              .inMilliseconds;
           print('[DIAGNOSTICS] BACKEND_NETWORK_MS=$firstTokenMs');
         }
         final trimmed = chunk.trim();
@@ -384,28 +382,41 @@ class BackendApiService {
         if (trimmed.startsWith('data:')) {
           final jsonStr = trimmed.substring(5).trim();
           if (jsonStr == '[DONE]') {
-            AppEnvironment.log(
-              'BACKEND',
-              'Tutor stream completed',
-            );
+            AppEnvironment.log('BACKEND', 'Tutor stream completed');
             break;
           }
           try {
             final data = jsonDecode(jsonStr) as Map<String, dynamic>;
             print("[TRACE] PARSED_JSON=$data");
-            final answerField = data['token'] as String? ?? data['answer'] as String? ?? data['chunk'] as String? ?? '';
+            final answerField =
+                data['token'] as String? ??
+                data['answer'] as String? ??
+                data['chunk'] as String? ??
+                '';
             print("[TRACE] ANSWER_FIELD=$answerField");
-            
-            if (answerField.isNotEmpty) {
+            final delta = StreamingOutputNormalizer.delta(
+              emittedText,
+              answerField,
+            );
+            if (delta.isNotEmpty) {
+              emittedText = StreamingOutputNormalizer.merge(
+                emittedText,
+                answerField,
+              );
+            }
+
+            if (delta.isNotEmpty) {
               if (isFirstToken) {
                 print('[DIAGNOSTICS] BACKEND_FIRST_TOKEN');
-                final firstTokenTotal = DateTime.now().difference(startTime).inMilliseconds;
+                final firstTokenTotal = DateTime.now()
+                    .difference(startTime)
+                    .inMilliseconds;
                 print('[DIAGNOSTICS] BACKEND_FIRST_TOKEN_MS=$firstTokenTotal');
                 isFirstToken = false;
               }
-              print("[TRACE] EMIT_TO_HYBRID=$answerField");
-              print("[TRACE] EMIT_LENGTH=${answerField.length}");
-              yield answerField;
+              print("[TRACE] EMIT_TO_HYBRID=$delta");
+              print("[TRACE] EMIT_LENGTH=${delta.length}");
+              yield delta;
             }
           } catch (_) {
             continue;
@@ -420,10 +431,7 @@ class BackendApiService {
       print('[DIAGNOSTICS] BACKEND_STREAM_COMPLETE');
       print('[DIAGNOSTICS] BACKEND_TOTAL_MS=$totalMs');
     } catch (error) {
-      AppEnvironment.log(
-        'BACKEND',
-        'Tutor stream error: $error',
-      );
+      AppEnvironment.log('BACKEND', 'Tutor stream error: $error');
       rethrow;
     }
   }
@@ -476,9 +484,7 @@ class BackendApiService {
       return;
     }
 
-    final body = <String, dynamic>{
-      'topic': topic,
-    };
+    final body = <String, dynamic>{'topic': topic};
 
     if (subject != null) body['subject'] = subject;
     if (grade != null) body['grade'] = grade;
@@ -490,9 +496,14 @@ class BackendApiService {
     try {
       final startTime = DateTime.now();
       var isFirstToken = true;
-      await for (final chunk in _httpClient.stream('/planner/lesson', body: body)) {
+      await for (final chunk in _httpClient.stream(
+        '/planner/lesson',
+        body: body,
+      )) {
         if (isFirstToken) {
-          final firstTokenMs = DateTime.now().difference(startTime).inMilliseconds;
+          final firstTokenMs = DateTime.now()
+              .difference(startTime)
+              .inMilliseconds;
           print('[DIAGNOSTICS] PLANNER_NETWORK_MS=$firstTokenMs');
           isFirstToken = false;
         }

@@ -10,6 +10,7 @@ import '../../course/domain/course_tree.dart';
 import '../application/chat_latency_benchmark_service.dart';
 import '../application/conversation_context_builder.dart';
 import '../application/reasoning_output_filter.dart';
+import '../application/streaming_output_normalizer.dart';
 import '../application/simple_ai_chat_component.dart';
 import '../application/tutor_prompt_builder.dart';
 import '../data/platform_tutor_inference_gateway.dart';
@@ -952,8 +953,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
     final distributedStreamingReady = _distributedServiceComposer.isInitialized;
 
-    final canUseDistributedBackend =
-        Platform.isLinux && _distributedServiceComposer.isInitialized;
+    final canUseDistributedBackend = _distributedServiceComposer.isInitialized;
     if (!_engineLoaded && !canUseDistributedBackend) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -1154,7 +1154,16 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
               '[TRACE] UI_RECEIVED chunk_length=${visibleChunk.length} elapsed_ms=$elapsedSinceStart',
             );
             print('[TRACE] MESSAGE_ID_BEING_UPDATED=$assistantIndex');
-            responseBuffer.write(visibleChunk);
+            final mergedText = StreamingOutputNormalizer.merge(
+              responseBuffer.toString(),
+              visibleChunk,
+            );
+            if (mergedText == responseBuffer.toString()) {
+              return;
+            }
+            responseBuffer
+              ..clear()
+              ..write(mergedText);
 
             final nowMs = DateTime.now().millisecondsSinceEpoch;
             final shouldForceUpdate = visibleChunk.contains('\n');

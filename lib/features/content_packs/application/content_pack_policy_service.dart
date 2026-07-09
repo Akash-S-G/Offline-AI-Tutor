@@ -32,7 +32,8 @@ class ContentPackPolicyService {
     for (final medium in const <String>['English Medium', 'Kannada Medium']) {
       addRule(
         id: 'math_${medium.startsWith('English') ? 'en' : 'kn'}_6_10',
-        title: 'Mathematics Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
+        title:
+            'Mathematics Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
         medium: medium,
         subject: 'Mathematics',
         gradeMin: 6,
@@ -40,7 +41,8 @@ class ContentPackPolicyService {
       );
       addRule(
         id: 'science_${medium.startsWith('English') ? 'en' : 'kn'}_6_10',
-        title: 'Science Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
+        title:
+            'Science Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
         medium: medium,
         subject: 'Science',
         gradeMin: 6,
@@ -48,9 +50,28 @@ class ContentPackPolicyService {
       );
       addRule(
         id: 'social_${medium.startsWith('English') ? 'en' : 'kn'}_6_10',
-        title: 'Social Science Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
+        title:
+            'Social Science Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
         medium: medium,
         subject: 'Social Science',
+        gradeMin: 6,
+        gradeMax: 10,
+      );
+      addRule(
+        id: 'english_${medium.startsWith('English') ? 'en' : 'kn'}_6_10',
+        title:
+            'English Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
+        medium: medium,
+        subject: 'English',
+        gradeMin: 6,
+        gradeMax: 10,
+      );
+      addRule(
+        id: 'kannada_${medium.startsWith('English') ? 'en' : 'kn'}_6_10',
+        title:
+            'Kannada Grades 6-10 (${medium == 'English Medium' ? 'EN' : 'KN'})',
+        medium: medium,
+        subject: 'Kannada',
         gradeMin: 6,
         gradeMax: 10,
       );
@@ -85,10 +106,7 @@ class ContentPackPolicyService {
       }
 
       statuses.add(
-        RequiredContentPackStatus(
-          rule: rule,
-          matchingPacks: matchingPacks,
-        ),
+        RequiredContentPackStatus(rule: rule, matchingPacks: matchingPacks),
       );
     }
 
@@ -96,8 +114,8 @@ class ContentPackPolicyService {
   }
 
   bool _isSubjectCompatible(String packSubject, String requiredSubject) {
-    final normalizedPack = packSubject.trim().toLowerCase();
-    final normalizedRequired = requiredSubject.trim().toLowerCase();
+    final normalizedPack = _normalizeSubject(packSubject);
+    final normalizedRequired = _normalizeSubject(requiredSubject);
     if (normalizedPack == 'all subjects') {
       return true;
     }
@@ -114,6 +132,26 @@ class ContentPackPolicyService {
   }
 
   bool _coversGrades(ContentPackManifest pack, RequiredContentPackRule rule) {
-    return pack.gradeMin <= rule.gradeMin && pack.gradeMax >= rule.gradeMax;
+    return !(pack.gradeMax < rule.gradeMin || pack.gradeMin > rule.gradeMax);
+  }
+
+  String _normalizeSubject(String subject) {
+    final lower = subject.trim().toLowerCase().replaceAll('_', ' ');
+    if (lower == 'maths' || lower == 'mathematics') {
+      return 'maths';
+    }
+    if (lower == 'science') {
+      return 'science';
+    }
+    if (lower == 'english') {
+      return 'english';
+    }
+    if (lower == 'kannada') {
+      return 'kannada';
+    }
+    if (lower == 'social science' || lower == 'socialscience') {
+      return 'social science';
+    }
+    return lower;
   }
 }
