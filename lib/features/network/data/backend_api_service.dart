@@ -388,35 +388,49 @@ class BackendApiService {
           try {
             final data = jsonDecode(jsonStr) as Map<String, dynamic>;
             print("[TRACE] PARSED_JSON=$data");
+
+            final isDone = data['done'] as bool? ?? false;
+            final isCorrected = data['corrected'] as bool? ?? false;
+            final isStarted = data['started'] as bool? ?? false;
+            final isHeartbeat = data['heartbeat'] as bool? ?? false;
+
+            if (isStarted || isHeartbeat) continue;
+
             final answerField =
                 data['token'] as String? ??
                 data['answer'] as String? ??
                 data['chunk'] as String? ??
                 '';
             print("[TRACE] ANSWER_FIELD=$answerField");
-            final delta = StreamingOutputNormalizer.delta(
-              emittedText,
-              answerField,
-            );
-            if (delta.isNotEmpty) {
-              emittedText = StreamingOutputNormalizer.merge(
-                emittedText,
-                answerField,
-              );
+
+            if (isCorrected && answerField.isNotEmpty) {
+              // Backend sent a full corrected replacement — signal reset then full text
+              print('[TRACE] CORRECTION_RECEIVED len=${answerField.length}');
+              yield '\x00RESET\x00';
+              yield StreamingOutputNormalizer.clean(answerField);
+              emittedText = answerField;
+              break;
             }
 
-            if (delta.isNotEmpty) {
-              if (isFirstToken) {
-                print('[DIAGNOSTICS] BACKEND_FIRST_TOKEN');
-                final firstTokenTotal = DateTime.now()
-                    .difference(startTime)
-                    .inMilliseconds;
-                print('[DIAGNOSTICS] BACKEND_FIRST_TOKEN_MS=$firstTokenTotal');
-                isFirstToken = false;
+            if (isDone && answerField.isEmpty) break;
+
+            // Normal incremental token — stream directly
+            if (answerField.isNotEmpty) {
+              final cleaned = StreamingOutputNormalizer.clean(answerField);
+              if (cleaned.isNotEmpty) {
+                emittedText += cleaned;
+                if (isFirstToken) {
+                  print('[DIAGNOSTICS] BACKEND_FIRST_TOKEN');
+                  final firstTokenTotal = DateTime.now()
+                      .difference(startTime)
+                      .inMilliseconds;
+                  print('[DIAGNOSTICS] BACKEND_FIRST_TOKEN_MS=$firstTokenTotal');
+                  isFirstToken = false;
+                }
+                print("[TRACE] EMIT_TO_HYBRID=$cleaned");
+                print("[TRACE] EMIT_LENGTH=${cleaned.length}");
+                yield cleaned;
               }
-              print("[TRACE] EMIT_TO_HYBRID=$delta");
-              print("[TRACE] EMIT_LENGTH=${delta.length}");
-              yield delta;
             }
           } catch (_) {
             continue;

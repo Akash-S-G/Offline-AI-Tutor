@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -15,6 +16,8 @@ import '../../progress/presentation/progress_dashboard_screen.dart';
 import '../../rag/presentation/screens/document_rag_ingestion_screen.dart';
 import '../../settings/presentation/model_selection_screen.dart';
 import '../../settings/presentation/manage_content_screen.dart';
+import '../../language/providers/language_provider.dart';
+import '../../language/widgets/language_selector.dart';
 import '../../onboarding/presentation/grade_selection_screen.dart';
 import 'my_learning_screen.dart';
 import '../../math_studio/presentation/math_studio_home_screen.dart';
@@ -425,16 +428,21 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   }
 
   String _quizDescription() {
+    final l10n = AppLocalizations.of(context)!;
     if (_quizAttempts == 0) {
-      return 'Take your first chapter quiz';
+      return l10n.dashboardTakeQuizHint;
     }
 
     final latest = _latestQuizResult;
     if (latest == null) {
-      return '$_quizAttempts attempt(s) recorded';
+      return l10n.dashboardAttemptsCount(_quizAttempts);
     }
 
-    return '$_quizAttempts attempt(s), latest ${latest.percentage}% (${latest.performanceLabel})';
+    return l10n.dashboardAttemptsSummary(
+      _quizAttempts,
+      latest.percentage,
+      latest.performanceLabel,
+    );
   }
 
   Course? _selectedCourseInList() {
@@ -482,18 +490,18 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           });
           _loadFeatureInsights();
         },
-        items: const [
+        items: [
           BottomNavigationBarItem(
-            icon: Icon(Icons.school_rounded),
-            label: 'My Learning',
+            icon: const Icon(Icons.school_rounded),
+            label: AppLocalizations.of(context)!.navMyLearning,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.construction_rounded),
-            label: 'Tools & Class',
+            icon: const Icon(Icons.construction_rounded),
+            label: AppLocalizations.of(context)!.navToolsClass,
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_rounded),
-            label: 'Settings',
+            icon: const Icon(Icons.settings_rounded),
+            label: AppLocalizations.of(context)!.navSettings,
           ),
         ],
       ),
@@ -626,10 +634,11 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
   Widget _buildSettingsTab() {
     const primary = Color(0xFF0B6E4F);
 
+    final l10n = AppLocalizations.of(context)!;
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Settings & Diagnostics'),
+        title: Text(l10n.settingsDiagnosticsTitle),
         backgroundColor: primary,
         foregroundColor: Colors.white,
         elevation: 0,
@@ -652,9 +661,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Active Learning Grade',
-                        style: TextStyle(
+                      Text(
+                        l10n.activeLearningGrade,
+                        style: const TextStyle(
                           fontSize: 13,
                           color: Color(0xFF64748B),
                           fontWeight: FontWeight.w500,
@@ -662,7 +671,7 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Grade $_selectedGrade Curriculum',
+                        l10n.gradeCurriculum(_selectedGrade.toString()),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
@@ -682,9 +691,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
                         )
                         .then((_) => _loadFeatureInsights());
                   },
-                  child: const Text(
-                    'Change',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.change,
+                    style: const TextStyle(
                       color: primary,
                       fontWeight: FontWeight.bold,
                     ),
@@ -694,9 +703,9 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             ),
           ),
           const SizedBox(height: 24),
-          const Text(
-            'System Actions',
-            style: TextStyle(
+          Text(
+            l10n.systemActions,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
               color: Color(0xFF1E293B),
@@ -705,8 +714,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           const SizedBox(height: 12),
           _buildSettingsItem(
             icon: Icons.trending_up_rounded,
-            title: 'Learning Progress',
-            subtitle: 'View quiz attempts and performance statistics',
+            title: l10n.learningProgress,
+            subtitle: l10n.learningProgressSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => ProgressDashboardScreen(
@@ -717,9 +726,36 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
             ),
           ),
           _buildSettingsItem(
+            icon: Icons.translate_rounded,
+            title: l10n.settingsLanguageTitle,
+            subtitle: l10n.settingsLanguageSubtitle,
+            onTap: () {
+              showDialog<void>(
+                context: context,
+                builder: (context) {
+                  return AlertDialog(
+                    title: Text(l10n.settingsLanguageDialogTitle),
+                    content: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: LanguageSelector(
+                        languageProvider: LanguageProvider.shared,
+                      ),
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text(l10n.close),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+          _buildSettingsItem(
             icon: Icons.folder_zip_rounded,
-            title: 'Manage Content Packs',
-            subtitle: 'Sync, install, and clear offline content packs',
+            title: l10n.manageContentPacks,
+            subtitle: l10n.manageContentPacksSubtitle,
             onTap: () => Navigator.of(context)
                 .push(
                   MaterialPageRoute<void>(
@@ -730,8 +766,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           ),
           _buildSettingsItem(
             icon: Icons.upload_file_rounded,
-            title: 'Import Custom Materials',
-            subtitle: 'Import PDF files to parse and build local indexes',
+            title: l10n.importCustomMaterials,
+            subtitle: l10n.importCustomMaterialsSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const DocumentRagIngestionScreen(
@@ -742,8 +778,8 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
           ),
           _buildSettingsItem(
             icon: Icons.settings_rounded,
-            title: 'Model Settings',
-            subtitle: 'Select offline/online LLM configuration',
+            title: l10n.modelSettings,
+            subtitle: l10n.modelSettingsSubtitle,
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => const ModelSelectionScreen(),

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import '../../../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -96,7 +97,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
   bool _isGenerating = false;
   bool _isEmbedding = false;
   bool _isBootstrapping = true;
-  String _languageCode = 'en';
+  String _languageCode = LanguageProvider.shared.languageCode;
   String? _sessionId;
   int _questionsAsked = 0;
   int _totalChunks = 0;
@@ -480,9 +481,9 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
               controller: _notesController,
               minLines: 6,
               maxLines: 10,
-              decoration: const InputDecoration(
-                hintText: 'Paste syllabus notes for this chapter...',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                hintText: AppLocalizations.of(context)!.chatSyllabusNotesHint,
+                border: const OutlineInputBorder(),
               ),
             ),
           ),
@@ -1055,7 +1056,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       final hasRelevantLocalContent = ragCheck.hasRelevantLocalContent;
 
       bool backendAvailable = false;
-      if (!hasRelevantLocalContent && distributedStreamingReady) {
+      if (distributedStreamingReady) {
         backendAvailable = await _distributedServiceComposer.backendService
             .isBackendAvailable();
       }
@@ -1083,15 +1084,28 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                 '[Source: ${item.sourceTitle} | confidence ${(item.confidence * 100).round()}%] ${_clipText(item.content, 850)}',
           )
           .toList();
-      final preparedPrompt = _promptBuilder.buildChapterPrompt(
-        course: widget.course,
-        subject: widget.subject,
-        chapter: widget.chapter,
-        question: question,
-        languageCode: _languageCode,
-        retrievedContext: localCurriculumContext,
-        conversationContext: conversationContext,
-      );
+      String modelPath = '';
+      try {
+        modelPath = await _llmAdminChannelService.getModelPath() ?? '';
+      } catch (_) {}
+      final isQwen = modelPath.toLowerCase().contains('qwen');
+      final isGemma = modelPath.toLowerCase().contains('gemma');
+
+      final preparedPrompt = distributedStreamingReady
+          ? _promptBuilder.buildChapterPrompt(
+              course: widget.course,
+              subject: widget.subject,
+              chapter: widget.chapter,
+              question: question,
+              languageCode: _languageCode,
+              retrievedContext: localCurriculumContext,
+              conversationContext: conversationContext,
+            )
+          : isQwen
+              ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n'
+              : isGemma
+                  ? '<start_of_turn>user\nYou are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<end_of_turn>\n<start_of_turn>model\n'
+                  : '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly.<|im_end|>\n<|im_start|>user\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n';
 
       _logPromptContextAudit(
         subject: widget.subject.name,
@@ -1143,6 +1157,12 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
 
         subscription = stream.listen(
           (chunk) {
+            // Handle backend correction reset signal
+            if (chunk == '\x00RESET\x00') {
+              responseBuffer.clear();
+              return;
+            }
+
             final visibleChunk = reasoningFilter.push(chunk);
             if (visibleChunk.isEmpty) {
               return;
@@ -1206,6 +1226,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
               _lastUiUpdateAtMs = nowMs;
             }
           },
+
           onError: (error, stackTrace) {
             if (!completer.isCompleted) {
               completer.completeError(error, stackTrace);
@@ -1319,6 +1340,7 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       );
       assistantPersisted = true;
     } finally {
+      _isGenerating = false;
       var finalAssistant = _sanitizeAssistantText(
         _messages[assistantIndex].text,
       ).trim();
@@ -1384,8 +1406,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
         try {
           if (mounted) {
             setState(() {
-              _inferenceLog =
-                  'Translating to ${_languageCode.toUpperCase()}...';
+              _inferenceLog = AppLocalizations.of(context)!
+                  .chatStatusTranslating(_languageCode.toUpperCase());
             });
           }
 
@@ -1397,9 +1419,13 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
           );
 
           final translated = translation.translated.trim();
-          if (translated.isNotEmpty) {
+          if (translated.isNotEmpty && mounted) {
             final displayText = _translationConfig.showOriginalAlongside
-                ? 'Original (EN):\n$finalAssistant\n\nTranslated (${_languageCode.toUpperCase()}):\n$translated'
+                ? AppLocalizations.of(context)!.chatTranslationHeaderOriginal(
+                    finalAssistant,
+                    _languageCode.toUpperCase(),
+                    translated,
+                  )
                 : translated;
 
             finalAssistant = displayText;
@@ -1556,15 +1582,28 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
             .map((chunk) => _clipText(chunk.content, 850))
             .toList(growable: false);
 
-        final promptText = _promptBuilder.buildChapterPrompt(
-          course: widget.course,
-          subject: widget.subject,
-          chapter: widget.chapter,
-          question: question,
-          languageCode: _languageCode,
-          retrievedContext: retrievedContext,
-          conversationContext: conversationContext,
-        );
+        String modelPath = '';
+        try {
+          modelPath = await _llmAdminChannelService.getModelPath() ?? '';
+        } catch (_) {}
+        final isQwen = modelPath.toLowerCase().contains('qwen');
+        final isGemma = modelPath.toLowerCase().contains('gemma');
+
+        final promptText = _distributedServiceComposer.isInitialized
+            ? _promptBuilder.buildChapterPrompt(
+                course: widget.course,
+                subject: widget.subject,
+                chapter: widget.chapter,
+                question: question,
+                languageCode: _languageCode,
+                retrievedContext: retrievedContext,
+                conversationContext: conversationContext,
+              )
+            : isQwen
+                ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n'
+                : isGemma
+                    ? '<start_of_turn>user\nYou are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<end_of_turn>\n<start_of_turn>model\n'
+                    : '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly.<|im_end|>\n<|im_start|>user\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n';
         _logPromptContextAudit(
           subject: widget.subject.name,
           chapter: widget.chapter.title,
@@ -1758,26 +1797,41 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
       }
     }
   }
-
   Future<void> _stop() async {
     if (!_isGenerating) {
       return;
     }
 
-    await _activeResponseSubscription?.cancel();
+    if (mounted) {
+      setState(() {
+        _isGenerating = false;
+        _inferenceLog = 'Inference stopped by user.';
+      });
+    }
+
+    final sub = _activeResponseSubscription;
     _activeResponseSubscription = null;
 
-    if (_distributedServiceComposer.isInitialized) {
-      await _distributedServiceComposer.hybridInferenceService.stopGeneration();
-    }
-    await _gateway.stopGeneration();
-    if (!mounted) {
-      return;
-    }
+    Future.microtask(() async {
+      try {
+        await sub?.cancel();
+      } catch (e) {
+        debugPrint('Error cancelling stream subscription: $e');
+      }
 
-    setState(() {
-      _isGenerating = false;
-      _inferenceLog = 'Inference stopped by user.';
+      try {
+        if (_distributedServiceComposer.isInitialized) {
+          await _distributedServiceComposer.hybridInferenceService.stopGeneration();
+        }
+      } catch (e) {
+        debugPrint('Error stopping hybrid generation: $e');
+      }
+
+      try {
+        await _gateway.stopGeneration();
+      } catch (e) {
+        debugPrint('Error stopping gateway generation: $e');
+      }
     });
   }
 
@@ -2723,32 +2777,42 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _inputController,
-                    minLines: 1,
-                    maxLines: 5,
-                    textInputAction: TextInputAction.newline,
-                    keyboardType: TextInputType.multiline,
-                    onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                    decoration: const InputDecoration(
-                      hintText: 'Message your tutor',
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.fromLTRB(16, 13, 8, 13),
+                  child: Localizations.override(
+                    context: context,
+                    locale: Locale(_languageCode),
+                    child: Builder(
+                      builder: (context) {
+                        return TextField(
+                          controller: _inputController,
+                          minLines: 1,
+                          maxLines: 5,
+                          textInputAction: TextInputAction.newline,
+                          keyboardType: TextInputType.multiline,
+                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                          decoration: InputDecoration(
+                            hintText: AppLocalizations.of(context)!.chatMessageTutorHint,
+                            border: InputBorder.none,
+                            contentPadding: const EdgeInsets.fromLTRB(16, 13, 8, 13),
+                          ),
+                        );
+                      }
                     ),
                   ),
                 ),
                 IconButton(
                   onPressed: _backendConnected ? _openVoiceTutor : null,
                   tooltip: _backendConnected
-                      ? 'Voice tutor'
-                      : 'Voice requires backend connection',
+                      ? AppLocalizations.of(context)!.chatVoiceTutorTooltip
+                      : AppLocalizations.of(context)!.chatVoiceRequiresBackendTooltip,
                   icon: const Icon(Icons.mic_none_rounded),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(right: 6, bottom: 6),
                   child: IconButton.filled(
                     onPressed: _isGenerating ? _stop : _ask,
-                    tooltip: _isGenerating ? 'Stop response' : 'Send',
+                    tooltip: _isGenerating
+                        ? AppLocalizations.of(context)!.chatStopResponseTooltip
+                        : AppLocalizations.of(context)!.chatSendTooltip,
                     icon: Icon(
                       _isGenerating ? Icons.stop_rounded : Icons.arrow_upward,
                     ),

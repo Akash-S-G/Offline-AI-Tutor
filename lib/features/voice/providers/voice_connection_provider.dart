@@ -99,7 +99,7 @@ class VoiceConnectionNotifier extends StateNotifier<VoiceConnectionState> {
 
   void _listenToEvents() {
     _eventSub = _socket.eventStream.listen((event) {
-      if (event.type == 'error') {
+      if (event.type == VoiceEventType.error) {
         state = state.copyWith(error: event.payload['message'] as String?);
       }
     });
@@ -115,27 +115,40 @@ class VoiceConnectionNotifier extends StateNotifier<VoiceConnectionState> {
 }
 
 // ─── Provider ───────────────────────────────────────────────────────
+//
+// IMPORTANT: We use ref.listen (not ref.watch) for both sessionProvider and
+// backendDiscoveryProvider so that the notifier is created ONCE and stays
+// stable for the lifetime of the app.
+//
+// The previous pattern used ref.watch inside the factory, which caused the
+// entire StateNotifierProvider to rebuild (creating a new notifier + a new
+// VoiceSocketService) every time the backend was discovered. This meant that
+// VoiceNotifier's socket event subscription — wired once in its constructor —
+// was pointing to the old, dead socket and never received events.
 
 final voiceConnectionProvider =
     StateNotifierProvider<VoiceConnectionNotifier, VoiceConnectionState>((ref) {
-      final session = ref.watch(sessionProvider);
-      final notifier = VoiceConnectionNotifier();
+  final notifier = VoiceConnectionNotifier();
 
-      notifier.socket.activeSession = session;
+  // Keep session metadata up to date without recreating the notifier.
+  ref.listen<dynamic>(sessionProvider, (_, session) {
+    notifier.socket.activeSession = session;
+  }, fireImmediately: true);
 
-      String? activeEndpoint;
-      try {
-        activeEndpoint = ref.watch(
-          backendDiscoveryProvider.select((service) => service.activeEndpoint),
-        );
-      } catch (_) {
-        activeEndpoint = null;
-      }
-
-      if (activeEndpoint != null && activeEndpoint.isNotEmpty) {
-        final wsUrl = activeEndpoint.replaceFirst('http', 'ws');
+  // Connect / reconnect whenever the discovered backend endpoint changes.
+  ref.listen<String?>(
+    backendDiscoveryProvider.select((s) => s.activeEndpoint),
+    (_, endpoint) {
+      if (endpoint != null && endpoint.isNotEmpty) {
+        // Convert http(s) → ws(s) and append the voice WebSocket path.
+        final wsUrl = endpoint
+            .replaceFirst('https://', 'wss://')
+            .replaceFirst('http://', 'ws://');
         notifier.connect('$wsUrl/api/v1/voice/stream');
       }
+    },
+    fireImmediately: true,
+  );
 
-      return notifier;
-    });
+  return notifier;
+});

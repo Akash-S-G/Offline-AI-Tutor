@@ -51,11 +51,12 @@ class MainActivity : FlutterActivity() {
 
 						Thread {
 							val startTime = SystemClock.elapsedRealtime()
-							var emittedAnyToken = false
+							val emittedAnyToken = java.util.concurrent.atomic.AtomicBoolean(false)
 							val flushWindowMs = 30L
 							val tokenBuffer = StringBuilder()
 							val bufferLock = Any()
 							var lastFlushAt = startTime
+
 
 							fun emitSuccessOnMainThread(payload: String) {
 								runOnUiThread {
@@ -105,7 +106,7 @@ class MainActivity : FlutterActivity() {
 								}
 
 								emitSuccessOnMainThread(payload)
-								emittedAnyToken = true
+								emittedAnyToken.set(true)
 							}
 
 							try {
@@ -133,6 +134,8 @@ class MainActivity : FlutterActivity() {
 									}
 								}
 
+
+
 								println("[LLM] [TRACE] ASK_STREAM_FAST_RETURNED answerLength=${finalAnswer.length}")
 								flushBufferedTokens(force = true)
 
@@ -150,11 +153,11 @@ class MainActivity : FlutterActivity() {
 								val failed =
 									finalAnswer.startsWith("Failed to") || finalAnswer.startsWith("Model cannot")
 
-								if (failed && !emittedAnyToken) {
+								if (failed && !emittedAnyToken.get()) {
 									println("[LLM] [TRACE] EMITTING_ERROR")
 									emitErrorOnMainThread("LLM_FAILURE", finalAnswer)
 								} else {
-									if (!emittedAnyToken && finalAnswer.isNotBlank()) {
+									if (!emittedAnyToken.get() && finalAnswer.isNotBlank()) {
 										println("[LLM] [TRACE] EMITTING_FINAL_ANSWER (no streaming tokens)")
 										emitSuccessOnMainThread(finalAnswer)
 									}
@@ -163,9 +166,10 @@ class MainActivity : FlutterActivity() {
 									endStreamOnMainThread()
 								}
 							} catch (e: Throwable) {
+
 								println("[LLM] [TRACE] EXCEPTION: ${e.javaClass.simpleName}: ${e.message}")
 								flushBufferedTokens(force = true)
-								if (emittedAnyToken) {
+								if (emittedAnyToken.get()) {
 									endStreamOnMainThread()
 								} else {
 									emitErrorOnMainThread("LLM_ERROR", e.message ?: "Inference failed")
@@ -284,6 +288,11 @@ class MainActivity : FlutterActivity() {
 								}
 							}
 						}.start()
+					}
+
+					"getModelPath" -> {
+						val status = llamaEngine.getEngineStatus()
+						result.success(status["modelPath"] as? String ?: "")
 					}
 
 					"getModelMetadata" -> {

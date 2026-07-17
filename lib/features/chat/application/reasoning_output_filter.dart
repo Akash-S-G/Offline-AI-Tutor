@@ -30,6 +30,20 @@ class ReasoningOutputFilter {
 
   static String stripComplete(String text) {
     var output = text.replaceAll('\r', '');
+
+    // Strip ChatML stop tokens and everything after them (Gemma / llama.cpp)
+    for (final stopToken in const <String>[
+      '<|im_start|>',
+      '<|im_end|>',
+      '<|endoftext|>',
+    ]) {
+      final idx = output.indexOf(stopToken);
+      if (idx >= 0) {
+        output = output.substring(0, idx);
+      }
+    }
+
+    // Strip <think>/<reasoning>/<analysis> blocks
     for (final tag in const <String>['think', 'reasoning', 'analysis']) {
       output = output.replaceAll(
         RegExp('<$tag[^>]*>[\\s\\S]*?</$tag>', caseSensitive: false),
@@ -96,6 +110,7 @@ class ReasoningOutputFilter {
 
   static bool _isPromptScaffoldLine(String lower) {
     return lower.startsWith('system:') ||
+        lower.startsWith('system ') ||
         lower.startsWith('instruction:') ||
         lower.startsWith('instructions:') ||
         lower.startsWith('educational context:') ||
@@ -112,12 +127,25 @@ class ReasoningOutputFilter {
         lower.startsWith('tutor answer:') ||
         lower.startsWith('user query:') ||
         lower.startsWith('[source') ||
+        lower.startsWith('you are an expert') ||
+        lower.startsWith('you are a helpful') ||
+        lower.startsWith('you are an educational') ||
+        lower.startsWith('provide clear') ||
+        lower.startsWith('provide structured') ||
+        lower.startsWith('prioritize learning') ||
+        lower.startsWith('subject:') ||
+        lower.startsWith('chapter:') ||
+        lower.startsWith('topic:') ||
+        lower.startsWith('language:') ||
+        lower.startsWith('teaching style:') ||
+        lower.startsWith('grade') ||
         RegExp(r'^[\-\s=]{3,}$').hasMatch(lower) ||
         lower.contains('do not reveal internal reasoning') ||
         lower.contains('do not output chain of thought') ||
         lower.contains('provide only the final answer') ||
         lower.contains('answer only') ||
-        lower.contains('return one short answer only');
+        lower.contains('return one short answer only') ||
+        lower.contains('use provided context only');
   }
 
   bool _hasOpenReasoningTag(String text) {

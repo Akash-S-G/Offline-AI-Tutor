@@ -49,7 +49,7 @@ void main() {
 
     test('prompt stays under hard budget and prioritizes context order', () {
       final promptBuilder = TutorPromptBuilder(
-        budget: const PromptBudgetManager(maxPromptChars: 3900),
+        budget: const PromptBudgetManager(maxPromptChars: 3900, ragChars: 9000),
       );
       final context = const ConversationContext(
         sessionSummary:

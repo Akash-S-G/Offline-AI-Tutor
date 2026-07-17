@@ -6,7 +6,7 @@ import 'tutor_inference_gateway.dart';
 
 class LinuxTutorInferenceGateway implements TutorInferenceGateway {
   LinuxTutorInferenceGateway({LinuxLlmConfigService? configService})
-      : _configService = configService ?? LinuxLlmConfigService();
+    : _configService = configService ?? LinuxLlmConfigService();
 
   final LinuxLlmConfigService _configService;
   Process? _activeProcess;
@@ -28,9 +28,10 @@ class LinuxTutorInferenceGateway implements TutorInferenceGateway {
 
     final resolvedExecutable = await _configService.autoDetectExecutable();
     final executableToUse =
-        resolvedExecutable != null && executable == LinuxLlmConfig.defaults.executablePath
-            ? resolvedExecutable
-            : executable;
+        resolvedExecutable != null &&
+            executable == LinuxLlmConfig.defaults.executablePath
+        ? resolvedExecutable
+        : executable;
 
     if (executableToUse.contains('/')) {
       final execFile = File(executableToUse);
@@ -69,13 +70,25 @@ class LinuxTutorInferenceGateway implements TutorInferenceGateway {
     _activeProcess = process;
 
     final stderrBuffer = StringBuffer();
-    process.stderr.transform(utf8.decoder).listen(stderrBuffer.write);
+    // Capture stderr continuously because some llama.cpp builds emit tokens/logs to stderr.
+    process.stderr.transform(utf8.decoder).listen((chunk) {
+      if (chunk.isEmpty) return;
+      stderrBuffer.write(chunk);
+      final cleaned = chunk.replaceAll(_ansiEscape, '');
+      // Print diagnostics so we can see why UI might be waiting forever.
+      // Keep stderr streaming separate from stdout-yielding stream.
+      // ignore: avoid_print
+      print('[LLAMA STDERR] ${cleaned.trim()}');
+    });
 
     try {
       await for (final chunk in process.stdout.transform(utf8.decoder)) {
         if (chunk.isNotEmpty) {
           final cleaned = chunk.replaceAll(_ansiEscape, '');
           if (cleaned.isNotEmpty) {
+            // Some llama.cpp runners may not flush stdout token-by-token.
+            // Yield whatever we get (even if it includes partial lines),
+            // so the UI can progress and stop showing 'Thinking...'.
             yield cleaned;
           }
         }
@@ -109,11 +122,9 @@ class LinuxTutorInferenceGateway implements TutorInferenceGateway {
     }
 
     try {
-      final result = await Process.run(
-        executable,
-        const <String>['--help'],
-        runInShell: false,
-      );
+      final result = await Process.run(executable, const <String>[
+        '--help',
+      ], runInShell: false);
       final help = '${result.stdout}\n${result.stderr}'.toLowerCase();
       final detected = _LlamaCliCapabilities(
         supportsLongPrompt: help.contains('--prompt'),
@@ -181,7 +192,7 @@ class LinuxTutorInferenceGateway implements TutorInferenceGateway {
   }
 
   Future<({String executable, _LlamaCliCapabilities capabilities})>
-      _selectExecutionTarget({
+  _selectExecutionTarget({
     required String executable,
     required _LlamaCliCapabilities capabilities,
   }) async {
@@ -202,7 +213,10 @@ class LinuxTutorInferenceGateway implements TutorInferenceGateway {
   Future<String?> _findLlamaCompletion(String selectedExecutable) async {
     final candidates = <String>[];
     if (selectedExecutable.contains('/')) {
-      final sibling = selectedExecutable.replaceAll('llama-cli', 'llama-completion');
+      final sibling = selectedExecutable.replaceAll(
+        'llama-cli',
+        'llama-completion',
+      );
       candidates.add(sibling);
     }
     candidates.addAll(const <String>[

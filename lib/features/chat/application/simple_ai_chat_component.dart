@@ -108,17 +108,10 @@ class SimpleAiChatComponent {
     }
 
     return '''
-You are an offline school tutor in answer mode.
-Reply to only this one user query.
-Return one short answer only.
-Do not repeat the question.
-Do not output labels like Student, Tutor, User query, Direct reply, Question, Answer, or Follow-up questions.
-Do not output control tags like <|...|>.
-Keep the answer short, direct, and relevant.
-
-User query: $q
-
-Answer:
+<start_of_turn>user
+You are an expert educational tutor. Answer the student's question directly and concisely in one short paragraph. Do not repeat the question or any prompt headings.
+Question: $q<end_of_turn>
+<start_of_turn>model
 ''';
   }
 
@@ -129,15 +122,10 @@ Answer:
     }
 
     return '''
-You are an offline school tutor.
-    The previous output repeated or answered in the wrong format.
-    Return one short answer only.
-    No headings, no labels, no question repetition, no extra examples.
-    Keep the answer short and direct.
-
-User query: $q
-
-    Answer:
+<start_of_turn>user
+You are an expert educational tutor. The previous output failed formatting. Provide one direct, concise one-paragraph answer to the question. Do not include labels, headings, or repeat the question.
+Question: $q<end_of_turn>
+<start_of_turn>model
 ''';
   }
 }

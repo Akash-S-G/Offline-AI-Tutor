@@ -17,7 +17,7 @@ class AppDatabase {
 
     _database = await openDatabase(
       fullPath,
-      version: 16,
+      version: 17,
       onCreate: (db, version) async {
         await _createBaseTables(db);
         await _createRagTables(db);
@@ -34,6 +34,7 @@ class AppDatabase {
         await _createIngestionQueueTables(db);
         await _createChatMemoryPolicyTables(db);
         await _createContentPackTables(db);
+        await _createTranslationCacheTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -92,6 +93,11 @@ class AppDatabase {
           await _createRagFtsArtifacts(db);
         }
         if (oldVersion < 16) {
+          await _createTranslationCacheTables(db);
+        }
+        if (oldVersion < 17) {
+          // Ensure translation_cache exists for devices that reached v16
+          // via onCreate which previously omitted _createTranslationCacheTables.
           await _createTranslationCacheTables(db);
         }
       },

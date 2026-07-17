@@ -231,7 +231,8 @@ class PiHubDiscoveryCoordinator {
       print('[DISCOVERY] NO_HEALTHY_NODES_FOUND');
       print('[DISCOVERY] PROMOTION_BLOCKER=ALL_CANDIDATES_FAILED');
       print('[DISCOVERY] SCAN_END');
-      return bestNode;
+      _updateNodes([]);
+      return null;
     } finally {
       _isScanning = false;
     }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../course/data/local/curriculum_repository.dart';
@@ -50,24 +51,28 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
 
     final prefs = await SharedPreferences.getInstance();
     final grade = prefs.getInt('selected_grade') ?? 8;
-    
-    // Fetch all quiz results to compute progress
-    final allResults = await _quizRepo.getAllResults();
+
+    // Fetch quiz results, insights service, and curriculum in parallel.
+    final results = await Future.wait([
+      _quizRepo.getAllResults(),
+      LearningInsightsService.create(),
+      _curriculumRepo.getCurriculum(languageCode: widget.languageCode),
+    ]);
+
+    final allResults = results[0] as List<dynamic>;
+    final insights = results[1] as LearningInsightsService;
+    final curriculum = results[2] as List<CurriculumGrade>;
+
+    // Build attempts map
     final Map<String, int> attemptsMap = {};
     for (final res in allResults) {
       attemptsMap[res.chapterId] = (attemptsMap[res.chapterId] ?? 0) + 1;
     }
 
-    // Fetch Insights
-    final insights = await LearningInsightsService.create();
+    // Generate profile (depends on insights being ready)
     final profile = await insights.generateProfile();
 
-    // Fetch curriculum
-    final curriculum = await _curriculumRepo.getCurriculum(
-      languageCode: widget.languageCode,
-    );
-    
-    // Find the grade matching selected grade
+    // Find grade matching selected grade
     final matchedGrade = curriculum.firstWhere(
       (g) => g.grade == grade,
       orElse: () => CurriculumGrade(grade: grade, subjects: []),
@@ -178,13 +183,14 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
   }
 
   Widget _buildProgressDashboard(LearningProfile profile) {
+    final l10n = AppLocalizations.of(context)!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           IDPSectionHeader(
-            title: 'Progress Dashboard',
+            title: l10n.progressDashboard,
             trailing: TextButton.icon(
               onPressed: () {
                 Navigator.of(context).push(
@@ -192,23 +198,23 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
                 );
               },
               icon: const Icon(Icons.analytics_rounded, size: 16),
-              label: const Text('View Report'),
+              label: Text(l10n.viewReport),
             ),
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildStatBox('Study Streak', '${profile.studyStreakDays} Days', Icons.local_fire_department_rounded, const Color(0xFFF59E0B))),
+              Expanded(child: _buildStatBox(l10n.studyStreak, l10n.daysCount(profile.studyStreakDays), Icons.local_fire_department_rounded, const Color(0xFFF59E0B))),
               const SizedBox(width: 12),
-              Expanded(child: _buildStatBox('Accuracy', '${profile.averageQuizAccuracy.toStringAsFixed(1)}%', Icons.check_circle_outline_rounded, const Color(0xFF10B981))),
+              Expanded(child: _buildStatBox(l10n.accuracy, '${profile.averageQuizAccuracy.toStringAsFixed(1)}%', Icons.check_circle_outline_rounded, const Color(0xFF10B981))),
             ],
           ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: _buildStatBox('Chapters', '${profile.completedChapters}', Icons.menu_book_rounded, const Color(0xFF3B82F6))),
+              Expanded(child: _buildStatBox(l10n.chapters, '${profile.completedChapters}', Icons.menu_book_rounded, const Color(0xFF3B82F6))),
               const SizedBox(width: 12),
-              Expanded(child: _buildStatBox('Experiments', '${profile.experimentsCompleted}', Icons.science_rounded, const Color(0xFF8B5CF6))),
+              Expanded(child: _buildStatBox(l10n.experiments, '${profile.experimentsCompleted}', Icons.science_rounded, const Color(0xFF8B5CF6))),
             ],
           ),
         ],
@@ -255,7 +261,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Grade $_selectedGrade',
+                AppLocalizations.of(context)!.gradeLabel(_selectedGrade.toString()),
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 16,
@@ -268,14 +274,14 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
                   color: Colors.white24,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: const Row(
+                child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.wifi_off_rounded, color: Colors.white, size: 14),
-                    SizedBox(width: 4),
+                    const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 14),
+                    const SizedBox(width: 4),
                     Text(
-                      'Offline Mode',
-                      style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                      AppLocalizations.of(context)!.offlineMode,
+                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
                     ),
                   ],
                 ),
@@ -283,9 +289,9 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'My Learning Journey',
-            style: TextStyle(
+          Text(
+            AppLocalizations.of(context)!.myLearningJourney,
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 26,
               fontWeight: FontWeight.bold,
@@ -293,7 +299,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Study textbooks, take interactive quizzes, and ask the AI Tutor questions fully offline.',
+            AppLocalizations.of(context)!.myLearningJourneyDescription,
             style: TextStyle(
               color: Colors.white.withValues(alpha: 0.8),
               fontSize: 14,
@@ -357,7 +363,9 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${subject.chapters.length} ${subject.chapters.length == 1 ? 'Chapter' : 'Chapters'}',
+                        subject.chapters.length == 1
+                            ? AppLocalizations.of(context)!.chapterCount(subject.chapters.length)
+                            : AppLocalizations.of(context)!.chaptersCount(subject.chapters.length),
                         style: const TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 13,
@@ -418,19 +426,19 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
           ),
           const SizedBox(height: 20),
           Text(
-            'No Content for Grade $_selectedGrade',
+            AppLocalizations.of(context)!.noContentForGrade(_selectedGrade.toString()),
             style: const TextStyle(
               fontSize: 20,
               fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+              color: const Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 8),
           Text(
-            'You haven\'t installed any offline content packs for Grade $_selectedGrade yet. Download content to start learning offline.',
+            AppLocalizations.of(context)!.noContentForGradeDescription(_selectedGrade.toString()),
             textAlign: TextAlign.center,
             style: const TextStyle(
-              color: Color(0xFF64748B),
+              color: const Color(0xFF64748B),
               fontSize: 15,
             ),
           ),
@@ -447,7 +455,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
               ).then((_) => _loadData());
             },
             icon: const Icon(Icons.download_rounded),
-            label: Text('Install Grade $_selectedGrade Content'),
+            label: Text(AppLocalizations.of(context)!.installGradeContent(_selectedGrade.toString())),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF0B6E4F),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),

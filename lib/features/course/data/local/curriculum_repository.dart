@@ -5,14 +5,12 @@ import 'package:path/path.dart' as p;
 
 import '../../../content_packs/data/local/content_pack_repository.dart';
 import '../../domain/curriculum_models.dart';
-import '../../../translation/application/content_localization_service.dart';
 
 class CurriculumRepository {
   CurriculumRepository({ContentPackRepository? packRepository})
     : _packRepo = packRepository ?? ContentPackRepository();
 
   final ContentPackRepository _packRepo;
-  final ContentLocalizationService _localizer = ContentLocalizationService();
 
   Future<List<CurriculumGrade>> getCurriculum({
     String languageCode = 'en',
@@ -92,13 +90,12 @@ class CurriculumRepository {
     });
 
     curriculum.sort((a, b) => a.grade.compareTo(b.grade));
-    if (languageCode != 'kn') {
-      return curriculum;
-    }
-    return _localizer.localizeCurriculum(
-      curriculum,
-      targetLanguage: languageCode,
-    );
+    // NOTE: Curriculum chapter/subject names (e.g. "Mathematics", "Real Numbers")
+    // are proper nouns and technical terms that should remain in English.
+    // LLM-based translation is NOT done here — it previously caused 100+ parallel
+    // inference threads to load the 1.7 GB model on every startup, causing an
+    // 8-second freeze. UI labels are localized via the l10n system instead.
+    return curriculum;
   }
 
   String _normalizeSubjectName(String name) {

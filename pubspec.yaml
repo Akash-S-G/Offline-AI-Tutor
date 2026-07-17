@@ -54,6 +54,13 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/app_icon.png"
+  remove_alpha_ios: true
 
 flutter:
   generate: true
@@ -66,3 +73,9 @@ flutter:
     - assets/seed_data_math_science.json
     - assets/phet/catalog.json
     - assets/phet/simulations/
+
+hooks:
+  user_defines:
+    sqlite3:
+      source: system
+

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
@@ -110,18 +112,43 @@ class PhetPackInstallService {
     final archive = File(
       p.join(tempDirectory.path, '${PhetCatalogService.packId}.tar.gz'),
     );
-    final url =
-        '${RuntimeBackendUrl().current}/packs/${PhetCatalogService.packId}/download';
+      final base = RuntimeBackendUrl().current;
+    final url = '$base/packs/${PhetCatalogService.packId}/download';
     final client = HttpClient()
       ..connectionTimeout = const Duration(seconds: 10);
 
     try {
+      final resolvedBackend = RuntimeBackendUrl().current;
+      debugPrint('[PHET][INSTALL] backend=$resolvedBackend');
+      final expectedManifestUrl = '$base/packs/${PhetCatalogService.packId}/manifest';
+      debugPrint('[PHET][INSTALL] manifestUrl=$expectedManifestUrl (expected: /packs/{id}/manifest)');
+      debugPrint('[PHET][INSTALL] downloadUrl=$url (expected: /packs/{id}/download)');
+
       onProgress?.call('Downloading PhET simulations...', 0);
       final request = await client.getUrl(Uri.parse(url));
       final response = await request.close();
-      if (response.statusCode < 200 || response.statusCode >= 300) {
+      final status = response.statusCode;
+      if (status < 200 || status >= 300) {
+        // Read a small body for diagnostics.
+        String bodySnippet = '';
+        try {
+          final bytes = <int>[];
+          await for (final chunk in response) {
+            bytes.addAll(chunk);
+            if (bytes.length >= 4096) break;
+          }
+          bodySnippet = utf8.decode(bytes, allowMalformed: true);
+          if (bodySnippet.length > 512) {
+            bodySnippet = bodySnippet.substring(0, 512);
+          }
+        } catch (_) {}
+
+        debugPrint(
+          '[PHET][INSTALL] download failed status=$status bodySnippet=${bodySnippet.isEmpty ? '<empty>' : bodySnippet.replaceAll('\n', ' ')}',
+        );
+
         throw HttpException(
-          'PhET pack download failed with HTTP ${response.statusCode}',
+          'PhET pack download failed with HTTP $status. $bodySnippet',
         );
       }
       final total = response.contentLength;
@@ -136,6 +163,7 @@ class PhetPackInstallService {
         );
       }
       await sink.close();
+
 
       onProgress?.call('Installing simulations...', null);
       await _archiveService.importPackArchive(

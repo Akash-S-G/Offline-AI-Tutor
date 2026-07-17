@@ -106,10 +106,16 @@ class VoiceSocketService {
   /// Send a session_start message to initialize language.
   void sendSessionStart(String language) {
     if (_status != ConnectionStatus.connected) return;
+    // If no real session is available yet, generate a fallback ID.
+    // The backend rejects audio_chunk when session_id is "unknown", so we
+    // must always supply a non-empty, non-null identifier.
+    final sid = (activeSession?.sessionId?.isNotEmpty == true)
+        ? activeSession!.sessionId
+        : 'anon_${DateTime.now().millisecondsSinceEpoch}';
     VoiceEvent event = VoiceEvent(
       type: VoiceEventType.sessionStart,
       language: language,
-      sessionId: activeSession?.sessionId,
+      sessionId: sid,
       deviceId: activeSession?.deviceId,
       studentId: activeSession?.studentId,
     );

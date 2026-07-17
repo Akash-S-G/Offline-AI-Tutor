@@ -1,7 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 
 import '../../../content_packs/data/local/content_pack_repository.dart';
-import '../../../translation/application/content_localization_service.dart';
 import '../../domain/course_tree.dart';
 import 'app_database.dart';
 
@@ -10,7 +9,6 @@ class CourseRepository {
     : _database = database ?? AppDatabase.instance;
 
   final AppDatabase _database;
-  final ContentLocalizationService _localizer = ContentLocalizationService();
   final ContentPackRepository _packRepository = ContentPackRepository();
 
   static const List<String> _upperSubjects = <String>[
@@ -588,33 +586,22 @@ class CourseRepository {
     return _localizeChapters(chapters, languageCode);
   }
 
+  // NOTE: Course/subject/chapter names are proper nouns and technical terms
+  // (e.g. "Mathematics", "Science", "Real Numbers") that remain in English.
+  // LLM-based translation was removed — it spawned parallel inference threads
+  // on every screen load, causing the app to freeze. UI labels use l10n instead.
   Future<List<Course>> _localizeCourses(
     List<Course> courses,
     String languageCode,
-  ) async {
-    if (languageCode != 'kn') {
-      return courses;
-    }
-    return _localizer.localizeCourses(courses, targetLanguage: languageCode);
-  }
+  ) async => courses;
 
   Future<List<Subject>> _localizeSubjects(
     List<Subject> subjects,
     String languageCode,
-  ) async {
-    if (languageCode != 'kn') {
-      return subjects;
-    }
-    return _localizer.localizeSubjects(subjects, targetLanguage: languageCode);
-  }
+  ) async => subjects;
 
   Future<List<Chapter>> _localizeChapters(
     List<Chapter> chapters,
     String languageCode,
-  ) async {
-    if (languageCode != 'kn') {
-      return chapters;
-    }
-    return _localizer.localizeChapters(chapters, targetLanguage: languageCode);
-  }
+  ) async => chapters;
 }

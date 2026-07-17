@@ -475,6 +475,298 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Complete chapters and quizzes to earn badges.'**
   String get completeChapters;
+
+  /// No description provided for @chatSyllabusNotesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Paste syllabus notes for this chapter...'**
+  String get chatSyllabusNotesHint;
+
+  /// No description provided for @chatMessageTutorHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Message your tutor'**
+  String get chatMessageTutorHint;
+
+  /// No description provided for @chatVoiceTutorTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice tutor'**
+  String get chatVoiceTutorTooltip;
+
+  /// No description provided for @chatVoiceRequiresBackendTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Voice requires backend connection'**
+  String get chatVoiceRequiresBackendTooltip;
+
+  /// No description provided for @chatStopResponseTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Stop response'**
+  String get chatStopResponseTooltip;
+
+  /// No description provided for @chatSendTooltip.
+  ///
+  /// In en, this message translates to:
+  /// **'Send'**
+  String get chatSendTooltip;
+
+  /// No description provided for @chatStatusTranslating.
+  ///
+  /// In en, this message translates to:
+  /// **'Translating to {lang}...'**
+  String chatStatusTranslating(Object lang);
+
+  /// No description provided for @chatTranslationHeaderOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'Original (EN):\n{original}\n\nTranslated ({lang}):\n{translated}'**
+  String chatTranslationHeaderOriginal(
+    Object original,
+    Object lang,
+    Object translated,
+  );
+
+  /// No description provided for @navMyLearning.
+  ///
+  /// In en, this message translates to:
+  /// **'My Learning'**
+  String get navMyLearning;
+
+  /// No description provided for @navToolsClass.
+  ///
+  /// In en, this message translates to:
+  /// **'Tools & Class'**
+  String get navToolsClass;
+
+  /// No description provided for @navSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get navSettings;
+
+  /// No description provided for @dashboardTakeQuizHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Take your first chapter quiz'**
+  String get dashboardTakeQuizHint;
+
+  /// No description provided for @dashboardAttemptsCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} attempt(s) recorded'**
+  String dashboardAttemptsCount(Object count);
+
+  /// No description provided for @dashboardAttemptsSummary.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} attempt(s), latest {percent}% ({label})'**
+  String dashboardAttemptsSummary(Object count, Object percent, Object label);
+
+  /// No description provided for @settingsModelNotAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Model selection is not available on this platform yet. Currently implemented on Android.'**
+  String get settingsModelNotAvailable;
+
+  /// No description provided for @settingsModelLoadFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to load model metadata.'**
+  String get settingsModelLoadFailed;
+
+  /// No description provided for @settingsLanguageTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Language Settings'**
+  String get settingsLanguageTitle;
+
+  /// No description provided for @settingsLanguageSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose your default language (English / Kannada)'**
+  String get settingsLanguageSubtitle;
+
+  /// No description provided for @settingsLanguageDialogTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select App Language'**
+  String get settingsLanguageDialogTitle;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @settingsDiagnosticsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings & Diagnostics'**
+  String get settingsDiagnosticsTitle;
+
+  /// No description provided for @activeLearningGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Learning Grade'**
+  String get activeLearningGrade;
+
+  /// No description provided for @gradeCurriculum.
+  ///
+  /// In en, this message translates to:
+  /// **'Grade {grade} Curriculum'**
+  String gradeCurriculum(Object grade);
+
+  /// No description provided for @change.
+  ///
+  /// In en, this message translates to:
+  /// **'Change'**
+  String get change;
+
+  /// No description provided for @systemActions.
+  ///
+  /// In en, this message translates to:
+  /// **'System Actions'**
+  String get systemActions;
+
+  /// No description provided for @learningProgress.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning Progress'**
+  String get learningProgress;
+
+  /// No description provided for @learningProgressSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'View quiz attempts and performance statistics'**
+  String get learningProgressSubtitle;
+
+  /// No description provided for @manageContentPacks.
+  ///
+  /// In en, this message translates to:
+  /// **'Manage Content Packs'**
+  String get manageContentPacks;
+
+  /// No description provided for @manageContentPacksSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sync, install, and clear offline content packs'**
+  String get manageContentPacksSubtitle;
+
+  /// No description provided for @importCustomMaterials.
+  ///
+  /// In en, this message translates to:
+  /// **'Import Custom Materials'**
+  String get importCustomMaterials;
+
+  /// No description provided for @importCustomMaterialsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Import PDF files to parse and build local indexes'**
+  String get importCustomMaterialsSubtitle;
+
+  /// No description provided for @modelSettings.
+  ///
+  /// In en, this message translates to:
+  /// **'Model Settings'**
+  String get modelSettings;
+
+  /// No description provided for @modelSettingsSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Select offline/online LLM configuration'**
+  String get modelSettingsSubtitle;
+
+  /// No description provided for @offlineMode.
+  ///
+  /// In en, this message translates to:
+  /// **'Offline Mode'**
+  String get offlineMode;
+
+  /// No description provided for @myLearningJourney.
+  ///
+  /// In en, this message translates to:
+  /// **'My Learning Journey'**
+  String get myLearningJourney;
+
+  /// No description provided for @myLearningJourneyDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Study textbooks, take interactive quizzes, and ask the AI Tutor questions fully offline.'**
+  String get myLearningJourneyDescription;
+
+  /// No description provided for @viewReport.
+  ///
+  /// In en, this message translates to:
+  /// **'View Report'**
+  String get viewReport;
+
+  /// No description provided for @chaptersCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Chapters'**
+  String chaptersCount(Object count);
+
+  /// No description provided for @chapterCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Chapter'**
+  String chapterCount(Object count);
+
+  /// No description provided for @noContentForGrade.
+  ///
+  /// In en, this message translates to:
+  /// **'No Content for Grade {grade}'**
+  String noContentForGrade(Object grade);
+
+  /// No description provided for @noContentForGradeDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'You haven\'t installed any offline content packs for Grade {grade} yet. Download content to start learning offline.'**
+  String noContentForGradeDescription(Object grade);
+
+  /// No description provided for @installGradeContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Install Grade {grade} Content'**
+  String installGradeContent(Object grade);
+
+  /// No description provided for @progressDashboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress Dashboard'**
+  String get progressDashboard;
+
+  /// No description provided for @studyStreak.
+  ///
+  /// In en, this message translates to:
+  /// **'Study Streak'**
+  String get studyStreak;
+
+  /// No description provided for @accuracy.
+  ///
+  /// In en, this message translates to:
+  /// **'Accuracy'**
+  String get accuracy;
+
+  /// No description provided for @chapters.
+  ///
+  /// In en, this message translates to:
+  /// **'Chapters'**
+  String get chapters;
+
+  /// No description provided for @experiments.
+  ///
+  /// In en, this message translates to:
+  /// **'Experiments'**
+  String get experiments;
+
+  /// No description provided for @daysCount.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} Days'**
+  String daysCount(Object count);
 }
 
 class _AppLocalizationsDelegate

@@ -1,4 +1,5 @@
 import 'dart:async';
+import '../../chat/data/llm_admin_channel_service.dart';
 
 import '../../../config/app_environment.dart';
 import '../domain/runtime_backend_url.dart';
@@ -238,16 +239,26 @@ class HybridInferenceService {
     }
 
     TutorExecutionMode executionMode;
+
+    // Refresh the local engine readiness from the native layer before routing.
+    // This ensures isReady reflects the actual Android LlamaEngine state rather
+    // than the stale cached value from app startup.
+    if (!backendAvailable || _networkState.quality == NetworkQuality.offline) {
+      try {
+        await _localInference.ensureModelLoaded();
+      } catch (_) {
+        // Non-fatal: isReady will remain false and the guard below will surface
+        // the error to the user.
+      }
+    }
     final localAvailable = _localInference.isReady;
 
-    if (hasRelevantLocalContent && localAvailable) {
+    if (backendAvailable && _networkState.quality != NetworkQuality.offline) {
+      executionMode = TutorExecutionMode.backendRag;
+    } else if (hasRelevantLocalContent && localAvailable) {
       executionMode = TutorExecutionMode.curriculumRag;
     } else {
-      if (backendAvailable && _networkState.quality != NetworkQuality.offline) {
-        executionMode = TutorExecutionMode.backendRag;
-      } else {
-        executionMode = TutorExecutionMode.knowledgeFallback;
-      }
+      executionMode = TutorExecutionMode.knowledgeFallback;
     }
 
     RetrievalDiagnosticsTracker.instance.update(
@@ -357,19 +368,31 @@ class HybridInferenceService {
     }
 
     if (executionMode == TutorExecutionMode.curriculumRag) {
+      // Guard: if local model is not loaded, surface a clear error immediately.
+      if (!localAvailable) {
+        print('[DIAGNOSTICS] LOCAL_RAG_BLOCKED model not loaded');
+        _metrics.recordFailure();
+        yield '⚠️ Offline AI model is not ready. Please open Settings → Model Selection and pick a .gguf model file, then try again.';
+        return;
+      }
+
       print('[DIAGNOSTICS] LOCAL_RAG_START');
       final localBuffer = StringBuffer();
       final contextText = localCurriculumContext?.join('\n\n') ?? '';
-      final localPrompt =
-          preparedPrompt ??
-          '''
-You are an offline school tutor. 
-Use the following curriculum context to answer the question.
-Context:
-$contextText
 
-Question: $question
-''';
+      String modelPath = '';
+      try {
+        modelPath = await LlmAdminChannelService().getModelPath() ?? '';
+      } catch (_) {}
+      final isQwen = modelPath.toLowerCase().contains('qwen');
+      final isGemma = modelPath.toLowerCase().contains('gemma');
+
+      final localPrompt = preparedPrompt ?? (isQwen
+          ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText<|im_end|>\n<|im_start|>assistant\n'
+          : isGemma
+              ? '<start_of_turn>user\nYou are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText<end_of_turn>\n<start_of_turn>model\n'
+              : '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText<|im_end|>\n<|im_start|>assistant\n');
+
       print('[DIAGNOSTICS] LOCAL_RAG_END');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
       print('[DIAGNOSTICS] PROMPT_TO_NATIVE_LENGTH=${localPrompt.length}');
@@ -388,9 +411,18 @@ Question: $question
           localBuffer.write(chunk);
           yield chunk;
         }
-      } catch (_) {
+      } catch (e) {
         _metrics.recordFailure();
-        yield 'Failed to process your question locally. Please try again.';
+        print('[DIAGNOSTICS] LOCAL_RAG_STREAM_ERROR=$e');
+        final errStr = e.toString();
+        // Surface native engine errors to the user instead of silently failing.
+        if (errStr.contains('Model cannot be used') ||
+            errStr.contains('Failed to run local model') ||
+            errStr.contains('LLM_FAILURE')) {
+          yield '⚠️ Offline model error: $errStr\n\nGo to Settings → Model Selection to reconfigure.';
+        } else {
+          yield '⚠️ Failed to process your question with the local model. Please try again.';
+        }
         return;
       }
 
@@ -408,30 +440,30 @@ Question: $question
     }
 
     if (executionMode == TutorExecutionMode.knowledgeFallback) {
+      // Guard: if local model is not loaded, surface a clear error immediately.
+      if (!localAvailable) {
+        print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_BLOCKED model not loaded');
+        _metrics.recordFailure();
+        yield '⚠️ Offline AI model is not ready. Please open Settings → Model Selection and pick a .gguf model file, then try again.';
+        return;
+      }
+
       print('[DIAGNOSTICS] EXECUTION_MODE=KNOWLEDGE_FALLBACK');
       final localBuffer = StringBuffer();
-      final compactContext = (localCurriculumContext ?? const <String>[])
-          .take(3)
-          .map(_cleanFallbackContextLine)
-          .where((line) => line.isNotEmpty)
-          .join('\n');
-      final localPrompt =
-          '''
-You are an offline school tutor.
-Answer the student's question directly in simple words.
-Use the chapter context below only if it helps.
-Do not repeat the context headings, labels, or the question.
-If the question is just a greeting, respond briefly and invite a chapter question.
-Keep the answer concise and educational.
 
-Subject: ${subject ?? 'Unknown'}
-Chapter: ${chapter ?? 'Unknown'}
-Question: $question
-Context:
-$compactContext
+      String modelPath = '';
+      try {
+        modelPath = await LlmAdminChannelService().getModelPath() ?? '';
+      } catch (_) {}
+      final isQwen = modelPath.toLowerCase().contains('qwen');
+      final isGemma = modelPath.toLowerCase().contains('gemma');
 
-Answer:
-''';
+      final localPrompt = isQwen
+          ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n'
+          : isGemma
+              ? '<start_of_turn>user\nYou are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question<end_of_turn>\n<start_of_turn>model\n'
+              : '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n';
+
       print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_PROMPT_BUILT');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
       print('[DIAGNOSTICS] PROMPT_TO_NATIVE_LENGTH=${localPrompt.length}');
@@ -450,9 +482,18 @@ Answer:
           localBuffer.write(chunk);
           yield chunk;
         }
-      } catch (_) {
+      } catch (e) {
         _metrics.recordFailure();
-        yield 'Failed to process your question via fallback. Please try again.';
+        print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_STREAM_ERROR=$e');
+        final errStr = e.toString();
+        // Surface native engine errors to the user instead of silently failing.
+        if (errStr.contains('Model cannot be used') ||
+            errStr.contains('Failed to run local model') ||
+            errStr.contains('LLM_FAILURE')) {
+          yield '⚠️ Offline model error: $errStr\n\nGo to Settings → Model Selection to reconfigure.';
+        } else {
+          yield '⚠️ Failed to process your question with the local model. Please try again.';
+        }
         return;
       }
 

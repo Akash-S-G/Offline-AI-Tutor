@@ -19,16 +19,17 @@ class LearningInsightsService {
   });
 
   static Future<LearningInsightsService> create() async {
-    final prefs = await SharedPreferences.getInstance();
-    final quizRepo = QuizResultRepository();
-    final expRepo = await ExperimentProgressRepository.create();
-    final achievementService = await AchievementService.create();
-    
+    final futures = await Future.wait([
+      SharedPreferences.getInstance(),
+      ExperimentProgressRepository.create(),
+      AchievementService.create(),
+    ]);
+
     return LearningInsightsService(
-      prefs: prefs,
-      quizRepo: quizRepo,
-      expRepo: expRepo,
-      achievementService: achievementService,
+      prefs: futures[0] as SharedPreferences,
+      quizRepo: QuizResultRepository(),
+      expRepo: futures[1] as ExperimentProgressRepository,
+      achievementService: futures[2] as AchievementService,
     );
   }
 

@@ -63,7 +63,11 @@ class LlamaEngine(private val context: Context) {
         val discovered = candidateDirectories
             .flatMap { directory ->
                 directory.listFiles()
-                    ?.filter { file -> file.isFile && file.name.lowercase().endsWith(".gguf") }
+                    ?.filter { file -> 
+                        file.isFile && 
+                        file.name.lowercase().endsWith(".gguf") && 
+                        !file.name.lowercase().contains("gemma-3")
+                    }
                     ?: emptyList()
             }
             .sortedWith(

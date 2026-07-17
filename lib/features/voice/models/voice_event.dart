@@ -29,11 +29,28 @@ class VoiceEvent {
   final String? data;
 
   /// Deserialize a JSON map from the WebSocket.
+  ///
+  /// The backend sends event-specific data as top-level keys (e.g. `"text"`,
+  /// `"confidence"`, `"message"`) rather than nesting them under `"payload"`.
+  /// We merge those top-level keys into [payload] so all call sites that read
+  /// `event.payload['text']` continue to work without changes.
   factory VoiceEvent.fromJson(Map<String, dynamic> json) {
     final rawType = json['type'] as String? ?? 'unknown';
+
+    // Start with any explicit nested payload the server may include.
+    final merged = <String, dynamic>{
+      ...((json['payload'] as Map?)?.cast<String, dynamic>() ?? {}),
+    };
+    // Pull backend top-level text fields into payload.
+    for (final key in const ['text', 'confidence', 'message']) {
+      if (json.containsKey(key) && !merged.containsKey(key)) {
+        merged[key] = json[key];
+      }
+    }
+
     return VoiceEvent(
       type: _normalizeType(rawType),
-      payload: json['payload'] as Map<String, dynamic>? ?? const {},
+      payload: merged.isEmpty ? const <String, dynamic>{} : Map.unmodifiable(merged),
       sessionId: json['session_id'] as String?,
       deviceId: json['device_id'] as String?,
       studentId: json['student_id'] as String?,

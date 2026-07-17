@@ -59,26 +59,34 @@ class _ChapterSummaryScreenState extends State<ChapterSummaryScreen> with Single
 
       // Load Summaries
       final sumFile = File(summaryPath);
+      print('[SUMMARY] Loading summaries from path: $summaryPath');
       if (await sumFile.exists()) {
         final content = await sumFile.readAsString();
         final List<dynamic> decoded = jsonDecode(content);
         for (final item in decoded) {
-          if (item is Map<String, dynamic>) {
-            parsedSummaries.add(item);
+          if (item is Map) {
+            parsedSummaries.add(Map<String, dynamic>.from(item));
           }
         }
+        print('[SUMMARY] Successfully loaded ${parsedSummaries.length} summaries.');
+      } else {
+        print('[SUMMARY] summaries.json does not exist at: $summaryPath');
       }
 
       // Load Flashcards
       final flashFile = File(flashcardPath);
+      print('[FLASHCARD] Loading flashcards from path: $flashcardPath');
       if (await flashFile.exists()) {
         final content = await flashFile.readAsString();
         final List<dynamic> decoded = jsonDecode(content);
         for (final item in decoded) {
-          if (item is Map<String, dynamic>) {
-            parsedFlashcards.add(item);
+          if (item is Map) {
+            parsedFlashcards.add(Map<String, dynamic>.from(item));
           }
         }
+        print('[FLASHCARD] Successfully loaded ${parsedFlashcards.length} flashcards.');
+      } else {
+        print('[FLASHCARD] flashcards.json does not exist at: $flashcardPath');
       }
 
       if (mounted) {

@@ -10,7 +10,12 @@ import '../services/language_service.dart';
 /// then use [setLanguage] to switch.
 class LanguageProvider extends ChangeNotifier {
   LanguageProvider({LanguageService? service})
-      : _service = service ?? LanguageService();
+      : _service = service ?? LanguageService() {
+    _sharedInstance ??= this;
+  }
+
+  static LanguageProvider? _sharedInstance;
+  static LanguageProvider get shared => _sharedInstance ??= LanguageProvider();
 
   final LanguageService _service;
 

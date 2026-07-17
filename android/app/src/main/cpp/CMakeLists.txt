@@ -21,7 +21,7 @@ set(LLAMA_ANDROID_SRC ${LLAMA_SRC}/examples/llama.android/lib/src/main/cpp)
 
 add_subdirectory(${LLAMA_SRC} llama_cpp_build)
 
-add_library(ai_chat_jni SHARED ${LLAMA_ANDROID_SRC}/ai_chat.cpp)
+add_library(ai_chat_jni SHARED ${CMAKE_CURRENT_SOURCE_DIR}/ai_chat.cpp)
 set_target_properties(ai_chat_jni PROPERTIES OUTPUT_NAME "ai-chat")
 
 target_include_directories(

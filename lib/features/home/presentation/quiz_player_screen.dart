@@ -74,15 +74,17 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
         return;
       }
 
+      print('[QUIZ] Loading quizzes from path: $quizPath');
       final content = await file.readAsString();
       final List<dynamic> decoded = jsonDecode(content);
       
       final List<Map<String, dynamic>> rawQuizzes = [];
       for (final item in decoded) {
-        if (item is Map<String, dynamic>) {
-          rawQuizzes.add(item);
+        if (item is Map) {
+          rawQuizzes.add(Map<String, dynamic>.from(item));
         }
       }
+      print('[QUIZ] Successfully parsed ${rawQuizzes.length} raw quizzes.');
 
       final random = Random();
       final List<QuizQuestion> parsedQuestions = [];
@@ -90,7 +92,7 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
       for (var i = 0; i < rawQuizzes.length; i++) {
         final current = rawQuizzes[i];
         final question = current['question'] as String? ?? '';
-        final correct = current['correct_answer'] as String? ?? '';
+        final correct = (current['correct_answer'] ?? current['answer'] ?? '') as String;
 
         if (question.isEmpty || correct.isEmpty) {
           continue;
@@ -98,9 +100,8 @@ class _QuizPlayerScreenState extends State<QuizPlayerScreen> {
 
         // Get distractors from other questions
         final otherAnswers = rawQuizzes
-            .where((q) => q['correct_answer'] != correct)
-            .map((q) => q['correct_answer'] as String? ?? '')
-            .where((a) => a.isNotEmpty)
+            .map((q) => (q['correct_answer'] ?? q['answer'] ?? '') as String)
+            .where((a) => a.isNotEmpty && a != correct)
             .toList();
 
         otherAnswers.shuffle(random);

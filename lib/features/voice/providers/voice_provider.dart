@@ -59,6 +59,11 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
         _player = playerService ?? AudioPlayerService(),
         _streamPlayer = VoiceStreamPlayer(),
         super(const VoiceProviderState()) {
+    _streamPlayer.onComplete = () {
+      if (mounted && state.state == VoiceState.speaking) {
+        state = state.copyWith(state: VoiceState.idle, isPlaying: false);
+      }
+    };
     _listenToPlayback();
     _listenToSocketEvents();
   }
@@ -164,6 +169,22 @@ class VoiceNotifier extends StateNotifier<VoiceProviderState> {
     }
     _languageCode = 'en';
     state = const VoiceProviderState();
+  }
+
+  // ─── Audio streaming (called by ConversationNotifier) ───────────
+
+  /// Queue a base64-encoded TTS audio chunk for immediate playback.
+  /// ConversationNotifier delegates here so there is only one stream player.
+  Future<void> queueAudioChunk(String base64Chunk) async {
+    if (state.state != VoiceState.speaking) {
+      state = state.copyWith(state: VoiceState.speaking, isPlaying: true);
+    }
+    await _streamPlayer.queueAudioChunk(base64Chunk);
+  }
+
+  /// Signal that the last TTS chunk has been received.
+  void markAudioComplete() {
+    _streamPlayer.markComplete();
   }
 
   // ─── Internal ───────────────────────────────────────────────────

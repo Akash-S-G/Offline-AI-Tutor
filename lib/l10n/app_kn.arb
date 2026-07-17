@@ -87,5 +87,113 @@
   "generatedLocally": "ನಿಮ್ಮ ಸಾಧನದಲ್ಲೇ ಸ್ಥಳೀಯವಾಗಿ ರಚಿಸಲಾಗಿದೆ",
   "keepLearning": "ನಿಮ್ಮ ಬಲಗಳನ್ನು ಕಂಡುಹಿಡಿಯಲು ಕಲಿಯುವುದನ್ನು ಮುಂದುವರಿಸಿ.",
   "noMajorWeakAreasDetected": "ಮಹತ್ತರ ದುರ್ಬಲ ಕ್ಷೇತ್ರಗಳು ಕಂಡುಬಂದಿಲ್ಲ. ಶಭಾಷ್!",
-  "completeChapters": "ಬ್ಯಾಡ್ಜ್‌ಗಳನ್ನು ಪಡೆಯಲು ಅಧ್ಯಾಯಗಳು ಮತ್ತು ಕ್ವಿಜ್‌ಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ."
+  "completeChapters": "ಬ್ಯಾಡ್ಜ್‌ಗಳನ್ನು ಪಡೆಯಲು ಅಧ್ಯಾಯಗಳು ಮತ್ತು ಕ್ವಿಜ್‌ಗಳನ್ನು ಪೂರ್ಣಗೊಳಿಸಿ.",
+  "chatSyllabusNotesHint": "ಈ ಅಧ್ಯಾಯದ ಪಠ್ಯಕ್ರಮದ ಟಿಪ್ಪಣಿಗಳನ್ನು ಇಲ್ಲಿ ಅಂಟಿಸಿ...",
+  "chatMessageTutorHint": "ನಿಮ್ಮ ಟ್ಯೂಟರ್‌ಗೆ ಸಂದೇಶ ಕಳುಹಿಸಿ",
+  "chatVoiceTutorTooltip": "ಧ್ವನಿ ಟ್ಯೂಟರ್",
+  "chatVoiceRequiresBackendTooltip": "ಧ್ವನಿ ವೈಶಿಷ್ಟ್ಯಕ್ಕೆ ಬ್ಯಾಕೆಂಡ್ ಸಂಪರ್ಕದ ಅಗತ್ಯವಿದೆ",
+  "chatStopResponseTooltip": "ಪ್ರತಿಕ್ರಿಯೆಯನ್ನು ನಿಲ್ಲಿಸಿ",
+  "chatSendTooltip": "ಕಳುಹಿಸಿ",
+  "chatStatusTranslating": "{lang} ಗೆ ಅನುವಾದಿಸಲಾಗುತ್ತಿದೆ...",
+  "@chatStatusTranslating": {
+    "placeholders": {
+      "lang": {}
+    }
+  },
+  "chatTranslationHeaderOriginal": "ಮೂಲ (EN):\n{original}\n\nಅನುವಾದಿಸಲಾಗಿದೆ ({lang}):\n{translated}",
+  "@chatTranslationHeaderOriginal": {
+    "placeholders": {
+      "original": {},
+      "lang": {},
+      "translated": {}
+    }
+  },
+  "navMyLearning": "ನನ್ನ ಕಲಿಕೆ",
+  "navToolsClass": "ಪರಿಕರಗಳು ಮತ್ತು ತರಗತಿ",
+  "navSettings": "ಸೆಟ್ಟಿಂಗ್ಸ್",
+  "dashboardTakeQuizHint": "ನಿಮ್ಮ ಮೊದಲ ಅಧ್ಯಾಯದ ರಸಪ್ರಶ್ನೆ ತೆಗೆದುಕೊಳ್ಳಿ",
+  "dashboardAttemptsCount": "{count} ಪ್ರಯತ್ನ(ಗಳು) ದಾಖಲಾಗಿವೆ",
+  "@dashboardAttemptsCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "dashboardAttemptsSummary": "{count} ಪ್ರಯತ್ನ(ಗಳು), ಇತ್ತೀಚಿನದು {percent}% ({label})",
+  "@dashboardAttemptsSummary": {
+    "placeholders": {
+      "count": {},
+      "percent": {},
+      "label": {}
+    }
+  },
+  "settingsModelNotAvailable": "ಈ ಸಾಧನದಲ್ಲಿ ಮಾದರಿ ಆಯ್ಕೆ ಇನ್ನೂ ಲಭ್ಯವಿಲ್ಲ. ಪ್ರಸ್ತುತ ಆಂಡ್ರಾಯ್ಡ್‌ನಲ್ಲಿ ಅಳವಡಿಸಲಾಗಿದೆ.",
+  "settingsModelLoadFailed": "ಮಾದರಿ ವಿವರಗಳನ್ನು ಲೋಡ್ ಮಾಡಲು ವಿಫಲವಾಗಿದೆ.",
+  "settingsLanguageTitle": "ಭಾಷಾ ಸೆಟ್ಟಿಂಗ್ಸ್",
+  "settingsLanguageSubtitle": "ನಿಮ್ಮ ಡೀಫಾಲ್ಟ್ ಭಾಷೆಯನ್ನು ಆರಿಸಿ (ಇಂಗ್ಲಿಷ್ / ಕನ್ನಡ)",
+  "settingsLanguageDialogTitle": "ಅಪ್ಲಿಕೇಶನ್ ಭಾಷಾ ಸೆಟ್ಟಿಂಗ್ಸ್",
+  "close": "ಮುಚ್ಚಿ",
+  "settingsDiagnosticsTitle": "ಸೆಟ್ಟಿಂಗ್ಸ್ ಮತ್ತು ಡಯಾಗ್ನೋಸ್ಟಿಕ್ಸ್",
+  "activeLearningGrade": "ಸಕ್ರಿಯ ಕಲಿಕಾ ತರಗತಿ",
+  "gradeCurriculum": "ತರಗತಿ {grade} ಪಠ್ಯಕ್ರಮ",
+  "@gradeCurriculum": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "change": "ಬದಲಾಯಿಸಿ",
+  "systemActions": "ಸಿಸ್ಟಮ್ ಕ್ರಿಯೆಗಳು",
+  "learningProgress": "ಕಲಿಕೆಯ ಪ್ರಗತಿ",
+  "learningProgressSubtitle": "ಕ್ವಿಜ್ ಪ್ರಯತ್ನಗಳು ಮತ್ತು ಪ್ರಗತಿ ವಿವರಗಳನ್ನು ವೀಕ್ಷಿಸಿ",
+  "manageContentPacks": "ವಿಷಯ ಪ್ಯಾಕ್‌ಗಳ ನಿರ್ವಹಣೆ",
+  "manageContentPacksSubtitle": "ಆಫ್‌ಲೈನ್ ವಿಷಯ ಪ್ಯಾಕ್‌ಗಳನ್ನು ಸಿಂಕ್ ಮಾಡಿ, ಸ್ಥಾಪಿಸಿ ಮತ್ತು ತೆಗೆದುಹಾಕಿ",
+  "importCustomMaterials": "ಕಸ್ಟಮ್ ವಿಷಯ ಆಮದು ಮಾಡಿ",
+  "importCustomMaterialsSubtitle": "ಸ್ಥಳೀಯ ಇಂಡೆಕ್ಸ್ ನಿರ್ಮಿಸಲು PDF ಫೈಲ್‌ಗಳನ್ನು ಆಮದು ಮಾಡಿ",
+  "modelSettings": "ಮಾದರಿ ಸೆಟ್ಟಿಂಗ್ಸ್",
+  "modelSettingsSubtitle": "ಆಫ್‌ಲೈನ್/ಆನ್‌ಲೈನ್ LLM ಸೆಟ್ಟಿಂಗ್ಸ್ ಆರಿಸಿ",
+  "offlineMode": "ಆಫ್‌ಲೈನ್ ಮೋಡ್",
+  "myLearningJourney": "ನನ್ನ ಕಲಿಕಾ ಪ್ರಯಾಣ",
+  "myLearningJourneyDescription": "ಪಠ್ಯಪುಸ್ತಕಗಳನ್ನು ಓದಿ, ಕ್ವಿಜ್‌ಗಳನ್ನು ತೆಗೆದುಕೊಳ್ಳಿ ಮತ್ತು AI ಟ್ಯೂಟರ್ ಅನ್ನು ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಪ್ರಶ್ನಿಸಿ.",
+  "viewReport": "ವರದಿ ವೀಕ್ಷಿಸಿ",
+  "chaptersCount": "{count} ಅಧ್ಯಾಯಗಳು",
+  "@chaptersCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "chapterCount": "{count} ಅಧ್ಯಾಯ",
+  "@chapterCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "noContentForGrade": "ತರಗತಿ {grade} ಗೆ ಯಾವುದೇ ವಿಷಯವಿಲ್ಲ",
+  "@noContentForGrade": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "noContentForGradeDescription": "ತರಗತಿ {grade} ಗಾಗಿ ನೀವು ಇನ್ನೂ ಯಾವುದೇ ಆಫ್‌ಲೈನ್ ಪ್ಯಾಕ್‌ಗಳನ್ನು ಸ್ಥಾಪಿಸಿಲ್ಲ. ಆಫ್‌ಲೈನ್‌ನಲ್ಲಿ ಕಲಿಯಲು ಮೊದಲು ಡೌನ್‌ಲೋಡ್ ಮಾಡಿ.",
+  "@noContentForGradeDescription": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "installGradeContent": "ತರಗತಿ {grade} ವಿಷಯವನ್ನು ಸ್ಥಾಪಿಸಿ",
+  "@installGradeContent": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "progressDashboard": "ಪ್ರಗತಿ ಡ್ಯಾಶ್‌ಬೋರ್ಡ್",
+  "studyStreak": "ಕಲಿಕೆಯ ಸರಣಿ",
+  "accuracy": "ನಿಖರತೆ",
+  "chapters": "ಅಧ್ಯಾಯಗಳು",
+  "experiments": "ಪ್ರಯೋಗಗಳು",
+  "daysCount": "{count} ದಿನಗಳು",
+  "@daysCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "viewReport": "ವರದಿ ವೀಕ್ಷಿಸಿ"
 }

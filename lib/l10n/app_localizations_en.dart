@@ -210,4 +210,182 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get completeChapters =>
       'Complete chapters and quizzes to earn badges.';
+
+  @override
+  String get chatSyllabusNotesHint =>
+      'Paste syllabus notes for this chapter...';
+
+  @override
+  String get chatMessageTutorHint => 'Message your tutor';
+
+  @override
+  String get chatVoiceTutorTooltip => 'Voice tutor';
+
+  @override
+  String get chatVoiceRequiresBackendTooltip =>
+      'Voice requires backend connection';
+
+  @override
+  String get chatStopResponseTooltip => 'Stop response';
+
+  @override
+  String get chatSendTooltip => 'Send';
+
+  @override
+  String chatStatusTranslating(Object lang) {
+    return 'Translating to $lang...';
+  }
+
+  @override
+  String chatTranslationHeaderOriginal(
+    Object original,
+    Object lang,
+    Object translated,
+  ) {
+    return 'Original (EN):\n$original\n\nTranslated ($lang):\n$translated';
+  }
+
+  @override
+  String get navMyLearning => 'My Learning';
+
+  @override
+  String get navToolsClass => 'Tools & Class';
+
+  @override
+  String get navSettings => 'Settings';
+
+  @override
+  String get dashboardTakeQuizHint => 'Take your first chapter quiz';
+
+  @override
+  String dashboardAttemptsCount(Object count) {
+    return '$count attempt(s) recorded';
+  }
+
+  @override
+  String dashboardAttemptsSummary(Object count, Object percent, Object label) {
+    return '$count attempt(s), latest $percent% ($label)';
+  }
+
+  @override
+  String get settingsModelNotAvailable =>
+      'Model selection is not available on this platform yet. Currently implemented on Android.';
+
+  @override
+  String get settingsModelLoadFailed => 'Failed to load model metadata.';
+
+  @override
+  String get settingsLanguageTitle => 'Language Settings';
+
+  @override
+  String get settingsLanguageSubtitle =>
+      'Choose your default language (English / Kannada)';
+
+  @override
+  String get settingsLanguageDialogTitle => 'Select App Language';
+
+  @override
+  String get close => 'Close';
+
+  @override
+  String get settingsDiagnosticsTitle => 'Settings & Diagnostics';
+
+  @override
+  String get activeLearningGrade => 'Active Learning Grade';
+
+  @override
+  String gradeCurriculum(Object grade) {
+    return 'Grade $grade Curriculum';
+  }
+
+  @override
+  String get change => 'Change';
+
+  @override
+  String get systemActions => 'System Actions';
+
+  @override
+  String get learningProgress => 'Learning Progress';
+
+  @override
+  String get learningProgressSubtitle =>
+      'View quiz attempts and performance statistics';
+
+  @override
+  String get manageContentPacks => 'Manage Content Packs';
+
+  @override
+  String get manageContentPacksSubtitle =>
+      'Sync, install, and clear offline content packs';
+
+  @override
+  String get importCustomMaterials => 'Import Custom Materials';
+
+  @override
+  String get importCustomMaterialsSubtitle =>
+      'Import PDF files to parse and build local indexes';
+
+  @override
+  String get modelSettings => 'Model Settings';
+
+  @override
+  String get modelSettingsSubtitle => 'Select offline/online LLM configuration';
+
+  @override
+  String get offlineMode => 'Offline Mode';
+
+  @override
+  String get myLearningJourney => 'My Learning Journey';
+
+  @override
+  String get myLearningJourneyDescription =>
+      'Study textbooks, take interactive quizzes, and ask the AI Tutor questions fully offline.';
+
+  @override
+  String get viewReport => 'View Report';
+
+  @override
+  String chaptersCount(Object count) {
+    return '$count Chapters';
+  }
+
+  @override
+  String chapterCount(Object count) {
+    return '$count Chapter';
+  }
+
+  @override
+  String noContentForGrade(Object grade) {
+    return 'No Content for Grade $grade';
+  }
+
+  @override
+  String noContentForGradeDescription(Object grade) {
+    return 'You haven\'t installed any offline content packs for Grade $grade yet. Download content to start learning offline.';
+  }
+
+  @override
+  String installGradeContent(Object grade) {
+    return 'Install Grade $grade Content';
+  }
+
+  @override
+  String get progressDashboard => 'Progress Dashboard';
+
+  @override
+  String get studyStreak => 'Study Streak';
+
+  @override
+  String get accuracy => 'Accuracy';
+
+  @override
+  String get chapters => 'Chapters';
+
+  @override
+  String get experiments => 'Experiments';
+
+  @override
+  String daysCount(Object count) {
+    return '$count Days';
+  }
 }

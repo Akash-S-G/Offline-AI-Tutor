@@ -10,8 +10,6 @@ import '../../voice/providers/voice_provider.dart';
 import '../models/conversation_message.dart';
 import '../models/conversation_state.dart';
 
-import '../../voice/services/voice_stream_player.dart';
-
 // ─── State ──────────────────────────────────────────────────────────
 
 class ConversationProviderState {
@@ -49,10 +47,17 @@ class ConversationProviderState {
 
 class ConversationNotifier extends StateNotifier<ConversationProviderState> {
   ConversationNotifier({required this.ref})
-      : super(const ConversationProviderState());
+      : super(const ConversationProviderState()) {
+    // Auto-attach after the provider graph settles so voiceConnectionProvider
+    // is fully initialised before we try to read it.
+    Future.microtask(attachToSocket);
+  }
 
   final Ref ref;
-  final VoiceStreamPlayer _streamPlayer = VoiceStreamPlayer();
+  // NOTE: Audio playback is handled entirely by VoiceNotifier._streamPlayer.
+  // ConversationNotifier does NOT own a VoiceStreamPlayer — having two separate
+  // players was the root cause of silent audio output (chunks were queued into
+  // an unconnected player that nobody ever read from).
   StreamSubscription<VoiceEvent>? _eventSub;
   DateTime? _requestTimestamp;
   int _messageCounter = 0;
@@ -68,7 +73,8 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
 
   /// Start a new conversation turn: begin recording.
   Future<void> startListening({String languageCode = 'en'}) async {
-    await _streamPlayer.interrupt(); // Instantly stop any ongoing playback
+    // Interrupt any ongoing playback via VoiceNotifier
+    await ref.read(voiceProvider.notifier).stopPlayback();
     state = state.copyWith(
       state: ConversationState.listening,
       partialTranscript: '',
@@ -155,7 +161,6 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
 
   /// Clear all history and return to idle.
   void reset() {
-    _streamPlayer.interrupt();
     state = const ConversationProviderState();
     _messageCounter = 0;
     _requestTimestamp = null;
@@ -166,24 +171,30 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
   void _onVoiceEvent(VoiceEvent event) {
     switch (event.type) {
       case VoiceEventType.partialTranscript:
+        // event.payload['text'] is populated by VoiceEvent.fromJson which merges
+        // the backend's top-level "text" key into payload.
         onTranscriptReceived(
           event.payload['text'] as String? ?? '',
           isFinal: false,
         );
         break;
+
       case VoiceEventType.sessionAcknowledged:
         state = state.copyWith(state: ConversationState.listening);
         break;
+
       case VoiceEventType.finalTranscript:
         final text = event.payload['text'] as String? ?? '';
         onTranscriptReceived(text, isFinal: true);
-        // Add student message to history
         addStudentMessage(
           text,
-          AppLanguage.fromCode(event.language ?? event.payload['language'] as String? ?? 'en'),
+          AppLanguage.fromCode(
+            event.language ?? event.payload['language'] as String? ?? 'en',
+          ),
         );
         state = state.copyWith(state: ConversationState.translating);
         break;
+
       case VoiceEventType.responseChunk:
         final chunk = event.payload['text'] as String? ?? '';
         if (chunk.isNotEmpty) {
@@ -200,10 +211,6 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
                 timestamp: last.timestamp,
               ),
             );
-            state = state.copyWith(
-              messages: currentMessages,
-              state: ConversationState.thinking,
-            );
           } else {
             currentMessages.add(
               ConversationMessage(
@@ -216,38 +223,50 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
                 timestamp: DateTime.now(),
               ),
             );
-            state = state.copyWith(
-              messages: currentMessages,
-              state: ConversationState.thinking,
-            );
           }
+          state = state.copyWith(
+            messages: currentMessages,
+            state: ConversationState.thinking,
+          );
         }
         break;
+
       case VoiceEventType.responseComplete:
         state = state.copyWith(state: ConversationState.generatingAudio);
         break;
+
       case VoiceEventType.assistantMessage:
         final text = event.payload['text'] as String? ?? '';
         final langCode = event.payload['language'] as String? ?? 'en';
         onAssistantResponse(text, AppLanguage.fromCode(langCode));
         break;
+
       case VoiceEventType.generatingAudio:
         state = state.copyWith(state: ConversationState.generatingAudio);
         break;
+
       case VoiceEventType.audioChunk:
-        final base64Chunk = event.payload['audio'] as String?;
-        if (base64Chunk != null) {
-          _streamPlayer.queueAudioChunk(base64Chunk);
+        // Audio playback is delegated entirely to VoiceNotifier which owns the
+        // single VoiceStreamPlayer. event.data contains the base64 bytes
+        // (backend sends "data" as a top-level key, already mapped by fromJson).
+        final b64 = event.data;
+        if (b64 != null && b64.isNotEmpty) {
+          ref.read(voiceProvider.notifier).queueAudioChunk(b64);
         }
         state = state.copyWith(state: ConversationState.speaking);
         break;
+
       case VoiceEventType.audioComplete:
-        _streamPlayer.markComplete();
+        // VoiceNotifier's _streamPlayer handles draining + markComplete().
+        // ConversationNotifier just updates its own state.
+        ref.read(voiceProvider.notifier).markAudioComplete();
         state = state.copyWith(state: ConversationState.idle);
         break;
+
       case VoiceEventType.error:
         state = state.copyWith(state: ConversationState.error);
         break;
+
       default:
         break;
     }
@@ -255,7 +274,6 @@ class ConversationNotifier extends StateNotifier<ConversationProviderState> {
 
   @override
   void dispose() {
-    _streamPlayer.dispose();
     _eventSub?.cancel();
     super.dispose();
   }

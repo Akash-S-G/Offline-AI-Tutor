@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 
 import '../../chat/data/llm_admin_channel_service.dart';
@@ -75,7 +76,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
         return;
       }
       setState(() {
-        _error = 'Model selection is not available on this platform yet. Currently implemented on Android.';
+        _error = AppLocalizations.of(context)!.settingsModelNotAvailable;
         _loading = false;
       });
     } on PlatformException catch (e) {
@@ -83,7 +84,7 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
         return;
       }
       setState(() {
-        _error = e.message ?? 'Failed to load model metadata.';
+        _error = e.message ?? AppLocalizations.of(context)!.settingsModelLoadFailed;
         _loading = false;
       });
     }

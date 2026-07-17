@@ -87,5 +87,113 @@
   "generatedLocally": "Generated locally on your device",
   "keepLearning": "Keep learning to discover your strengths.",
   "noMajorWeakAreasDetected": "No major weak areas detected. Great job!",
-  "completeChapters": "Complete chapters and quizzes to earn badges."
+  "completeChapters": "Complete chapters and quizzes to earn badges.",
+  "chatSyllabusNotesHint": "Paste syllabus notes for this chapter...",
+  "chatMessageTutorHint": "Message your tutor",
+  "chatVoiceTutorTooltip": "Voice tutor",
+  "chatVoiceRequiresBackendTooltip": "Voice requires backend connection",
+  "chatStopResponseTooltip": "Stop response",
+  "chatSendTooltip": "Send",
+  "chatStatusTranslating": "Translating to {lang}...",
+  "@chatStatusTranslating": {
+    "placeholders": {
+      "lang": {}
+    }
+  },
+  "chatTranslationHeaderOriginal": "Original (EN):\n{original}\n\nTranslated ({lang}):\n{translated}",
+  "@chatTranslationHeaderOriginal": {
+    "placeholders": {
+      "original": {},
+      "lang": {},
+      "translated": {}
+    }
+  },
+  "navMyLearning": "My Learning",
+  "navToolsClass": "Tools & Class",
+  "navSettings": "Settings",
+  "dashboardTakeQuizHint": "Take your first chapter quiz",
+  "dashboardAttemptsCount": "{count} attempt(s) recorded",
+  "@dashboardAttemptsCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "dashboardAttemptsSummary": "{count} attempt(s), latest {percent}% ({label})",
+  "@dashboardAttemptsSummary": {
+    "placeholders": {
+      "count": {},
+      "percent": {},
+      "label": {}
+    }
+  },
+  "settingsModelNotAvailable": "Model selection is not available on this platform yet. Currently implemented on Android.",
+  "settingsModelLoadFailed": "Failed to load model metadata.",
+  "settingsLanguageTitle": "Language Settings",
+  "settingsLanguageSubtitle": "Choose your default language (English / Kannada)",
+  "settingsLanguageDialogTitle": "Select App Language",
+  "close": "Close",
+  "settingsDiagnosticsTitle": "Settings & Diagnostics",
+  "activeLearningGrade": "Active Learning Grade",
+  "gradeCurriculum": "Grade {grade} Curriculum",
+  "@gradeCurriculum": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "change": "Change",
+  "systemActions": "System Actions",
+  "learningProgress": "Learning Progress",
+  "learningProgressSubtitle": "View quiz attempts and performance statistics",
+  "manageContentPacks": "Manage Content Packs",
+  "manageContentPacksSubtitle": "Sync, install, and clear offline content packs",
+  "importCustomMaterials": "Import Custom Materials",
+  "importCustomMaterialsSubtitle": "Import PDF files to parse and build local indexes",
+  "modelSettings": "Model Settings",
+  "modelSettingsSubtitle": "Select offline/online LLM configuration",
+  "offlineMode": "Offline Mode",
+  "myLearningJourney": "My Learning Journey",
+  "myLearningJourneyDescription": "Study textbooks, take interactive quizzes, and ask the AI Tutor questions fully offline.",
+  "viewReport": "View Report",
+  "chaptersCount": "{count} Chapters",
+  "@chaptersCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "chapterCount": "{count} Chapter",
+  "@chapterCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "noContentForGrade": "No Content for Grade {grade}",
+  "@noContentForGrade": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "noContentForGradeDescription": "You haven't installed any offline content packs for Grade {grade} yet. Download content to start learning offline.",
+  "@noContentForGradeDescription": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "installGradeContent": "Install Grade {grade} Content",
+  "@installGradeContent": {
+    "placeholders": {
+      "grade": {}
+    }
+  },
+  "progressDashboard": "Progress Dashboard",
+  "studyStreak": "Study Streak",
+  "accuracy": "Accuracy",
+  "chapters": "Chapters",
+  "experiments": "Experiments",
+  "daysCount": "{count} Days",
+  "@daysCount": {
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "viewReport": "View Report"
 }

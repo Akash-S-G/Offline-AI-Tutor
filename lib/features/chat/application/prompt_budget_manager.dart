@@ -1,12 +1,12 @@
 class PromptBudgetManager {
   const PromptBudgetManager({
-    this.maxPromptChars = 3900,
-    this.systemChars = 500,
-    this.curriculumChars = 220,
-    this.summaryChars = 500,
-    this.historyChars = 700,
-    this.ragChars = 2600,
-    this.questionChars = 220,
+    this.maxPromptChars = 1500,
+    this.systemChars = 400,
+    this.curriculumChars = 150,
+    this.summaryChars = 200,
+    this.historyChars = 150,
+    this.ragChars = 500,
+    this.questionChars = 150,
   });
 
   final int maxPromptChars;
@@ -48,7 +48,25 @@ class PromptBudgetManager {
     return output;
   }
 
-  String hardCapPrompt(String prompt) => clip(prompt, maxPromptChars);
+  String hardCapPrompt(String prompt) {
+    if (prompt.length <= maxPromptChars) {
+      return prompt;
+    }
+
+    final questionIndex = prompt.lastIndexOf('Student question:');
+    if (questionIndex != -1) {
+      final questionPart = prompt.substring(questionIndex);
+      final remainingBudget = maxPromptChars - questionPart.length;
+
+      if (remainingBudget > 100) {
+        final headPart = prompt.substring(0, questionIndex);
+        final clippedHead = clip(headPart, remainingBudget);
+        return '$clippedHead\n\n$questionPart';
+      }
+    }
+
+    return clip(prompt, maxPromptChars);
+  }
 
   int estimateTokens(String text) => (text.length / 4).ceil();
 }
