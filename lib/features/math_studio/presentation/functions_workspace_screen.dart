@@ -101,7 +101,7 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
   Widget build(BuildContext context) {
     return MathStudioWorkspaceShell(
       title: 'Functions Workspace',
-      accentColor: const Color(0xFFD97706),
+      accentColor: IDPColors.tertiary,
       actions: [
         IconButton(
           icon: const Icon(Icons.save_rounded),
@@ -129,26 +129,26 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
         if (widget.discoveryPrompt != null)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(IDPSpacing.md),
             decoration: BoxDecoration(
-              color: const Color(0xFFD97706).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
+              color: IDPColors.tertiary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(IDPRadius.md),
               border: Border.all(
-                color: const Color(0xFFD97706).withValues(alpha: 0.18),
+                color: IDPColors.tertiary.withValues(alpha: 0.18),
               ),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.lightbulb_outline_rounded,
-                  color: Color(0xFFB45309),
+                  color: IDPColors.tertiary,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: IDPSpacing.sm),
                 Expanded(
                   child: Text(
                     widget.discoveryPrompt!,
-                    style: const TextStyle(
-                      color: Color(0xFF78350F),
+                    style: IDPTypography.bodyMedium.copyWith(
+                      color: IDPColors.onSurface,
                       fontWeight: FontWeight.w600,
                       height: 1.35,
                     ),
@@ -157,7 +157,7 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
               ],
             ),
           ),
-        if (widget.discoveryPrompt != null) const SizedBox(height: 12),
+        if (widget.discoveryPrompt != null) const SizedBox(height: IDPSpacing.sm),
         if (widget.challenge != null)
           ChallengeCard(
             challenge: widget.challenge!,
@@ -171,15 +171,15 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
           example:
               'The trajectory of a thrown ball is a parabola, modeled by a quadratic function taking time as input and height as output.',
           icon: Icons.functions_rounded,
-          color: Color(0xFFD97706),
+          color: IDPColors.tertiary,
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: IDPSpacing.md),
         _buildFormulaInput(),
-        const SizedBox(height: 12),
+        const SizedBox(height: IDPSpacing.md),
         if (_variables.isNotEmpty) _buildSliders(),
-        if (_variables.isNotEmpty) const SizedBox(height: 12),
+        if (_variables.isNotEmpty) const SizedBox(height: IDPSpacing.md),
         AspectRatio(aspectRatio: 1.35, child: _buildGraphArea()),
-        const SizedBox(height: 12),
+        const SizedBox(height: IDPSpacing.md),
         ObservationPanel(controller: _notesController),
       ],
     );
@@ -187,19 +187,19 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
 
   Widget _buildFormulaInput() {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.all(16),
+      color: IDPColors.surface,
+      padding: const EdgeInsets.all(IDPSpacing.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           TextField(
             controller: _formulaController,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: IDPTypography.h6,
             decoration: InputDecoration(
               labelText: 'f(x) =',
               prefixIcon: const Icon(Icons.functions_rounded),
               border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(IDPRadius.sm),
               ),
               filled: true,
               fillColor: IDPColors.background,
@@ -212,25 +212,24 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
 
   Widget _buildSliders() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(IDPSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: IDPColors.border),
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.md),
+        border: Border.all(color: IDPColors.outlineVariant),
       ),
       child: Column(
         children: _variables.keys.map((varName) {
           return Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
             child: Row(
               children: [
                 SizedBox(
                   width: 88,
                   child: Text(
                     '$varName = ${_variables[varName]!.toStringAsFixed(1)}',
-                    style: const TextStyle(
+                    style: IDPTypography.labelLarge.copyWith(
                       fontWeight: FontWeight.bold,
-                      fontSize: 16,
                     ),
                   ),
                 ),
@@ -239,7 +238,7 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
                     min: -10,
                     max: 10,
                     value: _variables[varName]!,
-                    activeColor: const Color(0xFFD97706),
+                    activeColor: IDPColors.tertiary,
                     onChanged: (val) {
                       setState(() {
                         _variables[varName] = val;
@@ -259,19 +258,19 @@ class _FunctionLabScreenState extends State<FunctionLabScreen> {
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: IDPColors.border),
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.md),
+        border: Border.all(color: IDPColors.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: IDPColors.onSurface.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(IDPRadius.md),
         child: Stack(
           children: [
             SizedBox.expand(
@@ -373,10 +372,10 @@ class _GraphPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // Draw Grid
     final gridPaint = Paint()
-      ..color = const Color(0xFFE2E8F0)
+      ..color = IDPColors.outlineVariant.withValues(alpha: 0.3)
       ..strokeWidth = 1;
     final axisPaint = Paint()
-      ..color = const Color(0xFF64748B)
+      ..color = IDPColors.outlineVariant
       ..strokeWidth = 2;
 
     // Draw grid lines (10 segments)
@@ -446,7 +445,7 @@ class _GraphPainter extends CustomPainter {
 
     // Draw Function Path
     final pathPaint = Paint()
-      ..color = const Color(0xFFD97706)
+      ..color = IDPColors.tertiary
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeJoin = StrokeJoin.round;

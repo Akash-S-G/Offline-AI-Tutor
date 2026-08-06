@@ -7,12 +7,10 @@ import '../../course/domain/curriculum_models.dart';
 import '../../assessment/data/local/quiz_result_repository.dart';
 import '../../analytics/application/learning_insights_service.dart';
 import '../../analytics/domain/learning_profile_models.dart';
-import '../../../core/widgets/idp_core_widgets.dart';
 import '../../../core/widgets/idp_skeleton_loader.dart';
 import '../../../core/theme/idp_colors.dart';
+import '../../../core/theme/idp_typography.dart';
 import '../../../core/theme/idp_theme.dart';
-import '../../analytics/presentation/widgets/recommended_learning_panel.dart';
-import '../../analytics/presentation/screens/offline_learning_report_screen.dart';
 import '../../onboarding/presentation/grade_sync_screen.dart';
 import 'subject_screen.dart';
 
@@ -52,7 +50,6 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
     final prefs = await SharedPreferences.getInstance();
     final grade = prefs.getInt('selected_grade') ?? 8;
 
-    // Fetch quiz results, insights service, and curriculum in parallel.
     final results = await Future.wait([
       _quizRepo.getAllResults(),
       LearningInsightsService.create(),
@@ -63,16 +60,13 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
     final insights = results[1] as LearningInsightsService;
     final curriculum = results[2] as List<CurriculumGrade>;
 
-    // Build attempts map
     final Map<String, int> attemptsMap = {};
     for (final res in allResults) {
       attemptsMap[res.chapterId] = (attemptsMap[res.chapterId] ?? 0) + 1;
     }
 
-    // Generate profile (depends on insights being ready)
     final profile = await insights.generateProfile();
 
-    // Find grade matching selected grade
     final matchedGrade = curriculum.firstWhere(
       (g) => g.grade == grade,
       orElse: () => CurriculumGrade(grade: grade, subjects: []),
@@ -87,49 +81,6 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
         _loading = false;
       });
     }
-  }
-
-  double _getSubjectProgress(CurriculumSubject subject) {
-    if (subject.chapters.isEmpty) return 0.0;
-    int attempted = 0;
-    for (final chapter in subject.chapters) {
-      if (_chapterQuizAttempts.containsKey(chapter.packId)) {
-        attempted++;
-      }
-    }
-    return attempted / subject.chapters.length;
-  }
-
-  Color _getSubjectColor(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('math')) {
-      return const Color(0xFF6366F1); // Indigo
-    } else if (lower.contains('science')) {
-      return const Color(0xFF0D9488); // Teal
-    } else if (lower.contains('english')) {
-      return const Color(0xFFD97706); // Amber
-    } else if (lower.contains('kannada')) {
-      return const Color(0xFFDC2626); // Red
-    } else if (lower.contains('social')) {
-      return const Color(0xFF8B5CF6); // Violet
-    }
-    return const Color(0xFF4B5563); // Slate/Grey
-  }
-
-  IconData _getSubjectIcon(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('math')) {
-      return Icons.calculate_rounded;
-    } else if (lower.contains('science')) {
-      return Icons.science_rounded;
-    } else if (lower.contains('english')) {
-      return Icons.translate_rounded;
-    } else if (lower.contains('kannada')) {
-      return Icons.menu_book_rounded;
-    } else if (lower.contains('social')) {
-      return Icons.public_rounded;
-    }
-    return Icons.school_rounded;
   }
 
   @override
@@ -151,296 +102,502 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
       return _buildEmptyState();
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadData,
-      color: const Color(0xFF0B6E4F),
-      child: ListView(
-        padding: const EdgeInsets.symmetric(vertical: 20),
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _buildHeader(),
-          ),
-          const SizedBox(height: 24),
-          if (_profile != null) ...[
-            _buildProgressDashboard(_profile!),
-            const SizedBox(height: 24),
-            RecommendedLearningPanel(recommendations: _profile!.recommendations),
-            const SizedBox(height: 24),
+    return Scaffold(
+      backgroundColor: Colors.transparent, // Background handled by parent scaffold
+      appBar: _buildTopAppBar(),
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        color: IDPColors.primary,
+        child: ListView(
+          padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.containerMargin, vertical: IDPSpacing.xl),
+          children: [
+            _buildStreakAndFocus(),
+            const SizedBox(height: IDPSpacing.xl),
+            _buildContinueLearning(),
+            const SizedBox(height: IDPSpacing.xl),
+            _buildRecommendedSection(),
+            const SizedBox(height: IDPSpacing.xl),
+            _buildAITutorShortcut(),
+            const SizedBox(height: IDPSpacing.xxl),
           ],
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: IDPSectionHeader(title: 'My Subjects'),
-          ),
-          const SizedBox(height: 12),
-          ..._subjects.map((subj) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _buildSubjectCard(subj),
-          )),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildProgressDashboard(LearningProfile profile) {
-    final l10n = AppLocalizations.of(context)!;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+  PreferredSizeWidget _buildTopAppBar() {
+    return AppBar(
+      backgroundColor: IDPColors.surface.withValues(alpha: 0.8),
+      elevation: 0,
+      scrolledUnderElevation: 2,
+      shadowColor: IDPColors.primary.withValues(alpha: 0.2),
+      flexibleSpace: ClipRRect(
+        child: BackdropFilter(
+          filter: ColorFilter.mode(Colors.white.withValues(alpha: 0.1), BlendMode.dstATop),
+          child: Container(color: Colors.transparent),
+        ),
+      ),
+      title: Row(
         children: [
-          IDPSectionHeader(
-            title: l10n.progressDashboard,
-            trailing: TextButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const OfflineLearningReportScreen()),
-                );
-              },
-              icon: const Icon(Icons.analytics_rounded, size: 16),
-              label: Text(l10n.viewReport),
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: IDPColors.primaryContainer, width: 2),
+              color: IDPColors.surfaceVariant,
+              image: const DecorationImage(
+                image: NetworkImage("https://lh3.googleusercontent.com/aida-public/AB6AXuBllKof6-SGJmJOjP4a2n_1ZU7b-24ZItmGhieVod0bXpSGMa__lSbHOcbxbbDPicH347z-dGDLrizOTpBG8s2bTYcrQF6fwqpFDbhZRezluvbvwkgsppMsyJmoNPO0erlXR2BtHSrxvGP17vocJegBtib1dCxYDBLXqIsGAJ9jn5xA5fSSjVevCYIloMw5ZZSZa6yEZBwK6cAejfnlda-efdXfN10KGQYOgzIy673uXYMLZ6cvIuM0UDqXNWI0DTbQbxuTI9verVbW"),
+                fit: BoxFit.cover,
+              ),
             ),
           ),
-          const SizedBox(height: 12),
-          Row(
+          const SizedBox(width: IDPSpacing.md),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(child: _buildStatBox(l10n.studyStreak, l10n.daysCount(profile.studyStreakDays), Icons.local_fire_department_rounded, const Color(0xFFF59E0B))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatBox(l10n.accuracy, '${profile.averageQuizAccuracy.toStringAsFixed(1)}%', Icons.check_circle_outline_rounded, const Color(0xFF10B981))),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(child: _buildStatBox(l10n.chapters, '${profile.completedChapters}', Icons.menu_book_rounded, const Color(0xFF3B82F6))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildStatBox(l10n.experiments, '${profile.experimentsCompleted}', Icons.science_rounded, const Color(0xFF8B5CF6))),
+              Text("OfflineTutor", style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.primary, fontSize: 20)),
+              Text("Good morning, Alex", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary, fontWeight: FontWeight.normal)),
             ],
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatBox(String label, String value, IconData icon, Color color) {
-    return IDPCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: IDPSpacing.sm),
-          Text(value, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: IDPColors.textPrimary)),
-          Text(label, style: const TextStyle(fontSize: 12, color: IDPColors.textSecondary)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0B6E4F), Color(0xFF08523B)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+      actions: [
+        Container(
+          margin: const EdgeInsets.only(right: IDPSpacing.containerMargin),
+          padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.md, vertical: IDPSpacing.xs),
+          decoration: BoxDecoration(
+            color: IDPColors.surfaceContainerHigh,
+            borderRadius: BorderRadius.circular(IDPRadius.full),
+            border: Border.all(color: IDPColors.outlineVariant.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.signal_cellular_connected_no_internet_4_bar, size: 18, color: IDPColors.textSecondary),
+              const SizedBox(width: IDPSpacing.xs),
+              Text("Offline", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary)),
+            ],
+          ),
         ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0B6E4F).withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      ],
+    );
+  }
+
+  Widget _buildStreakAndFocus() {
+    final streakDays = _profile?.studyStreakDays ?? 0;
+    final accuracy = _profile?.averageQuizAccuracy ?? 0;
+
+    return Row(
+      children: [
+        // Streak Card
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(IDPSpacing.lg),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(IDPRadius.lg),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("DAILY GOAL", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary, fontSize: 10)),
+                        Text("$streakDays Day Streak", style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.primary, fontSize: 18)),
+                      ],
+                    ),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: IDPColors.primaryContainer,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(color: IDPColors.primaryContainer.withValues(alpha: 0.4), blurRadius: 10, offset: const Offset(0, 4)),
+                        ],
+                      ),
+                      child: const Icon(Icons.local_fire_department, color: IDPColors.onPrimaryContainer, size: 24),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: IDPSpacing.md),
+                Container(
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: IDPColors.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(IDPRadius.full),
+                  ),
+                  child: FractionallySizedBox(
+                    alignment: Alignment.centerLeft,
+                    widthFactor: (streakDays / 7).clamp(0.0, 1.0),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(colors: [IDPColors.primary, IDPColors.secondary]),
+                        borderRadius: BorderRadius.circular(IDPRadius.full),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(width: IDPSpacing.md),
+        // Focus Card
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.all(IDPSpacing.lg),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(IDPRadius.lg),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 20, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("FOCUS SCORE", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary, fontSize: 10)),
+                        Text("Deep Work", style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.secondary, fontSize: 18)),
+                      ],
+                    ),
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: IDPColors.secondaryContainer,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.psychology, color: IDPColors.onSecondaryContainer, size: 24),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: IDPSpacing.md),
+                Text("${accuracy.toStringAsFixed(0)}% concentration during last session", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary, fontSize: 11, fontWeight: FontWeight.normal)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildContinueLearning() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text("Continue Learning", style: IDPTypography.titleMd.copyWith(fontWeight: FontWeight.bold)),
+            TextButton(
+              onPressed: () {},
+              child: Text("View All", style: IDPTypography.labelMd.copyWith(color: IDPColors.primary)),
+            ),
+          ],
+        ),
+        Container(
+          height: 240,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: IDPColors.primaryContainer,
+            borderRadius: BorderRadius.circular(IDPRadius.xl),
+            image: const DecorationImage(
+              image: NetworkImage("https://lh3.googleusercontent.com/aida-public/AB6AXuBE_Q0dj3YtSwLpLMzpM6Y3Tgt09K72tnyQMLrf9sTIrHFS6CXXmbrubPl9k-WvrmKIJOGExvDyblrfNq_oNsV1aCXiNCGc574MvSIly4pyyP0uXHWzHyr1VY0ZRmDMxWlGTV9QzfTYNd0fF9lKDlvzufBkRVmMejnTyoD7uNbJWO-Wk6_zAi7xj6sMc1mDuxsbjJyw1_nqYpLWebslGIqMC-DbbU_EMaObdw3KFevAMuj5jjvPTXMwTbwwLkwF11WpRHLppa5ZChb3"),
+              fit: BoxFit.cover,
+            ),
+            boxShadow: [
+              BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, 5)),
+            ],
+          ),
+          child: Stack(
             children: [
-              Text(
-                AppLocalizations.of(context)!.gradeLabel(_selectedGrade.toString()),
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(IDPRadius.xl),
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [IDPColors.primary.withValues(alpha: 0.9), Colors.transparent],
+                  ),
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
+              Padding(
+                padding: const EdgeInsets.all(IDPSpacing.xl),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.wifi_off_rounded, color: Colors.white, size: 14),
-                    const SizedBox(width: 4),
-                    Text(
-                      AppLocalizations.of(context)!.offlineMode,
-                      style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.sm, vertical: IDPSpacing.xs),
+                      decoration: BoxDecoration(
+                        color: IDPColors.secondaryContainer,
+                        borderRadius: BorderRadius.circular(IDPRadius.full),
+                      ),
+                      child: Text("CHAPTER 3", style: IDPTypography.caption.copyWith(color: IDPColors.onSecondaryContainer, fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: IDPSpacing.sm),
+                    Text("Quantum Physics: The Observer Effect", style: IDPTypography.headlineLg.copyWith(color: Colors.white, fontSize: 24)),
+                    const SizedBox(height: IDPSpacing.sm),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text("65% Completed", style: IDPTypography.labelMd.copyWith(color: IDPColors.onPrimaryContainer.withValues(alpha: 0.8))),
+                        Text("12m remaining", style: IDPTypography.caption.copyWith(color: Colors.white70)),
+                      ],
+                    ),
+                    const SizedBox(height: IDPSpacing.xs),
+                    Container(
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: IDPColors.onPrimaryContainer.withValues(alpha: 0.2),
+                        borderRadius: BorderRadius.circular(IDPRadius.full),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: 0.65,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: IDPColors.secondaryContainer,
+                            borderRadius: BorderRadius.circular(IDPRadius.full),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: IDPSpacing.md),
+                    ElevatedButton.icon(
+                      onPressed: () {},
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text("Resume Lesson"),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: IDPColors.surface,
+                        foregroundColor: IDPColors.primary,
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.full)),
+                        padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.xl, vertical: IDPSpacing.md),
+                      ),
                     ),
                   ],
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)!.myLearningJourney,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecommendedSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text("Recommended for You", style: IDPTypography.titleMd.copyWith(fontWeight: FontWeight.bold)),
+        const SizedBox(height: IDPSpacing.md),
+        SizedBox(
+          height: 240,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: _subjects.length,
+            separatorBuilder: (_, __) => const SizedBox(width: IDPSpacing.md),
+            itemBuilder: (context, index) {
+              final subject = _subjects[index];
+              final progress = _getSubjectProgress(subject);
+              
+              // Mock images for demonstration as per Stitch
+              String imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuAV7tWktK3X8dk6i22p0Xxyk-ga4bTZuBZSw0rkb6j9d6gXDGmxqS4tWMCo2DrckyzCFN4LAJT8tNeJXd-oMDoyOdbNPQpzJ_VAW9M25BELWz8MMBspX3VHED9ePOOjo4ayRN41qMR38zCVXwpK_wLhTNsY2dPjcM8-WKTfgc7CzksTKMkb7Of8YUkDWm8L7fGk7L85y_NQ3CoPecuVPW1OXHHR4uIBgD4ThbNH8xikDrOJ_EinnEPMJ07im-KjKxXkmDhbl-UXH32X";
+              if (index % 2 == 1) {
+                imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuDSb7yTER4RO7OKNtdlvCa5WWNZ_cISAKtD1ZqfZ6sc9ZMR6P0xBsxxXGhDrBw-cykLapWSBWDMBbYnr1CkeJSR8hJzEuTQwtSc2W5HEiXfeL6KQNUi5I2r8b44ScJk-LIJxSqTQIfqQroO2jTfgXxYCJ1Zl-4-qPIFlyJRfIBdHgtOJHVUu2WDDSgPjMJQ6QDytsaDIP2g2D31rR5KUNZANOxvPO6Hnqebw64NfW4REJPnd_gAta7Ad390Sop0P22duX_iTgHEqIpF";
+              }
+              
+              return GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => SubjectScreen(subject: subject),
+                    ),
+                  ).then((_) => _loadData());
+                },
+                child: Container(
+                  width: 280,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    borderRadius: BorderRadius.circular(IDPRadius.lg),
+                    border: Border.all(color: IDPColors.outlineVariant.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        height: 128,
+                        decoration: BoxDecoration(
+                          borderRadius: const BorderRadius.only(topLeft: Radius.circular(IDPRadius.lg), topRight: Radius.circular(IDPRadius.lg)),
+                          image: DecorationImage(
+                            image: NetworkImage(imageUrl),
+                            fit: BoxFit.cover,
+                          ),
+                        ),
+                        child: Stack(
+                          children: [
+                            Positioned(
+                              top: IDPSpacing.sm,
+                              right: IDPSpacing.sm,
+                              child: Container(
+                                padding: const EdgeInsets.all(IDPSpacing.xs),
+                                decoration: BoxDecoration(
+                                  color: IDPColors.surface.withValues(alpha: 0.9),
+                                  borderRadius: BorderRadius.circular(IDPRadius.full),
+                                ),
+                                child: const Icon(Icons.download_done, color: IDPColors.secondary, size: 16),
+                              ),
+                            )
+                          ],
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(IDPSpacing.md),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(subject.name.toUpperCase(), style: IDPTypography.caption.copyWith(color: IDPColors.secondary, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: IDPSpacing.xs),
+                            Text(
+                              subject.chapters.isNotEmpty ? subject.chapters.first.title : "Advanced Subject",
+                              style: IDPTypography.bodyLg.copyWith(color: IDPColors.textPrimary, fontWeight: FontWeight.w600),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: IDPSpacing.xs),
+                            Text("${(progress * 100).toInt()}% • Available Offline", style: IDPTypography.caption.copyWith(color: IDPColors.textSecondary)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAITutorShortcut() {
+    return Container(
+      padding: const EdgeInsets.all(IDPSpacing.xl),
+      decoration: BoxDecoration(
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.xl),
+        border: Border.all(color: IDPColors.primary.withValues(alpha: 0.1), width: 2),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [IDPColors.surface, IDPColors.primaryFixed.withValues(alpha: 0.2)],
+        ),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
+        ],
+      ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            top: -24,
+            right: -24,
+            child: Container(
+              width: 128,
+              height: 128,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: IDPColors.primary.withValues(alpha: 0.05),
+              ),
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            AppLocalizations.of(context)!.myLearningJourneyDescription,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.8),
-              fontSize: 14,
-            ),
+          Row(
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: IDPColors.primary,
+                  borderRadius: BorderRadius.circular(IDPRadius.lg),
+                  boxShadow: [
+                    BoxShadow(color: IDPColors.primary.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 10)),
+                  ],
+                ),
+                child: const Center(
+                  child: Icon(Icons.smart_toy, color: Colors.white, size: 40),
+                ),
+              ),
+              const SizedBox(width: IDPSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text("Offline AI Tutor", style: IDPTypography.titleMd.copyWith(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: IDPSpacing.xs),
+                    Text("Stuck on a problem? Ask the AI, it works even without internet using on-device processing.", style: IDPTypography.bodyMd.copyWith(color: IDPColors.textSecondary)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: IDPSpacing.md),
+              ElevatedButton.icon(
+                onPressed: () {
+                  // Navigate to Tutor or trigger action
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Select a chapter to chat with AI Tutor.")));
+                },
+                icon: const Text("Ask AI"),
+                label: const Icon(Icons.arrow_forward, size: 18),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: IDPColors.primary,
+                  foregroundColor: IDPColors.onPrimary,
+                  padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.xl, vertical: IDPSpacing.md),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.full)),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSubjectCard(CurriculumSubject subject) {
-    final progress = _getSubjectProgress(subject);
-    final themeColor = _getSubjectColor(subject.name);
-    final icon = _getSubjectIcon(subject.name);
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        elevation: 2,
-        shadowColor: Colors.black12,
-        child: InkWell(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => SubjectScreen(subject: subject),
-              ),
-            ).then((_) => _loadData()); // Reload on return to catch updated quiz scores
-          },
-          borderRadius: BorderRadius.circular(16),
-          child: Padding(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              children: [
-                Container(
-                  width: 56,
-                  height: 56,
-                  decoration: BoxDecoration(
-                    color: themeColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    icon,
-                    color: themeColor,
-                    size: 30,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        subject.name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        subject.chapters.length == 1
-                            ? AppLocalizations.of(context)!.chapterCount(subject.chapters.length)
-                            : AppLocalizations.of(context)!.chaptersCount(subject.chapters.length),
-                        style: const TextStyle(
-                          color: Color(0xFF64748B),
-                          fontSize: 13,
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(4),
-                              child: LinearProgressIndicator(
-                                value: progress,
-                                backgroundColor: const Color(0xFFF1F5F9),
-                                valueColor: AlwaysStoppedAnimation<Color>(themeColor),
-                                minHeight: 6,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            '${(progress * 100).toInt()}%',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: themeColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  Icons.arrow_forward_ios_rounded,
-                  color: Color(0xFF94A3B8),
-                  size: 16,
-                )
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildEmptyState() {
     return Padding(
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(IDPSpacing.xxl),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(
             Icons.school_outlined,
             size: 80,
-            color: Color(0xFF94A3B8),
+            color: IDPColors.textSecondary,
           ),
           const SizedBox(height: 20),
           Text(
             AppLocalizations.of(context)!.noContentForGrade(_selectedGrade.toString()),
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: const Color(0xFF1E293B),
-            ),
+            style: IDPTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text(
             AppLocalizations.of(context)!.noContentForGradeDescription(_selectedGrade.toString()),
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: const Color(0xFF64748B),
-              fontSize: 15,
-            ),
+            style: IDPTypography.bodyMd.copyWith(color: IDPColors.textSecondary),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(
@@ -457,15 +614,26 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
             icon: const Icon(Icons.download_rounded),
             label: Text(AppLocalizations.of(context)!.installGradeContent(_selectedGrade.toString())),
             style: FilledButton.styleFrom(
-              backgroundColor: const Color(0xFF0B6E4F),
+              backgroundColor: IDPColors.primary,
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(IDPRadius.md),
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  double _getSubjectProgress(CurriculumSubject subject) {
+    if (subject.chapters.isEmpty) return 0.0;
+    int attemptedChapters = 0;
+    for (final chapter in subject.chapters) {
+      if ((_chapterQuizAttempts[chapter.packId] ?? 0) > 0) {
+        attemptedChapters++;
+      }
+    }
+    return attemptedChapters / subject.chapters.length;
   }
 }

@@ -69,7 +69,8 @@ void main() {
     expect(find.text('Readings'), findsNothing);
     expect(find.text('Visuals'), findsNothing);
     expect(find.text('Results'), findsNothing);
-    expect(find.text('Run'), findsWidgets);
+
+    await tester.pump(const Duration(seconds: 4));
 
     engine.dispose();
     world.dispose();

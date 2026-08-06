@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/idp_colors.dart';
+
 class CircleVisualizationPainter extends CustomPainter {
   final double radius;
   CircleVisualizationPainter(this.radius);
@@ -15,17 +17,17 @@ class CircleVisualizationPainter extends CustomPainter {
       center,
       maxRadius,
       Paint()
-        ..color = Colors.grey.withValues(alpha: 0.2)
+        ..color = IDPColors.outlineVariant
         ..style = PaintingStyle.fill,
     );
 
     // Dynamic radius drawing
     final drawRadius = math.min(math.max(radius, 5.0), maxRadius);
     final fillPaint = Paint()
-      ..color = const Color(0xFF8B5CF6).withValues(alpha: 0.5)
+      ..color = IDPColors.tertiary.withValues(alpha: 0.5)
       ..style = PaintingStyle.fill;
     final strokePaint = Paint()
-      ..color = const Color(0xFF6D28D9)
+      ..color = IDPColors.tertiary
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
@@ -71,10 +73,10 @@ class PythagoreanPainter extends CustomPainter {
       ..close();
 
     final fillPaint = Paint()
-      ..color = const Color(0xFF8B5CF6).withValues(alpha: 0.3)
+      ..color = IDPColors.tertiary.withValues(alpha: 0.3)
       ..style = PaintingStyle.fill;
     final strokePaint = Paint()
-      ..color = const Color(0xFF6D28D9)
+      ..color = IDPColors.tertiary
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
@@ -121,8 +123,8 @@ class InterestPainter extends CustomPainter {
     final maxVal = math.max(total, 1.0);
     final scale = size.height / maxVal;
 
-    final pPaint = Paint()..color = const Color(0xFF8B5CF6);
-    final iPaint = Paint()..color = const Color(0xFF10B981);
+    final pPaint = Paint()..color = IDPColors.tertiary;
+    final iPaint = Paint()..color = IDPColors.primary;
 
     // Principal Rect
     canvas.drawRect(
@@ -178,7 +180,7 @@ class SpeedPainter extends CustomPainter {
       Offset(0, trackY),
       Offset(size.width, trackY),
       Paint()
-        ..color = Colors.grey
+        ..color = IDPColors.outlineVariant
         ..strokeWidth = 4,
     );
 
@@ -188,7 +190,7 @@ class SpeedPainter extends CustomPainter {
     canvas.drawCircle(
       Offset(dx, trackY),
       12,
-      Paint()..color = const Color(0xFF8B5CF6),
+      Paint()..color = IDPColors.tertiary,
     );
   }
 
@@ -209,7 +211,7 @@ class PercentagePainter extends CustomPainter {
     final barRect = Rect.fromLTWH(0, size.height / 2 - 10, size.width, 20);
     canvas.drawRRect(
       RRect.fromRectAndRadius(barRect, const Radius.circular(10)),
-      Paint()..color = Colors.grey.shade300,
+      Paint()..color = IDPColors.outlineVariant,
     );
 
     final ratio = math.min(math.max(part / whole, 0.0), 1.0);
@@ -221,7 +223,7 @@ class PercentagePainter extends CustomPainter {
     );
     canvas.drawRRect(
       RRect.fromRectAndRadius(fillRect, const Radius.circular(10)),
-      Paint()..color = const Color(0xFF8B5CF6),
+      Paint()..color = IDPColors.tertiary,
     );
   }
 

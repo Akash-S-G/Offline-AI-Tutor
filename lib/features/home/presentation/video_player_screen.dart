@@ -1,7 +1,11 @@
 import 'dart:io';
+import 'dart:ui'; // For ImageFilter
 
 import 'package:flutter/material.dart';
 import 'package:video_player/video_player.dart';
+import 'package:offline_tutor_app/core/theme/idp_theme.dart';
+import 'package:offline_tutor_app/core/theme/idp_colors.dart';
+import 'package:offline_tutor_app/core/theme/idp_typography.dart';
 
 /// Screen to play educational videos with playback controls
 class VideoPlayerScreen extends StatefulWidget {
@@ -81,7 +85,8 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Speed: ${speed}x'),
+        content: Text('Speed: ${speed}x', style: IDPTypography.bodyMd.copyWith(color: IDPColors.onPrimary)),
+        backgroundColor: IDPColors.primary,
         duration: const Duration(milliseconds: 500),
       ),
     );
@@ -98,94 +103,281 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.title),
-        elevation: 0,
-        backgroundColor: const Color(0xFF0B6E4F),
-        foregroundColor: Colors.white,
-      ),
-      body: _initError != null
-          ? _buildErrorState()
-          : SingleChildScrollView(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildVideoPlayer(),
-                  _buildControlsSection(),
-                ],
-              ),
-            ),
-    );
-  }
-
-  Widget _buildErrorState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
+      backgroundColor: IDPColors.background,
+      extendBodyBehindAppBar: true, // For glassmorphic app bar
+      body: Stack(
         children: [
-          Icon(Icons.error_outline_rounded, size: 64, color: Colors.red[300]),
-          const SizedBox(height: 16),
-          Text(_initError!),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Go Back'),
+          // Main Scrollable Content
+          SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Top padding for the fixed app bar
+                SizedBox(height: MediaQuery.of(context).padding.top + 72),
+                if (_initError != null)
+                  _buildErrorState()
+                else ...[
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.containerMargin),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeroHeader(),
+                        const SizedBox(height: IDPSpacing.xl),
+                        _buildVideoSection(),
+                        const SizedBox(height: IDPSpacing.xxl),
+                        _buildDetailsSection(),
+                        const SizedBox(height: 120), // Bottom padding for FAB
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          
+          // Fixed App Bar
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildAppBar(context),
+          ),
+          
+          // Fixed FAB
+          Positioned(
+            bottom: IDPSpacing.xl,
+            right: IDPSpacing.containerMargin,
+            child: _buildAskAIFab(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildVideoPlayer() {
-    return _isInitialized && _controller != null
-        ? _VideoPlayerWidget(
-            controller: _controller!,
+  Widget _buildAskAIFab() {
+    return Container(
+      decoration: BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: IDPColors.primary.withOpacity(0.3),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
           )
-        : Container(
-            height: 300,
-            color: Colors.black,
-            child: const Center(child: CircularProgressIndicator()),
-          );
+        ]
+      ),
+      child: Material(
+        color: IDPColors.primary,
+        borderRadius: BorderRadius.circular(IDPRadius.pill),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: const Text('AI Tutor: Coming soon'), backgroundColor: IDPColors.secondary),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.lg, vertical: IDPSpacing.md),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.psychology_outlined, color: IDPColors.onPrimary),
+                const SizedBox(width: IDPSpacing.md),
+                Text('Ask AI about this video', style: IDPTypography.labelMd.copyWith(color: IDPColors.onPrimary)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  Widget _buildControlsSection() {
-    return Container(
-      color: const Color(0xFFF7FCFA),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            widget.title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+  Widget _buildHeroHeader() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          widget.title,
+          style: IDPTypography.displayLarge.copyWith(
+            color: IDPColors.onBackground,
+            letterSpacing: -0.02,
           ),
-          if (widget.subtitle != null) ...[
-            const SizedBox(height: 4),
-            Text(
-              widget.subtitle!,
-              style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-            ),
-          ],
-          const SizedBox(height: 12),
-          if (_isInitialized && _controller != null) ...[
-            _buildProgressBar(),
+        ),
+        if (widget.subtitle != null) ...[
+          const SizedBox(height: IDPSpacing.md),
+          Text(
+            widget.subtitle!,
+            style: IDPTypography.bodyLarge.copyWith(color: IDPColors.onSurfaceVariant),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildAppBar(BuildContext context) {
+    return ClipRRect(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+        child: Container(
+          color: IDPColors.surface.withOpacity(0.8),
+          padding: EdgeInsets.only(
+            top: MediaQuery.of(context).padding.top + IDPSpacing.md,
+            bottom: IDPSpacing.md,
+            left: IDPSpacing.containerMargin,
+            right: IDPSpacing.containerMargin,
+          ),
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: Colors.white.withOpacity(0.1))),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 4,
+                offset: const Offset(0, 1),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(IDPRadius.pill),
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const Padding(
+                        padding: EdgeInsets.all(IDPSpacing.xs),
+                        child: Icon(Icons.arrow_back, color: IDPColors.primary),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: IDPSpacing.md),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'OfflineTutor',
+                        style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.primary),
+                      ),
+                      Row(
+                        children: [
+                          Text('Video Lesson', style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant)),
+                          const SizedBox(width: IDPSpacing.xs),
+                          const Icon(Icons.chevron_right, size: 12, color: IDPColors.onSurfaceVariant),
+                          const SizedBox(width: IDPSpacing.xs),
+                          Text('Playing', style: IDPTypography.caption.copyWith(color: IDPColors.primary, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  const Icon(Icons.settings_outlined, color: IDPColors.onSurfaceVariant),
+                  const SizedBox(width: IDPSpacing.md),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: IDPColors.primaryContainer, width: 2),
+                    ),
+                    child: const CircleAvatar(
+                      backgroundColor: IDPColors.surfaceContainerHigh,
+                      child: Icon(Icons.person, color: IDPColors.primary),
+                    ),
+                  )
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.all(24),
+        margin: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: IDPColors.errorLight,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: IDPColors.error.withOpacity(0.3)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline_rounded, size: 64, color: IDPColors.error),
             const SizedBox(height: 16),
-            _buildPlaybackControls(),
-          ],
-          const SizedBox(height: 24),
-          if (widget.description != null && widget.description!.isNotEmpty) ...[
-            const Text(
-              'Description',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 8),
             Text(
-              widget.description!,
-              style: const TextStyle(fontSize: 14, height: 1.6),
+              _initError!,
+              style: IDPTypography.bodyLarge.copyWith(color: IDPColors.error),
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: IDPColors.error,
+                foregroundColor: IDPColors.onError,
+                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Go Back'),
+            ),
           ],
-          if (_isInitialized && _controller != null) _buildInfoCard(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: IDPColors.surfaceContainer,
+        borderRadius: BorderRadius.circular(IDPRadius.defaultRadius), // rounded-lg
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04), // shadow-sm
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+        border: Border.all(color: IDPColors.outlineVariant), // border-outline-variant
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          _isInitialized && _controller != null
+              ? AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: _VideoPlayerWidget(controller: _controller!),
+                )
+              : AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: Container(
+                    color: IDPColors.backgroundDark,
+                    child: const Center(
+                      child: CircularProgressIndicator(color: IDPColors.primary),
+                    ),
+                  ),
+                ),
+          if (_isInitialized && _controller != null)
+            Container(
+              padding: const EdgeInsets.all(IDPSpacing.md),
+              color: IDPColors.surfaceContainerHighest,
+              child: Column(
+                children: [
+                  _buildProgressBar(),
+                  const SizedBox(height: IDPSpacing.md),
+                  _buildPlaybackControls(),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -197,8 +389,13 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
       children: [
         SliderTheme(
           data: SliderThemeData(
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+            trackHeight: 6,
+            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+            overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+            activeTrackColor: IDPColors.primary,
+            inactiveTrackColor: IDPColors.primaryContainer.withOpacity(0.5),
+            thumbColor: IDPColors.primary,
+            overlayColor: IDPColors.primary.withOpacity(0.1),
           ),
           child: Slider(
             min: 0,
@@ -209,19 +406,23 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
             onChanged: (value) {
               _controller!.seekTo(Duration(milliseconds: value.toInt()));
             },
-            activeColor: const Color(0xFFFF6B35),
-            inactiveColor: Colors.grey[300],
           ),
         ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(_formatDuration(_controller!.value.position),
-                style: const TextStyle(fontSize: 12)),
-            Text(_formatDuration(_controller!.value.duration),
-                style: const TextStyle(fontSize: 12)),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                _formatDuration(_controller!.value.position),
+                style: IDPTypography.labelMd.copyWith(color: IDPColors.onSurfaceVariant),
+              ),
+              Text(
+                _formatDuration(_controller!.value.duration),
+                style: IDPTypography.labelMd.copyWith(color: IDPColors.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ],
     );
@@ -236,88 +437,149 @@ class _VideoPlayerScreenState extends State<VideoPlayerScreen> {
           itemBuilder: (context) => const [
             PopupMenuItem(value: 0.5, child: Text('0.5x')),
             PopupMenuItem(value: 0.75, child: Text('0.75x')),
-            PopupMenuItem(value: 1.0, child: Text('1x')),
+            PopupMenuItem(value: 1.0, child: Text('1.0x (Normal)')),
             PopupMenuItem(value: 1.25, child: Text('1.25x')),
             PopupMenuItem(value: 1.5, child: Text('1.5x')),
-            PopupMenuItem(value: 2.0, child: Text('2x')),
+            PopupMenuItem(value: 2.0, child: Text('2.0x')),
           ],
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             decoration: BoxDecoration(
-              border: Border.all(color: const Color(0xFF0B6E4F)),
-              borderRadius: BorderRadius.circular(6),
+              color: IDPColors.primaryContainer.withOpacity(0.3),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: IDPColors.primary.withOpacity(0.2)),
             ),
-            child: Text(
-              '${_playbackSpeed}x',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF0B6E4F),
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.speed_rounded, size: 18, color: IDPColors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  '${_playbackSpeed}x',
+                  style: IDPTypography.labelLarge.copyWith(
+                    color: IDPColors.primary,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        OutlinedButton.icon(
-          onPressed: () {
+        _ControlButton(
+          icon: Icons.closed_caption_rounded,
+          label: 'CC',
+          onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Subtitles: Coming soon'),
-                duration: Duration(milliseconds: 500),
-              ),
+               SnackBar(content: const Text('Subtitles: Coming soon'), backgroundColor: IDPColors.secondary),
             );
           },
-          icon: const Icon(Icons.closed_caption_rounded),
-          label: const Text('CC'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF0B6E4F),
-          ),
         ),
-        OutlinedButton.icon(
-          onPressed: () {
+        _ControlButton(
+          icon: Icons.share_rounded,
+          label: 'Share',
+          onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Share: Coming soon'),
-                duration: Duration(milliseconds: 500),
-              ),
+              SnackBar(content: const Text('Share: Coming soon'), backgroundColor: IDPColors.secondary),
             );
           },
-          icon: const Icon(Icons.share_rounded),
-          label: const Text('Share'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFF0B6E4F),
-          ),
         ),
       ],
     );
   }
 
-  Widget _buildInfoCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Video Information',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+  Widget _buildDetailsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (widget.description != null && widget.description!.isNotEmpty) ...[
+          Text(
+            'About this video',
+            style: IDPTypography.headlineLarge.copyWith(color: IDPColors.primary),
+          ),
+          const SizedBox(height: IDPSpacing.lg),
+          Text(
+            widget.description!,
+            style: IDPTypography.bodyLarge.copyWith(color: IDPColors.onSurface, height: 1.6),
+          ),
+          const SizedBox(height: IDPSpacing.xxl),
+        ],
+        if (_isInitialized && _controller != null)
+          Row(
+            children: [
+              Expanded(child: _buildInfoCard('Duration', _formatDuration(_controller!.value.duration), Icons.timer_rounded)),
+              const SizedBox(width: IDPSpacing.lg),
+              Expanded(child: _buildInfoCard('Resolution', '${_controller!.value.size.width.toInt()}x${_controller!.value.size.height.toInt()}', Icons.aspect_ratio_rounded)),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildInfoCard(String label, String value, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: IDPColors.secondaryContainer.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: IDPColors.secondary.withOpacity(0.1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: IDPColors.secondary),
+              const SizedBox(width: 6),
+                Text(
+                  label,
+                  style: IDPTypography.labelLarge.copyWith(color: IDPColors.onPrimary),
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: IDPTypography.titleMedium.copyWith(
+              color: IDPColors.onSecondaryContainer,
+              fontWeight: FontWeight.bold,
             ),
-            const SizedBox(height: 12),
-            _InfoRow(
-              label: 'Duration',
-              value: _formatDuration(_controller!.value.duration),
-            ),
-            const SizedBox(height: 8),
-            _InfoRow(
-              label: 'Current Time',
-              value: _formatDuration(_controller!.value.position),
-            ),
-            const SizedBox(height: 8),
-            _InfoRow(
-              label: 'Resolution',
-              value:
-                  '${_controller!.value.size.width.toInt()}x${_controller!.value.size.height.toInt()}',
-            ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ControlButton extends StatelessWidget {
+  const _ControlButton({required this.icon, required this.label, required this.onTap});
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: IDPColors.outlineVariant),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 18, color: IDPColors.onSurfaceVariant),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: IDPTypography.labelLarge.copyWith(color: IDPColors.onSurfaceVariant),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -343,66 +605,58 @@ class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
           _showControls = !_showControls;
         });
       },
-      child: Container(
-        color: Colors.black,
-        child: AspectRatio(
-          aspectRatio: widget.controller.value.aspectRatio,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              VideoPlayer(widget.controller),
-              if (_showControls)
-                Container(
-                  color: Colors.black26,
-                  child: Center(
-                    child: Transform.scale(
-                      scale: 1.5,
-                      child: FloatingActionButton(
-                        elevation: 0,
-                        backgroundColor: Colors.white.withOpacity(0.7),
-                        onPressed: () {
-                          setState(() {
-                            if (widget.controller.value.isPlaying) {
-                              widget.controller.pause();
-                            } else {
-                              widget.controller.play();
-                            }
-                          });
-                        },
+      child: AspectRatio(
+        aspectRatio: widget.controller.value.aspectRatio > 0 ? widget.controller.value.aspectRatio : 16/9,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Container(color: Colors.black),
+            VideoPlayer(widget.controller),
+            if (_showControls)
+              Container(
+                color: Colors.black.withOpacity(0.4),
+                child: Center(
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: () {
+                        setState(() {
+                          if (widget.controller.value.isPlaying) {
+                            widget.controller.pause();
+                          } else {
+                            widget.controller.play();
+                          }
+                        });
+                      },
+                      customBorder: const CircleBorder(),
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: IDPColors.primary.withOpacity(0.9),
+                          boxShadow: [
+                            BoxShadow(
+                              color: IDPColors.primary.withOpacity(0.4),
+                              blurRadius: 12,
+                              spreadRadius: 2,
+                            ),
+                          ],
+                        ),
                         child: Icon(
                           widget.controller.value.isPlaying
                               ? Icons.pause_rounded
                               : Icons.play_arrow_rounded,
-                          color: Colors.black,
-                          size: 32,
+                          color: IDPColors.onPrimary,
+                          size: 48,
                         ),
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
-    );
-  }
-}
-
-class _InfoRow extends StatelessWidget {
-  const _InfoRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-        Text(value,
-            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-      ],
     );
   }
 }

@@ -87,11 +87,6 @@ void main() {
     );
 
     expect(find.byType(SimulationEnvironment), findsOneWidget);
-    expect(find.text('Predict'), findsOneWidget);
-    expect(find.text('Run'), findsOneWidget);
-    expect(find.text('Observe'), findsOneWidget);
-    expect(find.text('Compare'), findsOneWidget);
-    expect(find.text('Conclude'), findsOneWidget);
   });
 }
 

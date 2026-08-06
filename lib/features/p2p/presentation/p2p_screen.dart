@@ -1,7 +1,12 @@
 import 'dart:async';
+import 'dart:math' as dart_math;
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/theme/idp_theme.dart';
+import 'dart:ui';
+
 
 import '../../content_packs/application/content_pack_archive_service.dart';
 import '../../content_packs/data/local/content_pack_repository.dart';
@@ -745,769 +750,842 @@ class _P2PScreenState extends State<P2PScreen> with SingleTickerProviderStateMix
     return '${minutes}m ${seconds}s';
   }
 
-  Widget _buildClassroomConnectionSection(BuildContext context) {
-    final connection = _classroomConnection;
-    final classroom = connection.currentClassroom;
-    final available = connection.availableClassrooms;
+  // ================= UI SECTION =================
+  Widget _buildTopStatusBar() {
+    final isConnected = _classroomConnection.isConnected;
+    final name = _classroomConnection.currentClassroom?.name ?? "Unknown";
+    final latency = _classroomConnection.currentClassroom?.latencyMs ?? 0;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: isConnected ? Colors.teal.shade900 : Colors.red.shade900,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: SafeArea(
+        bottom: false,
+        child: Row(
           children: [
-            Row(
-              children: [
-                Icon(
-                  connection.isConnected ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
-                  color: connection.isConnected ? Colors.green : Colors.orange,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        connection.isConnected
-                            ? classroom?.name ?? 'Connected Classroom'
-                            : 'Classroom connection',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                      Text(
-                        connection.isConnected
-                            ? classroom?.gatewayUrl ?? ''
-                            : _classroomStatusText(connection.state),
-                        style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                      ),
-                    ],
-                  ),
-                ),
-                if (connection.isDiscovering)
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                else
-                  IconButton(
-                    onPressed: () => connection.discover(force: true),
-                    tooltip: 'Refresh',
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
-              ],
-            ),
-            if (connection.isConnected && classroom != null) ...[
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  Chip(
-                    avatar: const Icon(Icons.hub_rounded, size: 16),
-                    label: Text('Node: ${classroom.nodeId}'),
-                  ),
-                  if (classroom.studentCount != null)
-                    Chip(
-                      avatar: const Icon(Icons.people_alt_rounded, size: 16),
-                      label: Text('${classroom.studentCount} students'),
-                    ),
-                  if (classroom.latencyMs != null)
-                    Chip(
-                      avatar: const Icon(Icons.speed_rounded, size: 16),
-                      label: Text('${classroom.latencyMs} ms'),
-                    ),
-                ],
+            Container(
+              width: 8,
+              height: 8,
+              decoration: BoxDecoration(
+                color: isConnected ? Colors.tealAccent : Colors.redAccent,
+                shape: BoxShape.circle,
               ),
-            ],
-            if (!connection.isConnected && !connection.isDiscovering && available.isEmpty) ...[
-              const SizedBox(height: 12),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                isConnected ? "Local Mesh: Connected to $name" : "Local Mesh: Disconnected",
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (isConnected)
               Text(
-                'No classroom found. Check that this device and the PiHub are on the same Wi-Fi network.',
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                "Lat: ${latency}ms",
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                ),
               ),
-            ],
-            if (!connection.isConnected && available.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              ...available.map((item) => Card(
-                elevation: 0,
-                color: Colors.grey.shade50,
-                margin: const EdgeInsets.only(bottom: 8),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: Colors.grey.shade200),
-                ),
-                child: ListTile(
-                  leading: const Icon(Icons.meeting_room_rounded, color: Colors.indigo),
-                  title: Text(item.name),
-                  subtitle: Text(item.gatewayUrl),
-                  trailing: FilledButton(
-                    onPressed: () => connection.connect(item),
-                    child: const Text('Connect'),
-                  ),
-                ),
-              )),
-            ],
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                if (!connection.isConnected) ...[
-                  Expanded(
-                    child: FilledButton.icon(
-                      onPressed: connection.isDiscovering ? null : () => connection.discover(force: true),
-                      icon: const Icon(Icons.wifi_find_rounded),
-                      label: const Text('Search'),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _showManualClassroomDialog,
-                    icon: const Icon(Icons.edit_location_alt_outlined),
-                    label: const Text('Manual IP'),
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTelemetrySection() {
-    final sendTelemetry = _telemetry.send;
-    final receiveTelemetry = _telemetry.receive;
-    if (sendTelemetry == null && receiveTelemetry == null) {
-      return const SizedBox.shrink();
-    }
-
-    return Card(
+  Widget _buildAppBar() {
+    return SliverAppBar(
+      backgroundColor: Colors.transparent,
       elevation: 0,
-      margin: const EdgeInsets.only(bottom: 16),
-      color: Colors.indigo.shade50,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: Colors.indigo.shade100),
+      pinned: true,
+      expandedHeight: 80,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
+          child: Row(
+            children: [
+              Text(
+                'OfflineTutor',
+                style: IDPTypography.heading1.copyWith(
+                  color: IDPColors.textPrimary,
+                  fontSize: 24,
+                ),
+              ),
+              const Spacer(),
+              _buildNavButton("Explore", true),
+              _buildNavButton("Resources", false),
+              _buildNavButton("Collaborate", false),
+              const SizedBox(width: 16),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: IDPColors.primaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.person, color: IDPColors.primary),
+              ),
+            ],
+          ),
+        ),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Row(
-              children: [
-                Icon(Icons.bolt_rounded, color: Colors.indigo),
-                SizedBox(width: 8),
-                Text('Active Transfer Progress', style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            if (sendTelemetry != null) ...[
-              const SizedBox(height: 12),
-              Text('Sending: ${sendTelemetry.fileName}'),
-              const SizedBox(height: 6),
-              LinearProgressIndicator(value: (sendTelemetry.progressPct.clamp(0, 100)) / 100),
-              const SizedBox(height: 6),
-              Text(
-                'Speed: ${_formatThroughput(sendTelemetry.throughputBps)} | ETA: ${_formatEta(sendTelemetry.etaSeconds)}',
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
-              ),
-            ],
-            if (receiveTelemetry != null) ...[
-              const SizedBox(height: 12),
-              Text('Receiving: ${receiveTelemetry.fileName}'),
-              const SizedBox(height: 6),
-              LinearProgressIndicator(
-                value: (receiveTelemetry.progressPct.clamp(0, 100)) / 100,
-                color: Colors.green,
-                backgroundColor: Colors.green.shade100,
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'Speed: ${_formatThroughput(receiveTelemetry.throughputBps)} | ETA: ${_formatEta(receiveTelemetry.etaSeconds)}',
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
-              ),
-            ],
-          ],
+    );
+  }
+
+  Widget _buildNavButton(String label, bool isSelected) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        label,
+        style: IDPTypography.body.copyWith(
+          color: isSelected ? IDPColors.primary : IDPColors.textSecondary,
+          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
         ),
       ),
     );
   }
 
   Widget _buildPermissionsSection() {
-    final permissionStatus = _permissionStatus;
-    if (permissionStatus == null || permissionStatus.allGranted) {
-      return const SizedBox.shrink();
-    }
+    if (_status == null || _status!.enabled) return const SizedBox.shrink();
 
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.only(bottom: 16),
-      color: const Color(0xFFFFF7ED),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFFED7AA)),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: IDPColors.warning.withValues(alpha: 0.1),
+        border: Border.all(color: IDPColors.warning.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(IDPRadius.lg),
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded, color: IDPColors.warning),
+          const SizedBox(width: 16),
+          const Expanded(
+            child: Text(
+              'Permissions required for P2P networking',
+              style: TextStyle(color: IDPColors.textPrimary),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: IDPColors.warning,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.md)),
+            ),
+            onPressed: () {
+              _service.requestPermissions();
+            },
+            child: const Text('Enable'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTelemetrySection() {
+    final sendTelemetry = _telemetry?.send;
+    final receiveTelemetry = _telemetry?.receive;
+    if (sendTelemetry == null && receiveTelemetry == null) return const SizedBox.shrink();
+
+    return Column(
+      children: [
+        if (sendTelemetry != null)
+          _buildTelemetryCard('Sending', sendTelemetry),
+        if (receiveTelemetry != null)
+          _buildTelemetryCard('Receiving', receiveTelemetry),
+      ],
+    );
+  }
+
+  Widget _buildTelemetryCard(String label, P2PTransferTelemetry telemetry) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.lg),
+        border: Border.all(color: IDPColors.surfaceVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(child: Text('$label: ${telemetry.fileName}', style: IDPTypography.heading3, overflow: TextOverflow.ellipsis)),
+              Text(
+                '${telemetry.progressPct.toStringAsFixed(1)}%',
+                style: IDPTypography.body.copyWith(color: IDPColors.primary, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(
+            value: (telemetry.progressPct.clamp(0, 100)) / 100,
+            backgroundColor: IDPColors.surfaceVariant,
+            valueColor: const AlwaysStoppedAnimation<Color>(IDPColors.primary),
+            borderRadius: BorderRadius.circular(4),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '${(telemetry.transferredBytes / 1024 / 1024).toStringAsFixed(2)} MB / ${(telemetry.totalBytes / 1024 / 1024).toStringAsFixed(2)} MB',
+            style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRadarSection() {
+    return Container(
+      height: 400,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.xl),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+        boxShadow: [
+          BoxShadow(
+            color: IDPColors.primary.withValues(alpha: 0.05),
+            blurRadius: 24,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(IDPRadius.xl),
+        child: Stack(
+          alignment: Alignment.center,
           children: [
-            const Row(
-              children: [
-                Icon(Icons.warning_amber_rounded, color: Colors.orange),
-                SizedBox(width: 8),
-                Text('Local Network Permissions Missing', style: TextStyle(fontWeight: FontWeight.bold)),
-              ],
+            // Background Grid (Simulation)
+            Positioned.fill(
+              child: Opacity(
+                opacity: 0.1,
+                child: CustomPaint(
+                  painter: _GridPainter(),
+                ),
+              ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'To find other devices nearby and transfer materials offline, this app needs Wi-Fi Direct and Local Network access permissions.',
-              style: TextStyle(fontSize: 13, height: 1.4),
+            
+            // Radar Rings
+            for (var i = 1; i <= 4; i++)
+              Container(
+                width: i * 80.0,
+                height: i * 80.0,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: IDPColors.primary.withValues(alpha: 0.2 - (i * 0.04)),
+                    width: 1,
+                  ),
+                ),
+              ),
+
+            // Center Node
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(
+                color: IDPColors.primaryContainer,
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: IDPColors.primary.withValues(alpha: 0.4),
+                    blurRadius: 16,
+                    spreadRadius: 4,
+                  ),
+                ],
+              ),
+              child: const Icon(Icons.wifi_tethering, color: IDPColors.primary, size: 30),
             ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _processingTransfer ? null : _requestPermissions,
-              icon: const Icon(Icons.security_rounded),
-              label: const Text('Grant Permissions'),
-              style: FilledButton.styleFrom(backgroundColor: Colors.orange.shade800),
-            ),
+
+            // Peers mapping
+            ..._peers.asMap().entries.map((entry) {
+              final index = entry.key;
+              final peer = entry.value;
+              
+              // distribute them around the circle
+              final angle = (index * (3.14159 * 2) / (_peers.isNotEmpty ? _peers.length : 1));
+              final radius = 100.0 + (index % 2 * 40.0);
+              
+              return Transform.translate(
+                offset: Offset(radius * dart_math_cos(angle), radius * dart_math_sin(angle)),
+                child: GestureDetector(
+                  onTap: () => _showPeerActionDialog(peer),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: IDPColors.secondaryLight,
+                          border: Border.all(color: Colors.white, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 8,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Icon(Icons.person, color: IDPColors.secondary, size: 24),
+                      ),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: IDPColors.surface.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: IDPColors.surfaceVariant),
+                        ),
+                        child: Text(
+                          peer.name.isEmpty ? peer.address : peer.name,
+                          style: IDPTypography.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSendTab(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildPermissionsSection(),
-          _buildTelemetrySection(),
-          
-          // Nearby devices selector
-          const Text(
-            '1. Choose Target Device',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 8),
-          _peers.isEmpty
-              ? Container(
-                  padding: const EdgeInsets.all(24),
+  double dart_math_cos(double radians) => dart_math.cos(radians);
+  double dart_math_sin(double radians) => dart_math.sin(radians);
+
+  Widget _buildActiveStudyRoomsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Active Study Rooms', style: IDPTypography.heading2),
+            TextButton(
+              onPressed: () {},
+              child: const Text('See All', style: TextStyle(color: IDPColors.primary)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_classroomConnection.availableClassrooms.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: IDPColors.surface,
+              borderRadius: BorderRadius.circular(IDPRadius.lg),
+              border: Border.all(color: IDPColors.surfaceVariant),
+            ),
+            child: const Column(
+              children: [
+                Icon(Icons.search_off, size: 48, color: IDPColors.textSecondary),
+                SizedBox(height: 16),
+                Text('No active rooms found nearby.', style: TextStyle(color: IDPColors.textSecondary)),
+              ],
+            ),
+          )
+        else
+          SizedBox(
+            height: 180,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _classroomConnection.availableClassrooms.length,
+              separatorBuilder: (context, index) => const SizedBox(width: 16),
+              itemBuilder: (context, index) {
+                final room = _classroomConnection.availableClassrooms[index];
+                return Container(
+                  width: 240,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.grey.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'Scanning for nearby devices...',
-                        style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Make sure the target device has "Receive" mode turned on and is on the same Wi-Fi connection.',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
-                        textAlign: TextAlign.center,
+                    color: IDPColors.surface,
+                    borderRadius: BorderRadius.circular(IDPRadius.lg),
+                    border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                )
-              : ListView.separated(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: _peers.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final peer = _peers[index];
-                    final selected = _selectedPeer?.address == peer.address;
-                    return InkWell(
-                      onTap: () {
-                        setState(() {
-                          _selectedPeer = peer;
-                        });
-                      },
-                      borderRadius: BorderRadius.circular(16),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(IDPRadius.lg),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                       child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: selected ? Colors.indigo.shade50 : Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: selected ? Colors.indigo : Colors.grey.shade200,
-                            width: selected ? 2 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            CircleAvatar(
-                              backgroundColor: selected ? Colors.indigo.shade100 : Colors.grey.shade100,
-                              child: Icon(
-                                Icons.devices_rounded,
-                                color: selected ? Colors.indigo : Colors.grey.shade600,
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    peer.name,
-                                    style: const TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    peer.address,
-                                    style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Icon(
-                              selected ? Icons.radio_button_checked_rounded : Icons.radio_button_off_rounded,
-                              color: selected ? Colors.indigo : Colors.grey.shade400,
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-          
-          const SizedBox(height: 24),
-          const Text(
-            '2. Choose Material to Send',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-          const SizedBox(height: 12),
-
-          // Pack send Card
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey.shade200),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.inventory_2_rounded, color: Colors.indigo),
-                      SizedBox(width: 8),
-                      Text('Send Content Pack', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _installedPacks.isEmpty
-                      ? const Text('No content packs installed on this device.')
-                      : DropdownButtonFormField<ContentPackManifest>(
-                          initialValue: _selectedPack,
-                          isExpanded: true,
-                          items: _installedPacks
-                              .map(
-                                (pack) => DropdownMenuItem<ContentPackManifest>(
-                                  value: pack,
-                                  child: Text(
-                                    '${pack.title} (v${pack.version})',
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _selectedPack = value;
-                            });
-                          },
-                          decoration: const InputDecoration(
-                            labelText: 'Installed Packs',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _processingBundle || _processingTransfer || _selectedPack == null || _selectedPeer == null
-                        ? null
-                        : () => _exportAndSendPack(_selectedPack!, _selectedPeer!),
-                    icon: const Icon(Icons.send_rounded),
-                    label: const Text('Send Selected Pack'),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 12),
-
-          // Custom chapter bundle Card
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey.shade200),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.folder_zip_rounded, color: Colors.indigo),
-                      SizedBox(width: 8),
-                      Text('Send Chapter Materials', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _chapters.isEmpty
-                      ? const Text('No chapter syllabus materials available to send.')
-                      : DropdownButtonFormField<String>(
-                          initialValue: _selectedChapterId,
-                          isExpanded: true,
-                          items: _chapters
-                              .map(
-                                (chapter) => DropdownMenuItem<String>(
-                                  value: chapter.id,
-                                  child: Text(
-                                    chapter.title,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setState(() {
-                              _selectedChapterId = value;
-                              _selectedChapter = _chapters.firstWhere((ch) => ch.id == value);
-                            });
-                          },
-                          decoration: const InputDecoration(
-                            labelText: 'Chapters',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _processingBundle || _processingTransfer || _selectedChapter == null || _selectedPeer == null
-                        ? null
-                        : () => _exportAndSendChapter(_selectedChapter!, _selectedPeer!),
-                    icon: const Icon(Icons.send_rounded),
-                    label: const Text('Send Selected Chapter'),
-                  ),
-                  if (_exportProgress != null) ...[
-                    const SizedBox(height: 16),
-                    Card(
-                      elevation: 0,
-                      color: Colors.indigo.shade50,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.indigo.shade100),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(20),
+                        color: Colors.white.withValues(alpha: 0.5),
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Exporting: ${(_exportProgress!.percentComplete * 100).toStringAsFixed(0)}%',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: const BoxDecoration(
+                                    color: IDPColors.primaryContainer,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.school, color: IDPColors.primary, size: 20),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(room.name, style: IDPTypography.heading3, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                      const SizedBox(height: 2),
+                                      Text('${room.latencyMs}ms ping', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            LinearProgressIndicator(value: _exportProgress!.percentComplete),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Processing segment ${_exportProgress!.current} of ${_exportProgress!.total}',
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                            const Spacer(),
+                            Row(
+                              children: [
+                                _buildMiniAvatar(Colors.blue),
+                                Transform.translate(offset: const Offset(-8, 0), child: _buildMiniAvatar(Colors.pink)),
+                                Transform.translate(offset: const Offset(-16, 0), child: _buildMiniAvatar(Colors.orange)),
+                                const Spacer(),
+                                ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: IDPColors.primary,
+                                    foregroundColor: Colors.white,
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  ),
+                                  onPressed: () => _classroomConnection.connect(room),
+                                  child: const Text('Join'),
+                                ),
+                              ],
                             ),
                           ],
                         ),
                       ),
                     ),
-                  ],
-                ],
-              ),
+                  ),
+                );
+              },
             ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildMiniAvatar(Color color) {
+    return Container(
+      width: 24,
+      height: 24,
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+    );
+  }
+
+  Widget _buildSharedResourcesSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Shared Resources', style: IDPTypography.heading2),
+            Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.filter_list),
+                  onPressed: () {},
+                ),
+                IconButton(
+                  icon: const Icon(Icons.upload_file),
+                  onPressed: _importBundle,
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_receivedBundles.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(32),
+            decoration: BoxDecoration(
+              color: IDPColors.surface,
+              borderRadius: BorderRadius.circular(IDPRadius.lg),
+              border: Border.all(color: IDPColors.surfaceVariant),
+            ),
+            child: const Column(
+              children: [
+                Icon(Icons.folder_open, size: 48, color: IDPColors.textSecondary),
+                SizedBox(height: 16),
+                Text('No received resources.', style: TextStyle(color: IDPColors.textSecondary)),
+              ],
+            ),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 0.85,
+            ),
+            itemCount: _receivedBundles.length,
+            itemBuilder: (context, index) {
+              final bundle = _receivedBundles[index];
+              return Container(
+                decoration: BoxDecoration(
+                  color: IDPColors.surface,
+                  borderRadius: BorderRadius.circular(IDPRadius.lg),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: IDPColors.secondaryLight.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.inventory_2, color: IDPColors.secondary),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(bundle.name, style: IDPTypography.heading3, maxLines: 2, overflow: TextOverflow.ellipsis),
+                      const SizedBox(height: 4),
+                      Text('${'Content Pack'} • ${(bundle.sizeBytes / 1024 / 1024).toStringAsFixed(1)} MB', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                      const Spacer(),
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: IDPColors.primary,
+                            side: const BorderSide(color: IDPColors.primary),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          ),
+                          onPressed: () => _importReceivedBundle(bundle),
+                          child: const Text('Import'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  Widget _buildErrorCard() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: IDPColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(IDPRadius.md),
+        border: Border.all(color: IDPColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: IDPColors.error),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _error!,
+              style: const TextStyle(color: IDPColors.error),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, color: IDPColors.error),
+            onPressed: () => setState(() => _error = null),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildReceiveTab(BuildContext context) {
-    final receiverActive = _status?.receiverRunning == true;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildPermissionsSection(),
-          _buildTelemetrySection(),
-
-          // Receiver on/off status card
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(
-                color: receiverActive ? Colors.green.shade300 : Colors.grey.shade300,
-                width: receiverActive ? 1.5 : 1,
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: receiverActive ? Colors.green : Colors.grey,
-                      boxShadow: [
-                        if (receiverActive)
-                          BoxShadow(
-                            color: Colors.green.withAlpha(100),
-                            blurRadius: 8,
-                            spreadRadius: 2,
-                          ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          receiverActive ? 'Receiver is Active' : 'Receiver is Offline',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          receiverActive 
-                              ? 'Your device can be found by others on the network.' 
-                              : 'Turn on receiver to allow others to send packs to you.',
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Switch.adaptive(
-                    value: receiverActive,
-                    onChanged: (_) => _toggleReceiver(),
-                    activeColor: Colors.green,
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 24),
-
-          // Import Local Files Action
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Import Materials',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              OutlinedButton.icon(
-                onPressed: _processingBundle ? null : _importBundle,
-                icon: const Icon(Icons.folder_open_rounded),
-                label: const Text('Pick Local File'),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 12),
-
-          // Received inbox
-          Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-              side: BorderSide(color: Colors.grey.shade200),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Row(
-                    children: [
-                      Icon(Icons.inbox_rounded, color: Colors.indigo),
-                      SizedBox(width: 8),
-                      Text('Received Files Inbox', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  _receivedBundles.isEmpty
-                      ? Center(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 24),
-                            child: Text(
-                              'No received files waiting to be imported.',
-                              style: TextStyle(color: Colors.grey.shade500),
-                            ),
-                          ),
-                        )
-                      : ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: _receivedBundles.length,
-                          separatorBuilder: (_, __) => Divider(color: Colors.grey.shade100),
-                          itemBuilder: (context, index) {
-                            final bundle = _receivedBundles[index];
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              leading: const Icon(Icons.archive_outlined, color: Colors.indigo),
-                              title: Text(
-                                bundle.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                              subtitle: Text(
-                                '${(bundle.sizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB',
-                                style: const TextStyle(fontSize: 12),
-                              ),
-                              trailing: FilledButton.icon(
-                                onPressed: _processingBundle ? null : () => _importReceivedBundle(bundle),
-                                icon: const Icon(Icons.install_desktop_rounded, size: 16),
-                                label: const Text('Import'),
-                              ),
-                            );
-                          },
-                        ),
-                  if (_importProgress != null) ...[
-                    const SizedBox(height: 16),
-                    Card(
-                      elevation: 0,
-                      color: Colors.green.shade50,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.green.shade100),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Text(
-                              'Importing: ${(_importProgress!.percentComplete * 100).toStringAsFixed(0)}%',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.green),
-                            ),
-                            const SizedBox(height: 8),
-                            LinearProgressIndicator(
-                              value: _importProgress!.percentComplete,
-                              color: Colors.green,
-                              backgroundColor: Colors.green.shade100,
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Processing segment ${_importProgress!.current} of ${_importProgress!.total}',
-                              style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-            ),
+  Widget _buildBottomNavBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: IDPColors.surface.withValues(alpha: 0.8),
+        border: const Border(top: BorderSide(color: Colors.white10)),
+        boxShadow: [
+          BoxShadow(
+            color: IDPColors.primary.withValues(alpha: 0.08),
+            blurRadius: 30,
+            offset: const Offset(0, -10),
           ),
         ],
       ),
+      child: ClipRRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: NavigationBar(
+            selectedIndex: 1, 
+            backgroundColor: Colors.transparent,
+            indicatorColor: IDPColors.primaryContainer,
+            indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.full)),
+            onDestinationSelected: (index) {
+              if (index == 0) {
+                Navigator.pop(context); 
+              }
+            },
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                selectedIcon: Icon(Icons.home, color: IDPColors.onPrimaryContainer),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.group_outlined),
+                selectedIcon: Icon(Icons.group, color: IDPColors.onPrimaryContainer),
+                label: 'P2P',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.person_outline),
+                selectedIcon: Icon(Icons.person, color: IDPColors.onPrimaryContainer),
+                label: 'Profile',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showPeerActionDialog(P2PPeer peer) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: IDPColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: const BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: IDPColors.secondaryLight,
+                      ),
+                      child: const Icon(Icons.person, color: IDPColors.secondary),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            peer.name.isEmpty ? peer.address : peer.name,
+                            style: IDPTypography.heading2,
+                          ),
+                          const SizedBox(height: 4),
+                          Text('Ready to receive files', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 32),
+                Text('Send to peer', style: IDPTypography.heading3),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.book, color: IDPColors.primary),
+                  title: const Text('Send Chapter'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showSendChapterDialog(peer);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.inventory_2, color: IDPColors.secondary),
+                  title: const Text('Send Content Pack'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showSendPackDialog(peer);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSendChapterDialog(P2PPeer peer) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select Chapter to Send'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: ListView.builder(
+              itemCount: _chapters.length,
+              itemBuilder: (context, index) {
+                final chapter = _chapters[index];
+                return ListTile(
+                  title: Text(chapter.title),
+                  subtitle: Text('ID: ${chapter.id}'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _exportAndSendChapter(chapter, peer);
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSendPackDialog(P2PPeer peer) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Select Content Pack to Send'),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: 300,
+            child: ListView.builder(
+              itemCount: _installedPacks.length,
+              itemBuilder: (context, index) {
+                final pack = _installedPacks[index];
+                return ListTile(
+                  title: Text(pack.title),
+                  subtitle: Text('${pack.subject} - ${(1).toStringAsFixed(1)} MB'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _exportAndSendPack(pack, peer);
+                  },
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_loading) {
+      return const Scaffold(
+        backgroundColor: IDPColors.background, 
+        body: Center(child: CircularProgressIndicator(color: IDPColors.primary))
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Offline Sharing (P2P)'),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: Colors.white,
-          tabs: const [
-            Tab(
-              icon: Icon(Icons.send_rounded),
-              text: 'Send',
-            ),
-            Tab(
-              icon: Icon(Icons.download_rounded),
-              text: 'Receive',
-            ),
-            Tab(
-              icon: Icon(Icons.cloud_sync_rounded),
-              text: 'Classroom',
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            onPressed: _refresh,
-            tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh_rounded),
+      backgroundColor: IDPColors.background,
+      extendBody: true,
+      body: Stack(
+        children: [
+          CustomScrollView(
+            slivers: [
+              _buildAppBar(),
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24).copyWith(bottom: 120),
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate([
+                    if (_error != null) _buildErrorCard(),
+                    _buildPermissionsSection(),
+                    _buildTelemetrySection(),
+                    _buildRadarSection(),
+                    const SizedBox(height: 48),
+                    _buildActiveStudyRoomsSection(),
+                    const SizedBox(height: 48),
+                    _buildSharedResourcesSection(),
+                  ]),
+                ),
+              ),
+            ],
+          ),
+          
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: _buildTopStatusBar(),
           ),
         ],
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
-                _buildSendTab(context),
-                _buildReceiveTab(context),
-                SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      if (_error != null)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: Colors.red.shade200),
-                          ),
-                          child: Text(
-                            _error!,
-                            style: TextStyle(color: Colors.red.shade800),
-                          ),
-                        ),
-                      _buildClassroomConnectionSection(context),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _toggleReceiver,
+        backgroundColor: IDPColors.secondary,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        child: _status?.receiverRunning == true ? const Icon(Icons.wifi_tethering_rounded) : const Icon(Icons.wifi_tethering_off_rounded),
+      ),
+      bottomNavigationBar: _buildBottomNavBar(),
     );
   }
+}
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.black
+      ..strokeWidth = 1;
+    
+    final step = 20.0;
+    
+    for (var x = 0.0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    
+    for (var y = 0.0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../../../core/theme/idp_colors.dart';
+import '../../../../core/theme/idp_typography.dart';
 import '../../../course/domain/curriculum_experiment_mapper.dart';
 import '../../builder/screens/experiment_builder_screen.dart';
 import '../../builder/storage/builder_draft_manager.dart';
@@ -87,14 +89,16 @@ class _TemplateGalleryScreenState extends State<TemplateGalleryScreen> {
     final templates = ExperimentTemplates.allTemplates;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('Explore Experiments'),
-        backgroundColor: const Color(0xFF0F172A),
-        foregroundColor: Colors.white,
+        title: const Text('Experiment Catalog'),
+        backgroundColor: IDPColors.surface.withValues(alpha: 0.9),
+        elevation: 0,
+        iconTheme: const IconThemeData(color: IDPColors.primary),
+        titleTextStyle: IDPTypography.titleMedium.copyWith(color: IDPColors.textPrimary),
       ),
       body: _isSaving
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: IDPColors.primary))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: templates.length,
@@ -132,141 +136,101 @@ class _ExperimentCatalogCard extends StatelessWidget {
 
     final category = metadata['category'] ?? 'General';
     final difficulty = metadata['difficulty'] ?? 'Medium';
-    final grade = metadata['grade'] ?? 'General';
-    final subject = metadata['subject'] ?? 'Science';
-    final estimatedTime = metadata['estimatedTime'] ?? '15 mins';
     final name = scene['name'] ?? 'Untitled Experiment';
-    final description =
-        scene['description'] ?? 'Investigate, observe, and record evidence.';
+    final estimatedTime = metadata['estimatedTime'] ?? '15 mins';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
+    return GestureDetector(
+      onTap: onDetails,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: IDPColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: IDPColors.outlineVariant.withValues(alpha: 0.3),
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 58,
-                  height: 58,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(
-                    Icons.science_rounded,
-                    color: Color(0xFF10B981),
-                    size: 30,
-                  ),
+            // Image Placeholder area
+            Container(
+              height: 120,
+              decoration: BoxDecoration(
+                color: IDPColors.primaryContainer.withValues(alpha: 0.3),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: Center(
+                child: Icon(
+                  Icons.science_outlined,
+                  size: 48,
+                  color: IDPColors.primary.withValues(alpha: 0.5),
                 ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.toString().toUpperCase(),
+                    style: IDPTypography.labelSmall.copyWith(
+                      color: IDPColors.secondary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    name.toString(),
+                    style: IDPTypography.titleMedium,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '${estimatedTime.toString()} • Difficulty: ${difficulty.toString()}',
+                    style: IDPTypography.bodySmall.copyWith(
+                      color: IDPColors.onSurfaceVariant,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
                     children: [
-                      Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w900,
-                          color: Color(0xFF0F172A),
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: onEdit,
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: IDPColors.primary),
+                          ),
+                          child: const Text('EDIT'),
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        description,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF64748B),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: onStart,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: IDPColors.primary,
+                          ),
+                          child: const Text('START'),
                         ),
                       ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                _MetaBadge(Icons.category_rounded, category.toString()),
-                _MetaBadge(Icons.school_rounded, grade.toString()),
-                _MetaBadge(Icons.book_rounded, subject.toString()),
-                _MetaBadge(Icons.schedule_rounded, estimatedTime.toString()),
-                _MetaBadge(Icons.leaderboard_rounded, difficulty.toString()),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: onStart,
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Start'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: onDetails,
-                    icon: const Icon(Icons.info_outline_rounded),
-                    label: const Text('Details'),
-                  ),
-                ),
-              ],
-            ),
-            Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                onPressed: onEdit,
-                icon: const Icon(Icons.tune_rounded, size: 18),
-                label: const Text('Edit Template'),
+                ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-class _MetaBadge extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _MetaBadge(this.icon, this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: const Color(0xFF475569)),
-        const SizedBox(width: 4),
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF475569),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
     );
   }
 }

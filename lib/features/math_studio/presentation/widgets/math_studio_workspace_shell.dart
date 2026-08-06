@@ -26,9 +26,14 @@ class MathStudioWorkspaceShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: Text(title),
-        backgroundColor: accentColor,
-        foregroundColor: Colors.white,
+        title: Text(title, style: IDPTypography.titleMedium.copyWith(color: accentColor)),
+        backgroundColor: IDPColors.surface.withValues(alpha: 0.8),
+        foregroundColor: accentColor,
+        centerTitle: false,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: accentColor),
+        shape: Border(bottom: BorderSide(color: IDPColors.outlineVariant.withValues(alpha: 0.5))),
         actions: actions,
       ),
       body: SafeArea(

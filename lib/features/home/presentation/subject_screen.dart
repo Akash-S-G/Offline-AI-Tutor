@@ -4,6 +4,15 @@ import '../../course/domain/curriculum_models.dart';
 import '../../assessment/data/local/quiz_result_repository.dart';
 import '../../assessment/domain/quiz_result.dart';
 import 'chapter_dashboard_screen.dart';
+import 'pdf_chapter_reader_screen.dart';
+import 'quiz_player_screen.dart';
+import 'chapter_summary_screen.dart';
+import '../../chat/presentation/chapter_chat_screen.dart';
+import '../../course/domain/course_tree.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/theme/idp_typography.dart';
+import '../../../core/theme/idp_theme.dart';
+import '';
 
 class SubjectScreen extends StatefulWidget {
   const SubjectScreen({
@@ -21,6 +30,7 @@ class _SubjectScreenState extends State<SubjectScreen> {
   final QuizResultRepository _quizRepo = QuizResultRepository();
   Map<String, QuizResult?> _chapterResults = {};
   bool _loading = true;
+  int? _expandedChapterIndex;
 
   @override
   void initState() {
@@ -47,205 +57,251 @@ class _SubjectScreenState extends State<SubjectScreen> {
     }
   }
 
-  Color _getSubjectColor(String name) {
-    final lower = name.toLowerCase();
-    if (lower.contains('math')) {
-      return const Color(0xFF6366F1);
-    } else if (lower.contains('science')) {
-      return const Color(0xFF0D9488);
-    } else if (lower.contains('english')) {
-      return const Color(0xFFD97706);
-    } else if (lower.contains('kannada')) {
-      return const Color(0xFFDC2626);
-    } else if (lower.contains('social')) {
-      return const Color(0xFF8B5CF6);
-    }
-    return const Color(0xFF4B5563);
-  }
-
   @override
   Widget build(BuildContext context) {
-    final themeColor = _getSubjectColor(widget.subject.name);
-
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: Text(widget.subject.name),
-        backgroundColor: themeColor,
-        foregroundColor: Colors.white,
+        title: Text(widget.subject.name, style: IDPTypography.titleLarge.copyWith(color: IDPColors.onSurface)),
+        backgroundColor: IDPColors.surface.withValues(alpha: 0.8),
+        foregroundColor: IDPColors.onSurface,
         elevation: 0,
+        centerTitle: true,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0B6E4F)))
+          ? const Center(child: CircularProgressIndicator(color: IDPColors.primary))
           : widget.subject.chapters.isEmpty
               ? _buildEmptyState()
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  padding: const EdgeInsets.symmetric(vertical: IDPSpacing.lg),
                   itemCount: widget.subject.chapters.length + 1,
                   itemBuilder: (context, index) {
                     if (index == 0) {
                       return Padding(
-                        padding: const EdgeInsets.only(left: 16, right: 16, bottom: 24),
-                        child: _buildSubjectAnalytics(themeColor),
+                        padding: const EdgeInsets.only(left: IDPSpacing.lg, right: IDPSpacing.lg, bottom: IDPSpacing.xl),
+                        child: Text(
+                          'Course Curriculum',
+                          style: IDPTypography.headlineLarge.copyWith(color: IDPColors.onSurface),
+                        ),
                       );
                     }
                     final chapterIndex = index - 1;
                     final chapter = widget.subject.chapters[chapterIndex];
                     final result = _chapterResults[chapter.packId];
                     return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: _buildChapterCard(chapter, result, chapterIndex + 1, themeColor),
+                      padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.lg),
+                      child: _buildAccordionChapterCard(chapter, result, chapterIndex + 1),
                     );
                   },
                 ),
     );
   }
 
-  Widget _buildSubjectAnalytics(Color themeColor) {
-    int totalQuizzes = 0;
-    int correctAnswers = 0;
-    int chaptersCompleted = 0;
-
-    for (final result in _chapterResults.values) {
-      if (result != null) {
-        chaptersCompleted++;
-        totalQuizzes += result.totalQuestions;
-        correctAnswers += (result.score / 100 * result.totalQuestions).round();
-      }
-    }
-
-    final double progress = widget.subject.chapters.isEmpty ? 0 : (chaptersCompleted / widget.subject.chapters.length) * 100;
-    final double avgScore = totalQuizzes > 0 ? (correctAnswers / totalQuizzes) * 100 : 0;
-
+  Widget _buildAccordionChapterCard(CurriculumChapter chapter, QuizResult? result, int number) {
+    final isExpanded = _expandedChapterIndex == number;
+    final isDone = result != null;
+    
     return Container(
-      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.only(bottom: IDPSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))],
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.md),
+        border: Border.all(color: IDPColors.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Subject Analytics', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF1E293B))),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _buildStatColumn('Progress', '${progress.toStringAsFixed(0)}%', themeColor),
+          InkWell(
+            onTap: () {
+              setState(() {
+                _expandedChapterIndex = isExpanded ? null : number;
+              });
+            },
+            borderRadius: BorderRadius.circular(IDPRadius.md),
+            child: Padding(
+              padding: const EdgeInsets.all(IDPSpacing.lg),
+              child: Row(
+                children: [
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: isDone ? IDPColors.secondaryContainer : IDPColors.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isDone ? Icons.check_circle : Icons.auto_stories,
+                        color: isDone ? IDPColors.onSecondaryContainer : IDPColors.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: IDPSpacing.lg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CHAPTER ${number.toString().padLeft(2, '0')}',
+                          style: IDPTypography.labelMedium.copyWith(color: IDPColors.secondary),
+                        ),
+                        Text(
+                          chapter.title,
+                          style: IDPTypography.titleMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: IDPColors.onSurfaceVariant,
+                  ),
+                ],
               ),
-              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-              Expanded(
-                child: _buildStatColumn('Avg Score', '${avgScore.toStringAsFixed(1)}%', const Color(0xFFF59E0B)),
-              ),
-              Container(width: 1, height: 40, color: const Color(0xFFE2E8F0)),
-              Expanded(
-                child: _buildStatColumn('Completed', '$chaptersCompleted/${widget.subject.chapters.length}', const Color(0xFF3B82F6)),
-              ),
-            ],
+            ),
           ),
+          if (isExpanded)
+            Padding(
+              padding: const EdgeInsets.only(left: IDPSpacing.lg, right: IDPSpacing.lg, bottom: IDPSpacing.lg),
+              child: Column(
+                children: [
+                  Divider(color: IDPColors.outlineVariant.withValues(alpha: 0.2)),
+                  const SizedBox(height: IDPSpacing.md),
+                  _buildLessonRow(
+                    '1.1 Read Textbook',
+                    Icons.play_circle,
+                    isDone ? 'Completed' : 'Resume',
+                    isDone,
+                    () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => PdfChapterReaderScreen(chapter: chapter),
+                        ),
+                      ).then((_) => _loadResults());
+                    },
+                  ),
+                  _buildLessonRow(
+                    '1.2 Summarize & Flashcards',
+                    Icons.style_rounded,
+                    'Available',
+                    false,
+                    () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ChapterSummaryScreen(chapter: chapter),
+                        ),
+                      ).then((_) => _loadResults());
+                    },
+                  ),
+                  _buildLessonRow(
+                    'Chapter Assessment',
+                    Icons.quiz,
+                    result != null ? 'Score: ${result.percentage}%' : 'Available',
+                    result != null,
+                    () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => QuizPlayerScreen(chapter: chapter),
+                        ),
+                      ).then((_) => _loadResults());
+                    },
+                  ),
+                  _buildLessonRow(
+                    'Ask AI Tutor',
+                    Icons.chat_bubble_rounded,
+                    'Available',
+                    false,
+                    () {
+                      final legacyCourse = Course(
+                        id: 'grade_${chapter.grade}',
+                        name: 'Grade ${chapter.grade}',
+                      );
+                      final legacySubject = Subject(
+                        id: 'sub_${widget.subject.name.toLowerCase()}',
+                        courseId: legacyCourse.id,
+                        name: widget.subject.name,
+                      );
+                      final legacyChapter = Chapter(
+                        id: chapter.packId,
+                        subjectId: legacySubject.id,
+                        title: chapter.title,
+                        summary: chapter.summary,
+                      );
+
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ChapterChatScreen(
+                            course: legacyCourse,
+                            subject: legacySubject,
+                            chapter: legacyChapter,
+                          ),
+                        ),
+                      ).then((_) => _loadResults());
+                    },
+                  ),
+                  _buildLessonRow(
+                    'Advanced Dashboard',
+                    Icons.dashboard,
+                    'Experiments & More',
+                    false,
+                    () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => ChapterDashboardScreen(
+                            chapter: chapter,
+                            subject: widget.subject,
+                          ),
+                        ),
+                      ).then((_) => _loadResults());
+                    },
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildStatColumn(String label, String value, Color color) {
-    return Column(
-      children: [
-        Text(value, style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: color)),
-        const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-      ],
-    );
-  }
-
-  Widget _buildChapterCard(CurriculumChapter chapter, QuizResult? result, int number, Color themeColor) {
-    final isDone = result != null;
-    
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Material(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        elevation: 1.5,
-        shadowColor: Colors.black12,
-        child: InkWell(
-          onTap: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (_) => ChapterDashboardScreen(
-                  chapter: chapter,
-                  subject: widget.subject,
-                ),
+  Widget _buildLessonRow(String title, IconData icon, String status, bool isDone, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(IDPRadius.sm),
+      child: Container(
+        padding: const EdgeInsets.all(IDPSpacing.md),
+        margin: const EdgeInsets.only(bottom: IDPSpacing.sm),
+        decoration: BoxDecoration(
+          color: IDPColors.surfaceContainerHighest.withValues(alpha: 0.5),
+          borderRadius: BorderRadius.circular(IDPRadius.sm),
+          border: isDone ? Border.all(color: IDPColors.secondary.withValues(alpha: 0.2)) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: IDPColors.primary, size: 20),
+            const SizedBox(width: IDPSpacing.md),
+            Expanded(
+              child: Text(
+                title,
+                style: IDPTypography.bodyMedium.copyWith(color: IDPColors.onSurface),
               ),
-            ).then((_) => _loadResults()); // Refresh on back
-          },
-          borderRadius: BorderRadius.circular(12),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: isDone ? Colors.green.shade50 : const Color(0xFFF1F5F9),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      '$number',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: isDone ? Colors.green.shade700 : const Color(0xFF475569),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        chapter.title,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        isDone 
-                            ? 'Quiz Score: ${result.score}/${result.totalQuestions} (${result.percentage}%)'
-                            : 'Textbook & materials available',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: isDone ? Colors.green.shade700 : const Color(0xFF64748B),
-                          fontWeight: isDone ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                if (isDone)
-                  const Icon(
-                    Icons.check_circle_rounded,
-                    color: Colors.green,
-                    size: 20,
-                  )
-                else
-                  const Icon(
-                    Icons.arrow_forward_ios_rounded,
-                    color: Color(0xFFCBD5E1),
-                    size: 14,
-                  ),
-              ],
             ),
-          ),
+            if (status == 'Resume')
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.md, vertical: IDPSpacing.xs),
+                decoration: BoxDecoration(
+                  color: IDPColors.primary,
+                  borderRadius: BorderRadius.circular(IDPRadius.full),
+                ),
+                child: Text(
+                  status,
+                  style: IDPTypography.labelSmall.copyWith(color: IDPColors.onPrimary),
+                ),
+              )
+            else
+              Text(
+                status,
+                style: IDPTypography.labelMedium.copyWith(color: IDPColors.secondary),
+              ),
+          ],
         ),
       ),
     );
@@ -254,32 +310,25 @@ class _SubjectScreenState extends State<SubjectScreen> {
   Widget _buildEmptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(IDPSpacing.xl),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+            Icon(
               Icons.book_rounded,
               size: 64,
-              color: Color(0xFF94A3B8),
+              color: IDPColors.outline,
             ),
-            const SizedBox(height: 16),
-            const Text(
+            const SizedBox(height: IDPSpacing.md),
+            Text(
               'No Chapters Installed',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
+              style: IDPTypography.titleLarge.copyWith(color: IDPColors.onSurface),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: IDPSpacing.sm),
             Text(
               'No chapter packs were found for ${widget.subject.name}. Make sure they are installed successfully.',
               textAlign: TextAlign.center,
-              style: const TextStyle(
-                color: Color(0xFF64748B),
-                fontSize: 14,
-              ),
+              style: IDPTypography.bodyMedium.copyWith(color: IDPColors.onSurfaceVariant),
             ),
           ],
         ),

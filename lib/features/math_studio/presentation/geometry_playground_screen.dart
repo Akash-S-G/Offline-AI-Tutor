@@ -56,9 +56,9 @@ class _GeometryPlaygroundScreenState extends State<GeometryPlaygroundScreen> {
   bool _isDraggingBody = false;
 
   final List<Color> _palette = [
-    const Color(0xFF0D9488),
-    const Color(0xFF6366F1),
-    const Color(0xFFDC2626),
+    IDPColors.primary,
+    IDPColors.secondary,
+    IDPColors.tertiary,
     const Color(0xFFD97706),
     const Color(0xFF8B5CF6),
   ];
@@ -245,7 +245,7 @@ class _GeometryPlaygroundScreenState extends State<GeometryPlaygroundScreen> {
   Widget build(BuildContext context) {
     return MathStudioWorkspaceShell(
       title: '2D Shape Playground',
-      accentColor: const Color(0xFF8B5CF6),
+      accentColor: IDPColors.tertiary,
       actions: [
         IconButton(
           icon: const Icon(Icons.delete_sweep_rounded),
@@ -259,8 +259,8 @@ class _GeometryPlaygroundScreenState extends State<GeometryPlaygroundScreen> {
       ],
       children: [
         Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+          color: IDPColors.surface,
+          padding: const EdgeInsets.symmetric(vertical: IDPSpacing.md, horizontal: IDPSpacing.md),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -282,7 +282,7 @@ class _GeometryPlaygroundScreenState extends State<GeometryPlaygroundScreen> {
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: IDPSpacing.md),
         AspectRatio(
           aspectRatio: 1.05,
           child: GestureDetector(
@@ -291,14 +291,14 @@ class _GeometryPlaygroundScreenState extends State<GeometryPlaygroundScreen> {
             onPanEnd: _onPanEnd,
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: IDPColors.border),
+                color: IDPColors.surface,
+                borderRadius: BorderRadius.circular(IDPRadius.md),
+                border: Border.all(color: IDPColors.outlineVariant),
               ),
               width: double.infinity,
               height: double.infinity,
               child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(IDPRadius.md),
                 child: CustomPaint(
                   painter: _PlaygroundPainter(shapes: _shapes),
                 ),
@@ -306,7 +306,7 @@ class _GeometryPlaygroundScreenState extends State<GeometryPlaygroundScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: IDPSpacing.md),
         ObservationPanel(controller: _notesController),
       ],
     );
@@ -319,23 +319,22 @@ class _GeometryPlaygroundScreenState extends State<GeometryPlaygroundScreen> {
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
+      borderRadius: BorderRadius.circular(IDPRadius.sm),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: IDPSpacing.sm, horizontal: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
+          color: IDPColors.tertiary.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(IDPRadius.sm),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: const Color(0xFF8B5CF6)),
+            Icon(icon, size: 20, color: IDPColors.tertiary),
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF8B5CF6),
+              style: IDPTypography.labelMedium.copyWith(
+                color: IDPColors.tertiary,
               ),
             ),
           ],
@@ -354,7 +353,7 @@ class _PlaygroundPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     for (final shape in shapes) {
       final fillPaint = Paint()
-        ..color = shape.color.withOpacity(0.1)
+        ..color = shape.color.withValues(alpha: 0.1)
         ..style = PaintingStyle.fill;
 
       final strokePaint = Paint()
@@ -363,7 +362,7 @@ class _PlaygroundPainter extends CustomPainter {
         ..style = PaintingStyle.stroke;
 
       final pointPaint = Paint()
-        ..color = shape.color.withOpacity(0.8)
+        ..color = shape.color.withValues(alpha: 0.8)
         ..style = PaintingStyle.fill;
 
       if (shape.type == PlaygroundShapeType.circle) {
@@ -440,9 +439,8 @@ class _PlaygroundPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(
-          color: Color(0xFF134E4A),
-          fontSize: 11,
+        style: IDPTypography.caption.copyWith(
+          color: IDPColors.onSurface,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -455,13 +453,13 @@ class _PlaygroundPainter extends CustomPainter {
       height: painter.height + 7,
     );
     final background = Paint()
-      ..color = Colors.white.withOpacity(0.92)
+      ..color = IDPColors.surface.withValues(alpha: 0.92)
       ..style = PaintingStyle.fill;
     final border = Paint()
-      ..color = const Color(0xFF0D9488).withOpacity(0.22)
+      ..color = IDPColors.outline.withValues(alpha: 0.22)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(IDPRadius.sm));
     canvas.drawRRect(rrect, background);
     canvas.drawRRect(rrect, border);
     painter.paint(

@@ -4,6 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/theme/idp_theme.dart';
+
 import '../../course/data/local/app_database.dart' as offline_tutor_app;
 import '../../assessment/data/local/quiz_result_repository.dart';
 import '../../assessment/domain/quiz_result.dart';
@@ -479,33 +482,58 @@ class _MainDashboardScreenState extends State<MainDashboardScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        selectedItemColor: const Color(0xFF0B6E4F),
-        unselectedItemColor: const Color(0xFF64748B),
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          _loadFeatureInsights();
-        },
-        items: [
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.school_rounded),
-            label: AppLocalizations.of(context)!.navMyLearning,
+      backgroundColor: IDPColors.background,
+      extendBody: true,
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: IDPColors.surface.withValues(alpha: 0.8),
+          border: const Border(top: BorderSide(color: Colors.white10)),
+          boxShadow: [
+            BoxShadow(
+              color: IDPColors.primary.withValues(alpha: 0.08),
+              blurRadius: 30,
+              offset: const Offset(0, -10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          child: BackdropFilter(
+            filter: ColorFilter.mode(Colors.white.withValues(alpha: 0.1), BlendMode.dstATop),
+            // Use NavigationBar for better M3 / Stitch styling match
+            child: NavigationBar(
+              selectedIndex: _currentIndex,
+              backgroundColor: Colors.transparent,
+              indicatorColor: IDPColors.primaryContainer,
+              indicatorShape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.full)),
+              onDestinationSelected: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+                _loadFeatureInsights();
+              },
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Icons.home_outlined),
+                  selectedIcon: const Icon(Icons.home, color: IDPColors.onPrimaryContainer),
+                  label: AppLocalizations.of(context)!.navMyLearning, // "Home" conceptually
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.menu_book_outlined),
+                  selectedIcon: const Icon(Icons.menu_book, color: IDPColors.onPrimaryContainer),
+                  label: AppLocalizations.of(context)!.navToolsClass,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.person_outline),
+                  selectedIcon: const Icon(Icons.person, color: IDPColors.onPrimaryContainer),
+                  label: AppLocalizations.of(context)!.navSettings,
+                ),
+              ],
+            ),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.construction_rounded),
-            label: AppLocalizations.of(context)!.navToolsClass,
-          ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.settings_rounded),
-            label: AppLocalizations.of(context)!.navSettings,
-          ),
-        ],
+        ),
       ),
       body: SafeArea(
+        bottom: false,
         child: Column(
           children: [
             if (_currentIndex == 0) const ClassroomConnectionBanner(),

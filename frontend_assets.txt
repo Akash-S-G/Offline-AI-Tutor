@@ -1,1 +1,0 @@
-assets/seed_data_math_science.json

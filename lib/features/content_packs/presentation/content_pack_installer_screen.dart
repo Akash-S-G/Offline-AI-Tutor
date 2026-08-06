@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../core/theme/idp_theme.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -623,7 +624,7 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
       final forceReplace = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Version Conflict'),
+          title: Text('Version Conflict'),
           content: Text(
             'Installed version: v${conflict.installedVersion}\n'
             'Incoming version: v${conflict.incomingVersion}\n\n'
@@ -684,7 +685,7 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove Pack'),
+        title: Text('Remove Pack'),
         content: Text('Remove ${entry.manifest.title} from this device?'),
         actions: [
           TextButton(
@@ -767,362 +768,600 @@ class _ContentPackInstallerScreenState extends State<ContentPackInstallerScreen>
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
+    // Total installed packs size
+    int totalInstalledBytes = 0;
+    for (final pack in _packs) {
+      totalInstalledBytes += pack.manifest.contentSizeBytes;
+    }
+    // Dummy system data size for the UI meter (7.3 GB as in design)
+    const int mockSystemDataBytes = 7838315315; 
+    const int mockTotalSpaceBytes = 68719476736; // 64 GB
+
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('Content Pack Installer'),
-        backgroundColor: const Color(0xFF0B6E4F),
-        foregroundColor: Colors.white,
+        backgroundColor: IDPColors.surface.withValues(alpha: 0.8),
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        title: Text(
+          'OfflineTutor',
+          style: TextStyle(
+            fontFamily: IDPTypography.headlineFontFamily,
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: IDPColors.primary,
+          ),
+        ),
+        leading: const Icon(
+          Icons.signal_wifi_off_rounded,
+          color: IDPColors.primary,
+        ),
         actions: [
           IconButton(
-            onPressed: _installing ? null : _refreshPacks,
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.notifications_outlined, color: IDPColors.onSurfaceVariant),
+            onPressed: () {},
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0, left: 8.0),
+            child: CircleAvatar(
+              radius: 18,
+              backgroundColor: IDPColors.surfaceContainerHighest,
+              child: const Icon(Icons.person, color: IDPColors.onSurfaceVariant, size: 20),
+            ),
           ),
         ],
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                if (_readiness != null)
-                  Card(
-                    color: _readiness!.isSchoolReady
-                        ? const Color(0xFFE8F5E9)
-                        : const Color(0xFFFFF3E0),
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+          : RefreshIndicator(
+              onRefresh: () async {
+                await _refreshPacks();
+              },
+              child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+                children: [
+                  // Hero Section: Storage & Sync
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isWide = constraints.maxWidth > 600;
+                      return Flex(
+                        direction: isWide ? Axis.horizontal : Axis.vertical,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            _readiness!.isSchoolReady
-                                ? 'School Readiness: Ready'
-                                : 'School Readiness: Incomplete',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            'Required curriculum packs: '
-                            '${_readiness!.satisfiedRequiredCount}/${_readiness!.requiredCount}',
-                          ),
-                          if (_readiness!.missingRequiredStatuses.isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Missing required packs:',
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            ..._readiness!.missingRequiredStatuses.take(6).map(
-                              (status) => Text('• ${status.rule.title}'),
-                            ),
-                            if (_readiness!.missingRequiredStatuses.length > 6)
-                              Text(
-                                '• +${_readiness!.missingRequiredStatuses.length - 6} more',
-                              ),
-                          ],
-                        ],
-                      ),
-                    ),
-                  ),
-                if (_readiness != null) const SizedBox(height: 12),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Raspberry Pi Catalog Sync',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _catalogUrlController,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'Catalog URL',
-                            hintText: 'http://school-content.local:8080/catalog.json',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            OutlinedButton.icon(
-                              onPressed: (_discoveringCatalogs || _checkingCatalog)
-                                  ? null
-                                  : _discoverCatalogServers,
-                              icon: _discoveringCatalogs
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.search_rounded, size: 18),
-                              label: Text(
-                                _discoveringCatalogs ? 'Discovering...' : 'Auto-Discover',
-                              ),
-                            ),
-                            FilledButton.icon(
-                              onPressed: _checkingCatalog ? null : _checkRaspberryCatalog,
-                              icon: _checkingCatalog
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                    )
-                                  : const Icon(Icons.sync_rounded, size: 18),
-                              label: Text(_checkingCatalog ? 'Checking...' : 'Check Catalog'),
-                            ),
-                            FilledButton.tonalIcon(
-                              onPressed: _checkingCatalog ? null : _checkBackendCatalog,
-                              icon: const Icon(Icons.cloud_sync_rounded, size: 18),
-                              label: const Text('Sync from Cloud API'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: (_installingCatalogQueue || _checkingCatalog)
-                                  ? null
-                                  : _installMissingRequiredFromCatalog,
-                              icon: _installingCatalogQueue
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.download_for_offline_rounded),
-                              label: const Text('Install Missing Required'),
-                            ),
-                            OutlinedButton.icon(
-                              onPressed: _checkingHealth ? null : _runHotspotHealthCheck,
-                              icon: _checkingHealth
-                                  ? const SizedBox(
-                                      width: 14,
-                                      height: 14,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.health_and_safety_rounded),
-                              label: const Text('Hotspot Health Check'),
-                            ),
-                          ],
-                        ),
-                        if (_discoveredCatalogUrls.isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          DropdownButtonFormField<String>(
-                            initialValue: _discoveredCatalogUrls.contains(_catalogUrlController.text)
-                                ? _catalogUrlController.text
-                                : _discoveredCatalogUrls.first,
-                            isExpanded: true,
-                            decoration: const InputDecoration(
-                              labelText: 'Discovered catalog URL',
-                              border: OutlineInputBorder(),
-                            ),
-                            items: _discoveredCatalogUrls
-                                .map(
-                                  (url) => DropdownMenuItem<String>(
-                                    value: url,
-                                    child: Text(
-                                      url,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                )
-                                .toList(),
-                            onChanged: (value) {
-                              if (value == null) {
-                                return;
-                              }
-                              setState(() {
-                                _catalogUrlController.text = value;
-                              });
-                            },
-                          ),
-                        ],
-                        if (_syncPlan != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Catalog packs: ${_syncPlan!.availableCount} • '
-                            'Updatable: ${_syncPlan!.updatableCount} • '
-                            'Missing required: ${_syncPlan!.missingRequiredCount} • '
-                            'Queue: ${_syncPlan!.requiredInstallQueue.length}',
-                          ),
-                        ],
-                        if (_healthReport != null) ...[
-                          const SizedBox(height: 10),
-                          const Divider(),
-                          const SizedBox(height: 6),
-                          Text('Connected SSID: ${_healthReport!.connectedSsid}'),
-                          if (_healthReport!.connectedSsid == 'Unavailable')
-                            const Text(
-                              'Tip: connect phone to SchoolContent hotspot (or same Wi-Fi as server) first.',
-                              style: TextStyle(color: Color(0xFFB45309)),
-                            ),
-                          Text(
-                            'Selected catalog reachable: '
-                            '${_healthReport!.selectedCatalogReachable ? 'Yes' : 'No'}',
-                          ),
-                          Text(
-                            'Estimated remaining: ${_formatSize(_healthReport!.remainingBytes)} '
-                            '(~${_formatDurationSeconds(_healthReport!.estimatedSeconds)})',
-                          ),
-                          const SizedBox(height: 8),
-                          const Text(
-                            'Nearby gateway/hotspot checks:',
-                            style: TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          const SizedBox(height: 6),
-                          ..._healthReport!.gatewayStatuses.take(8).map(
-                            (status) => Padding(
-                              padding: const EdgeInsets.only(bottom: 4),
-                              child: Text(
-                                '${status.host}:${status.port} • '
-                                'ping ${status.pingMs?.toString() ?? '--'} ms • '
-                                'tcp ${status.tcpReachable ? 'ok' : 'fail'} • '
-                                'catalog ${status.catalogReachable ? 'ok' : 'fail'}',
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Install Packs',
-                          style: TextStyle(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 10),
-                        Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: [
-                            FilledButton.icon(
-                              onPressed: _installing ? null : _installFromFile,
-                              icon: const Icon(Icons.file_open_rounded),
-                              label: const Text('Install From File'),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: _urlController,
-                          decoration: const InputDecoration(
-                            border: OutlineInputBorder(),
-                            labelText: 'Pack URL (http/https)',
-                            hintText: 'https://example.com/grade_1_english.otpack',
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        FilledButton.icon(
-                          onPressed: _installing ? null : _installFromUrl,
-                          icon: const Icon(Icons.cloud_download_rounded),
-                          label: const Text('Install From URL'),
-                        ),
-                        if (_error != null) ...[
-                          const SizedBox(height: 10),
-                          Text(
-                            _error!,
-                            style: const TextStyle(color: Color(0xFFB91C1C)),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Installed Packs',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 8),
-                if (_packs.isEmpty)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(14),
-                      child: Text('No packs installed yet.'),
-                    ),
-                  )
-                else
-                  ..._packs.map(
-                    (entry) {
-                      final statusLabels = _statusLabelsForPack(entry);
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        child: Padding(
-                          padding: const EdgeInsets.all(12),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(Icons.inventory_2_rounded),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      entry.manifest.title,
-                                      style: const TextStyle(fontWeight: FontWeight.w600),
-                                    ),
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.delete_outline_rounded),
-                                    onPressed: _installing ? null : () => _removePack(entry),
+                          // Storage Meter Card
+                          Expanded(
+                            flex: isWide ? 2 : 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
                                   ),
                                 ],
                               ),
-                              Text(
-                                'Pack: ${entry.manifest.packId} | v${entry.manifest.version}\n'
-                                '${entry.manifest.medium} • ${entry.manifest.subject} • '
-                                'Grades ${entry.manifest.gradeMin}-${entry.manifest.gradeMax}\n'
-                                'Items: ${entry.itemCount} (PDF ${entry.pdfCount}, Video ${entry.videoCount}, Quiz ${entry.quizCount}, Other ${entry.otherCount})',
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                children: statusLabels
-                                    .map(
-                                      (label) => Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 8,
-                                          vertical: 4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: label == 'Required Coverage'
-                                              ? const Color(0xFFE8F5E9)
-                                              : (label == 'Installed'
-                                                  ? const Color(0xFFE3F2FD)
-                                                  : const Color(0xFFF3F4F6)),
-                                          borderRadius: BorderRadius.circular(999),
-                                          border: Border.all(color: const Color(0xFFCBD5E1)),
-                                        ),
-                                        child: Text(
-                                          label,
-                                          style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w600,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            'INTERNAL STORAGE',
+                                            style: IDPTypography.labelMd.copyWith(
+                                              color: IDPColors.onSurfaceVariant,
+                                              letterSpacing: 1.2,
+                                            ),
                                           ),
-                                        ),
+                                          const SizedBox(height: 4),
+                                          RichText(
+                                            text: TextSpan(
+                                              style: IDPTypography.headlineLgMobile.copyWith(
+                                                color: IDPColors.onSurface,
+                                              ),
+                                              children: [
+                                                TextSpan(text: '${_formatSize(totalInstalledBytes)} '),
+                                                TextSpan(
+                                                  text: '/ ${_formatSize(mockTotalSpaceBytes)} used',
+                                                  style: IDPTypography.bodyMd.copyWith(
+                                                    color: IDPColors.onSurfaceVariant,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    )
-                                    .toList(),
+                                      Row(
+                                        children: [
+                                          const Icon(Icons.offline_pin, color: IDPColors.secondary, size: 18),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Safe Offline',
+                                            style: IDPTypography.labelMd.copyWith(color: IDPColors.secondary),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  // Progress Bar
+                                  Container(
+                                    height: 16,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: IDPColors.surfaceContainerHighest,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: LayoutBuilder(
+                                      builder: (context, boxConstraints) {
+                                        final installedPct = totalInstalledBytes / mockTotalSpaceBytes;
+                                        final sysPct = mockSystemDataBytes / mockTotalSpaceBytes;
+                                        return Row(
+                                          children: [
+                                            Container(
+                                              width: boxConstraints.maxWidth * installedPct,
+                                              decoration: BoxDecoration(
+                                                color: IDPColors.primary,
+                                                borderRadius: const BorderRadius.horizontal(left: Radius.circular(8)),
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: IDPColors.primary.withValues(alpha: 0.2),
+                                                    blurRadius: 10,
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Container(
+                                              width: boxConstraints.maxWidth * sysPct,
+                                              decoration: const BoxDecoration(
+                                                color: IDPColors.secondary,
+                                                borderRadius: BorderRadius.horizontal(right: Radius.circular(8)),
+                                              ),
+                                            ),
+                                          ],
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Row(
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Container(width: 10, height: 10, decoration: const BoxDecoration(color: IDPColors.primary, shape: BoxShape.circle)),
+                                          const SizedBox(width: 8),
+                                          Text('Installed Packs (${_formatSize(totalInstalledBytes)})', style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant)),
+                                        ],
+                                      ),
+                                      const SizedBox(width: 24),
+                                      Row(
+                                        children: [
+                                          Container(width: 10, height: 10, decoration: const BoxDecoration(color: IDPColors.secondary, shape: BoxShape.circle)),
+                                          const SizedBox(width: 8),
+                                          Text('System Data (${_formatSize(mockSystemDataBytes)})', style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant)),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          if (isWide) const SizedBox(width: 24) else const SizedBox(height: 24),
+                          // Sync All Action
+                          Expanded(
+                            flex: isWide ? 1 : 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: IDPColors.primaryContainer,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.cloud_done, size: 48, color: IDPColors.onPrimaryContainer.withValues(alpha: 0.6)),
+                                  const SizedBox(height: 16),
+                                  Text('Stay Updated', style: IDPTypography.titleMd.copyWith(color: IDPColors.onPrimaryContainer, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _syncPlan != null && _syncPlan!.updatableCount > 0
+                                        ? '${_syncPlan!.updatableCount} updates pending for your courses.'
+                                        : 'Your offline courses are ready.',
+                                    style: IDPTypography.caption.copyWith(color: IDPColors.onPrimaryContainer.withValues(alpha: 0.9)),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  SizedBox(
+                                    width: double.infinity,
+                                    child: ElevatedButton.icon(
+                                      onPressed: (_checkingCatalog || _installingCatalogQueue) ? null : () async {
+                                        await _checkBackendCatalog();
+                                        if (mounted && _syncPlan != null) {
+                                          _installMissingRequiredFromCatalog();
+                                        }
+                                      },
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: IDPColors.primary,
+                                        foregroundColor: IDPColors.onPrimary,
+                                        padding: const EdgeInsets.symmetric(vertical: 16),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                                      ),
+                                      icon: (_checkingCatalog || _installingCatalogQueue)
+                                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                          : const Icon(Icons.cloud_sync, size: 20),
+                                      label: Text((_checkingCatalog || _installingCatalogQueue) ? 'Syncing...' : 'Sync All', style: IDPTypography.labelMd),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                  ),
+                  const SizedBox(height: 48),
+                  
+                  // Installed Packs Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Installed Packs', style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.onSurface)),
+                      // Manage All could show the older debug controls
+                      TextButton(
+                        onPressed: () {
+                          // Toggle advanced settings visibility, maybe via dialog for now
+                          _showAdvancedSettingsDialog(context);
+                        },
+                        child: Text('Manage All', style: IDPTypography.labelMd.copyWith(color: IDPColors.primary)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  if (_packs.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: const Center(child: Text('No packs installed yet.')),
+                    )
+                  else
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final isWide = constraints.maxWidth > 600;
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: isWide ? 2 : 1,
+                            mainAxisSpacing: 24,
+                            crossAxisSpacing: 24,
+                            mainAxisExtent: 140,
+                          ),
+                          itemCount: _packs.length,
+                          itemBuilder: (context, index) {
+                            final entry = _packs[index];
+                            final hasUpdate = _syncPlan?.entries.any((e) => e.installed?.packId == entry.manifest.packId && e.hasUpdate) ?? false;
+                            
+                            return Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.7),
+                                borderRadius: BorderRadius.circular(24),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                children: [
+                                  // Thumbnail (placeholder with icon)
+                                  Container(
+                                    width: 96,
+                                    height: 96,
+                                    decoration: BoxDecoration(
+                                      color: IDPColors.surfaceContainerLowest,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Icon(Icons.school_rounded, size: 48, color: IDPColors.primary.withValues(alpha: 0.5)),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Row(
+                                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    entry.manifest.title,
+                                                    style: IDPTypography.titleMd.copyWith(color: IDPColors.onSurface),
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    '${_formatSize(entry.manifest.contentSizeBytes)} • v${entry.manifest.version}',
+                                                    style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            if (hasUpdate)
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(
+                                                  color: IDPColors.errorLight,
+                                                  borderRadius: BorderRadius.circular(999),
+                                                ),
+                                                child: Row(
+                                                  mainAxisSize: MainAxisSize.min,
+                                                  children: [
+                                                    Icon(Icons.new_releases, color: IDPColors.error, size: 14),
+                                                    const SizedBox(width: 4),
+                                                    Text('UPDATE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: IDPColors.error)),
+                                                  ],
+                                                ),
+                                              )
+                                            else
+                                              const Icon(Icons.check_circle, color: IDPColors.secondary, size: 24),
+                                          ],
+                                        ),
+                                        const Spacer(),
+                                        Row(
+                                          children: [
+                                            if (hasUpdate)
+                                              TextButton.icon(
+                                                onPressed: _installing ? null : () {
+                                                  // Find the remote pack and install
+                                                  final remote = _syncPlan?.entries.firstWhere((e) => e.installed?.packId == entry.manifest.packId).remote;
+                                                  if (remote != null) {
+                                                    setState(() {
+                                                      _urlController.text = remote.archiveUrl.toString();
+                                                    });
+                                                    _installFromUrl();
+                                                  }
+                                                },
+                                                icon: const Icon(Icons.download_for_offline, size: 18),
+                                                label: const Text('Update'),
+                                                style: TextButton.styleFrom(
+                                                  foregroundColor: IDPColors.primary,
+                                                  textStyle: IDPTypography.labelMd,
+                                                  padding: EdgeInsets.zero,
+                                                  minimumSize: Size.zero,
+                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                ),
+                                              )
+                                            else
+                                              TextButton.icon(
+                                                onPressed: () {},
+                                                icon: const Icon(Icons.play_lesson, size: 18),
+                                                label: const Text('Open Course'),
+                                                style: TextButton.styleFrom(
+                                                  foregroundColor: IDPColors.primary,
+                                                  textStyle: IDPTypography.labelMd,
+                                                  padding: EdgeInsets.zero,
+                                                  minimumSize: Size.zero,
+                                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                ),
+                                              ),
+                                            const SizedBox(width: 24),
+                                            TextButton.icon(
+                                              onPressed: _installing ? null : () => _removePack(entry),
+                                              icon: const Icon(Icons.delete_outline, size: 18),
+                                              label: const Text('Remove'),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: IDPColors.onSurfaceVariant,
+                                                textStyle: IDPTypography.labelMd,
+                                                padding: EdgeInsets.zero,
+                                                minimumSize: Size.zero,
+                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      }
+                    ),
+                    
+                  const SizedBox(height: 48),
+                  
+                  // Available Packs Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Available Packs', style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.onSurface)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  if (_syncPlan == null || _syncPlan!.entries.where((e) => !e.isInstalled).isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                      ),
+                      child: Center(
+                        child: Text(
+                          _syncPlan == null ? 'Sync to check for available packs.' : 'No new packs available.',
+                          style: IDPTypography.bodyMd.copyWith(color: IDPColors.onSurfaceVariant),
+                        ),
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _syncPlan!.entries.where((e) => !e.isInstalled).length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 16),
+                      itemBuilder: (context, index) {
+                        final availableEntries = _syncPlan!.entries.where((e) => !e.isInstalled).toList();
+                        final entry = availableEntries[index].remote;
+                        return Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: IDPColors.surfaceContainerLowest,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.transparent),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 64,
+                                height: 64,
+                                decoration: BoxDecoration(
+                                  color: IDPColors.primaryContainer.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(Icons.menu_book, size: 32, color: IDPColors.primary),
+                              ),
+                              const SizedBox(width: 24),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(entry.title, style: IDPTypography.labelMd.copyWith(color: IDPColors.onSurface)),
+                                    const SizedBox(height: 4),
+                                    Text('${entry.subject} • Grades ${entry.gradeMin}-${entry.gradeMax}', style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant)),
+                                  ],
+                                ),
+                              ),
+                              OutlinedButton.icon(
+                                onPressed: _installing ? null : () {
+                                  setState(() {
+                                    _urlController.text = entry.archiveUrl.toString();
+                                  });
+                                  _installFromUrl();
+                                },
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: IDPColors.primary, width: 2),
+                                  foregroundColor: IDPColors.primary,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                ),
+                                icon: const Icon(Icons.download, size: 18),
+                                label: const Text('Get Pack'),
                               ),
                             ],
                           ),
-                        ),
-                      );
-                    },
-                  ),
-              ],
+                        );
+                      },
+                    ),
+                ],
+              ),
             ),
+    );
+  }
+
+  void _showAdvancedSettingsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Advanced Settings'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Raspberry Pi Catalog URL', style: IDPTypography.labelMd),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _catalogUrlController,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton(
+                    onPressed: _discoverCatalogServers,
+                    child: const Text('Auto-Discover'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _checkRaspberryCatalog,
+                    child: const Text('Check RP Catalog'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _checkBackendCatalog,
+                    child: const Text('Check Cloud API'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _runHotspotHealthCheck,
+                    child: const Text('Health Check'),
+                  ),
+                  OutlinedButton(
+                    onPressed: _installFromFile,
+                    child: const Text('Install from File'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Text('Manual Install URL', style: IDPTypography.labelMd),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _urlController,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _installFromUrl();
+                },
+                child: const Text('Install from URL'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
     );
   }
 }

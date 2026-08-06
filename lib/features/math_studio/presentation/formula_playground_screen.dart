@@ -128,42 +128,40 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
   Widget build(BuildContext context) {
     return MathStudioWorkspaceShell(
       title: 'Formula Playground',
-      accentColor: const Color(0xFF8B5CF6),
+      accentColor: IDPColors.tertiary,
       children: [
         _buildDropdown(),
-        const SizedBox(height: 16),
+        const SizedBox(height: IDPSpacing.md),
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(IDPSpacing.md),
           decoration: BoxDecoration(
-            color: const Color(0xFF8B5CF6).withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(16),
+            color: IDPColors.tertiary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(IDPRadius.md),
             border: Border.all(
-              color: const Color(0xFF8B5CF6).withValues(alpha: 0.22),
+              color: IDPColors.tertiary.withValues(alpha: 0.22),
             ),
           ),
           child: Text(
             _getExplanation(),
-            style: const TextStyle(
-              fontSize: 16,
-              color: Color(0xFF4C1D95),
-              height: 1.45,
+            style: IDPTypography.bodyMedium.copyWith(
+              color: IDPColors.tertiary,
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: IDPSpacing.md),
         ..._controllers.keys.map(_buildInputField),
-        const SizedBox(height: 8),
+        const SizedBox(height: IDPSpacing.sm),
         _buildVisualization(),
-        const SizedBox(height: 16),
+        const SizedBox(height: IDPSpacing.md),
         Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.all(IDPSpacing.lg),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: IDPColors.border),
+            color: IDPColors.surface,
+            borderRadius: BorderRadius.circular(IDPRadius.md),
+            border: Border.all(color: IDPColors.outlineVariant),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withValues(alpha: 0.05),
+                color: IDPColors.onSurface.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
               ),
@@ -172,16 +170,14 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
           child: Center(
             child: Text(
               _calculateResult(),
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF8B5CF6),
+              style: IDPTypography.h3.copyWith(
+                color: IDPColors.tertiary,
               ),
               textAlign: TextAlign.center,
             ),
           ),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: IDPSpacing.md),
         ObservationPanel(controller: _notesController),
       ],
     );
@@ -191,9 +187,9 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 24),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: IDPColors.border),
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.md),
+        border: Border.all(color: IDPColors.outlineVariant),
       ),
       child:
           _selectedFormula == FormulaType.speedDistanceTime ||
@@ -233,9 +229,9 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
       initialValue: _selectedFormula,
       decoration: InputDecoration(
         labelText: 'Select a Formula to Explore',
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(IDPRadius.sm)),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: IDPColors.surface,
       ),
       items: const [
         DropdownMenuItem(
@@ -272,15 +268,15 @@ class _FormulaPlaygroundScreenState extends State<FormulaPlaygroundScreen> {
 
   Widget _buildInputField(String key) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: IDPSpacing.md),
       child: TextField(
         controller: _controllers[key],
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
         decoration: InputDecoration(
           labelText: key.toUpperCase(),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(IDPRadius.sm)),
           filled: true,
-          fillColor: Colors.white,
+          fillColor: IDPColors.surface,
         ),
       ),
     );

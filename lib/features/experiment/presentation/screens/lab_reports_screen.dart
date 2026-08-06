@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:offline_tutor_app/core/theme/idp_theme.dart';
 
 class LabReportsScreen extends StatelessWidget {
   const LabReportsScreen({super.key});
@@ -15,14 +16,19 @@ class LabReportsScreen extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('My Lab Reports'),
-        backgroundColor: const Color(0xFF0F172A),
-        foregroundColor: Colors.white,
+        title: Text('My Lab Reports', style: IDPTypography.titleMedium.copyWith(color: IDPColors.primary)),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.primary,
+        centerTitle: false,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: const IconThemeData(color: IDPColors.primary),
+        shape: Border(bottom: BorderSide(color: IDPColors.outlineVariant.withValues(alpha: 0.5))),
       ),
       body: ListView.separated(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(IDPSpacing.lg),
         itemCount: reports.length,
         separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemBuilder: (context, index) {
@@ -43,87 +49,100 @@ class _ReportCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Card(
       elevation: 0,
+      margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
-        side: const BorderSide(color: Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(IDPRadius.defaultRadius),
+        side: const BorderSide(color: IDPColors.outlineVariant),
       ),
+      color: IDPColors.surface,
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(IDPSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  width: 46,
-                  height: 46,
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
+                    color: IDPColors.secondaryContainer,
+                    borderRadius: BorderRadius.circular(IDPRadius.md),
                   ),
                   child: const Icon(
-                    Icons.description_rounded,
-                    color: Color(0xFF10B981),
+                    Icons.science_rounded,
+                    color: IDPColors.secondary,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: IDPSpacing.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         report.experimentName,
-                        style: const TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF0F172A),
-                        ),
+                        style: IDPTypography.titleMedium.copyWith(color: IDPColors.onSurface),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: IDPSpacing.xs),
                       Text(
                         'Completed ${_formatDate(report.completionDate)}',
-                        style: const TextStyle(color: Color(0xFF64748B)),
+                        style: IDPTypography.labelMedium.copyWith(color: IDPColors.onSurfaceVariant),
                       ),
                     ],
                   ),
                 ),
-                Text(
-                  '${report.score}%',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w900,
-                    fontSize: 18,
-                    color: Color(0xFF0F172A),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.sm, vertical: IDPSpacing.xs),
+                  decoration: BoxDecoration(
+                    color: IDPColors.primaryContainer,
+                    borderRadius: BorderRadius.circular(IDPRadius.sm),
+                  ),
+                  child: Text(
+                    '${report.score}%',
+                    style: IDPTypography.labelMedium.copyWith(
+                      color: IDPColors.onPrimaryContainer,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: IDPSpacing.md),
             Text(
               report.outcome,
-              style: const TextStyle(color: Color(0xFF334155)),
+              style: IDPTypography.bodyMedium.copyWith(color: IDPColors.onSurface),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: IDPSpacing.lg),
             Row(
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: IDPColors.outlineVariant),
+                      foregroundColor: IDPColors.primary,
+                    ),
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text('Opening saved report preview.'),
+                        backgroundColor: IDPColors.primary,
                       ),
                     ),
                     icon: const Icon(Icons.open_in_new_rounded, size: 18),
                     label: const Text('Open Report'),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: IDPSpacing.md),
                 Expanded(
                   child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: IDPColors.primary,
+                      foregroundColor: IDPColors.onPrimary,
+                    ),
                     onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
                         content: Text(
                           'PDF export is available from completed report view.',
                         ),
+                        backgroundColor: IDPColors.secondary,
                       ),
                     ),
                     icon: const Icon(Icons.picture_as_pdf_rounded, size: 18),

@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
-
+import 'dart:ui';
+import '../../../core/theme/idp_theme.dart';
 import 'package:file_picker/file_picker.dart';
 import '../../../l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
@@ -2288,364 +2289,336 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     print("[TRACE] CHAT_MESSAGE_COUNT=${_messages.length}");
 
     const bool _showDebugTelemetry = false;
-
     final memoryPolicy =
         _memoryPolicy ?? ChatMemoryPolicy.defaults(_sessionId ?? 'session');
+        
     return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: 52,
-        title: Text(
-          widget.chapter.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        actions: [
-          IconButton(
-            onPressed: () => _openChatSettingsSheet(memoryPolicy),
-            tooltip: 'Chat settings',
-            icon: const Icon(Icons.tune_rounded),
-          ),
-          IconButton(
-            onPressed: _openAddNotesDialog,
-            tooltip: 'Add chapter notes',
-            icon: const Icon(Icons.note_add_outlined),
-          ),
-          IconButton(
-            onPressed: _isEmbedding ? null : _indexEmbeddingsForChapter,
-            tooltip: 'Index embeddings',
-            icon: _isEmbedding
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.auto_awesome_rounded),
-          ),
-          const SizedBox(width: 4),
-        ],
-      ),
-      body: Column(
+      backgroundColor: IDPColors.surface,
+      body: Stack(
         children: [
-          if (_showDebugTelemetry)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              color: const Color(0xFFF8FAFC),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _engineLoaded
-                          ? const Color(0xFFD0F0C0).withAlpha(204)
-                          : const Color(0xFFFFC0CB).withAlpha(204),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: _engineLoaded ? Colors.green : Colors.red,
-                        width: 0.5,
-                      ),
-                    ),
-                    child: Text(
-                      _engineLoaded ? 'Model Ready' : 'Model Not Ready',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: _engineLoaded
-                            ? Colors.green[800]
-                            : Colors.red[800],
-                      ),
-                    ),
-                  ),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _chatMode,
-                      borderRadius: BorderRadius.circular(12),
-                      items: const [
-                        DropdownMenuItem(value: 'fast', child: Text('Fast')),
-                        DropdownMenuItem(
-                          value: 'balanced',
-                          child: Text('Balanced'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'detailed',
-                          child: Text('Detailed'),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value == null || value == _chatMode) {
-                          return;
-                        }
-                        _applyChatMode(value);
-                      },
-                    ),
-                  ),
-                  DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: _languageCode,
-                      borderRadius: BorderRadius.circular(12),
-                      items: const [
-                        DropdownMenuItem(value: 'en', child: Text('English')),
-                        DropdownMenuItem(value: 'kn', child: Text('Kannada')),
-                      ],
-                      onChanged: (value) {
-                        if (value == null) {
-                          return;
-                        }
-                        setState(() {
-                          _languageCode = value;
-                        });
-                      },
-                    ),
-                  ),
-                  if (_languageCode != 'en')
-                    DropdownButtonHideUnderline(
-                      child: DropdownButton<TranslationEngineId>(
-                        value: _translationConfig.engineId,
-                        borderRadius: BorderRadius.circular(12),
-                        items: TranslationEngineCatalog.kannadaEngines()
-                            .map(
-                              (engine) => DropdownMenuItem<TranslationEngineId>(
-                                value: engine.id,
-                                child: Text(engine.label),
-                              ),
-                            )
-                            .toList(growable: false),
-                        onChanged: (value) {
-                          if (value == null) {
-                            return;
-                          }
-                          _updateTranslationEngine(value);
-                        },
-                      ),
-                    ),
-                  if (_languageCode != 'en')
-                    IconButton(
-                      tooltip: 'Kannada translation engines',
-                      onPressed: _showKannadaEngineCatalog,
-                      icon: const Icon(Icons.translate_rounded),
-                    ),
-                  if (_isLinux)
-                    OutlinedButton.icon(
-                      onPressed: _pickLinuxExecutable,
-                      icon: const Icon(Icons.terminal_rounded),
-                      label: const Text('Select Llama Runner'),
-                    ),
-                  if (_isLinux)
-                    OutlinedButton.icon(
-                      onPressed: _autoDetectLinuxExecutable,
-                      icon: const Icon(Icons.search_rounded),
-                      label: const Text('Auto Detect CLI'),
-                    ),
-                  if (_isLinux)
-                    OutlinedButton.icon(
-                      onPressed: _pickLinuxModel,
-                      icon: const Icon(Icons.memory_rounded),
-                      label: const Text('Select GGUF Model'),
-                    ),
-                  if (_isLinux)
-                    OutlinedButton.icon(
-                      onPressed: _copyModelToAppStorage,
-                      icon: const Icon(Icons.download_rounded),
-                      label: const Text('Copy Model to App'),
-                    ),
-                  if (Platform.isAndroid)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text('Fast Native'),
-                        const SizedBox(width: 6),
-                        Switch.adaptive(
-                          value: _androidNativeFastPath,
-                          onChanged: (v) {
-                            setState(() {
-                              _androidNativeFastPath = v;
-                            });
-                          },
-                        ),
-                      ],
-                    ),
-                  if (_languageCode != 'en' &&
-                      _translationConfig.engineId ==
-                          TranslationEngineId.apertiumCli)
-                    OutlinedButton.icon(
-                      onPressed: _pickApertiumBinary,
-                      icon: const Icon(Icons.extension_rounded),
-                      label: const Text('Set Apertium'),
-                    ),
-                ],
+          // Background Decoration
+          Positioned(
+            top: -150,
+            right: -150,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+              child: Container(
+                width: 600,
+                height: 600,
+                decoration: BoxDecoration(
+                  color: IDPColors.primary.withValues(alpha: 0.05),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          if (_showDebugTelemetry && _languageCode != 'en')
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              color: const Color(0xFFF8FAFC),
-              child: Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    'Translator: ${TranslationEngineCatalog.byId(_translationConfig.engineId).label}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  FilterChip(
-                    selected: _translationConfig.showOriginalAlongside,
-                    label: const Text('Show EN + Translated'),
-                    onSelected: _updateShowOriginalTranslation,
-                  ),
-                ],
+          ),
+          Positioned(
+            bottom: -150,
+            left: -150,
+            child: ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 100, sigmaY: 100),
+              child: Container(
+                width: 600,
+                height: 600,
+                decoration: BoxDecoration(
+                  color: IDPColors.secondaryFixedDim.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
               ),
             ),
-          if (_showDebugTelemetry && _isLinux)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              color: const Color(0xFFF8FAFC),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Linux model: ${_linuxConfig.modelPath.isEmpty ? 'not selected' : _linuxConfig.modelPath.split('/').last}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Llama CLI: ${_linuxConfig.executablePath.isEmpty ? 'not selected' : _linuxConfig.executablePath}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Linux status: $_linuxStatusMessage',
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: const BoxDecoration(
-              color: Color(0xFFF7F8F8),
-              border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-            ),
-            child: Row(
+          ),
+          
+          SafeArea(
+            child: Column(
               children: [
-                const Icon(
-                  Icons.auto_awesome_rounded,
-                  size: 16,
-                  color: Color(0xFF0B6E4F),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    '${widget.subject.name} · ${widget.chapter.title}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: const Color(0xFF4B5563),
-                      fontWeight: FontWeight.w500,
+                // Glass AppBar
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.containerMargin, vertical: IDPSpacing.md),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.7),
+                    border: Border(bottom: BorderSide(color: IDPColors.outlineVariant.withValues(alpha: 0.3))),
+                  ),
+                  child: ClipRRect(
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              IconButton(
+                                onPressed: () => Navigator.of(context).pop(),
+                                icon: const Icon(Icons.arrow_back, color: IDPColors.onSurface),
+                              ),
+                              const SizedBox(width: IDPSpacing.sm),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'AI Tutor',
+                                    style: IDPTypography.titleMd.copyWith(color: IDPColors.primary, height: 1.1),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        width: 8,
+                                        height: 8,
+                                        decoration: const BoxDecoration(
+                                          color: IDPColors.secondaryFixedDim,
+                                          shape: BoxShape.circle,
+                                        ),
+                                      ),
+                                      const SizedBox(width: IDPSpacing.xs),
+                                      Text(
+                                        'Model: On-Device Llama-3',
+                                        style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              if (MediaQuery.sizeOf(context).width > 600)
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text('Offline Mode', style: IDPTypography.labelMd.copyWith(color: IDPColors.onSurface)),
+                                    Text('ACTIVE', style: IDPTypography.caption.copyWith(color: IDPColors.secondary, fontWeight: FontWeight.bold, letterSpacing: 1.5, fontSize: 10)),
+                                  ],
+                                ),
+                              const SizedBox(width: IDPSpacing.sm),
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: IDPColors.primaryContainer, width: 2),
+                                ),
+                                padding: const EdgeInsets.all(2),
+                                child: const CircleAvatar(
+                                  backgroundImage: NetworkImage('https://lh3.googleusercontent.com/aida-public/AB6AXuD6bA2RIuBCkImSriaxheASsbLmUY38iJw0YjiDS4aUVeH_SEuWaOxYf7Yo_PiZGplhkgLoWGirleWmu0oFDgZvbWTPWJVtwWXWBCUH7vkWKssqz66JIS0w6795DaRgDeIToPbTjbmD58P9Mwz1UrAT7DIsw3MHQZ9fdb4PJv7EJvAO7wbsiawL0Vm3f2VmX-3iqn_CRpezQQVVdqSMFcv_LG-6EcE3NxeoxwNYklgKI1iq21w1qPAnRnG9mn5WmTIakXzl9PFyPs-P'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                Text(
-                  _hasChapterRagContent ? 'Chapter sources' : 'General tutor',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: const Color(0xFF0B6E4F),
-                    fontWeight: FontWeight.w600,
+
+                // Debug Telemetry
+                if (_showDebugTelemetry)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                    color: IDPColors.surfaceContainerLowest,
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _engineLoaded
+                                ? const Color(0xFFD0F0C0).withAlpha(204)
+                                : const Color(0xFFFFC0CB).withAlpha(204),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: _engineLoaded ? Colors.green : Colors.red,
+                              width: 0.5,
+                            ),
+                          ),
+                          child: Text(
+                            _engineLoaded ? 'Model Ready' : 'Model Not Ready',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _engineLoaded
+                                  ? Colors.green[800]
+                                  : Colors.red[800],
+                            ),
+                          ),
+                        ),
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _chatMode,
+                            borderRadius: BorderRadius.circular(12),
+                            items: const [
+                              DropdownMenuItem(value: 'fast', child: Text('Fast')),
+                              DropdownMenuItem(
+                                value: 'balanced',
+                                child: Text('Balanced'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'detailed',
+                                child: Text('Detailed'),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value == null || value == _chatMode) {
+                                return;
+                              }
+                              _applyChatMode(value);
+                            },
+                          ),
+                        ),
+                        DropdownButtonHideUnderline(
+                          child: DropdownButton<String>(
+                            value: _languageCode,
+                            borderRadius: BorderRadius.circular(12),
+                            items: const [
+                              DropdownMenuItem(value: 'en', child: Text('English')),
+                              DropdownMenuItem(value: 'kn', child: Text('Kannada')),
+                            ],
+                            onChanged: (value) {
+                              if (value == null) {
+                                return;
+                              }
+                              setState(() {
+                                _languageCode = value;
+                              });
+                            },
+                          ),
+                        ),
+                        if (_languageCode != 'en')
+                          DropdownButtonHideUnderline(
+                            child: DropdownButton<TranslationEngineId>(
+                              value: _translationConfig.engineId,
+                              borderRadius: BorderRadius.circular(12),
+                              items: TranslationEngineCatalog.kannadaEngines()
+                                  .map(
+                                    (engine) => DropdownMenuItem<TranslationEngineId>(
+                                      value: engine.id,
+                                      child: Text(engine.label),
+                                    ),
+                                  )
+                                  .toList(growable: false),
+                              onChanged: (value) {
+                                if (value == null) {
+                                  return;
+                                }
+                                _updateTranslationEngine(value);
+                              },
+                            ),
+                          ),
+                        if (_languageCode != 'en')
+                          IconButton(
+                            tooltip: 'Kannada translation engines',
+                            onPressed: _showKannadaEngineCatalog,
+                            icon: const Icon(Icons.translate_rounded),
+                          ),
+                        if (_isLinux)
+                          OutlinedButton.icon(
+                            onPressed: _pickLinuxExecutable,
+                            icon: const Icon(Icons.terminal_rounded),
+                            label: const Text('Select Llama Runner'),
+                          ),
+                        if (_isLinux)
+                          OutlinedButton.icon(
+                            onPressed: _autoDetectLinuxExecutable,
+                            icon: const Icon(Icons.search_rounded),
+                            label: const Text('Auto Detect CLI'),
+                          ),
+                        if (_isLinux)
+                          OutlinedButton.icon(
+                            onPressed: _pickLinuxModel,
+                            icon: const Icon(Icons.memory_rounded),
+                            label: const Text('Select GGUF Model'),
+                          ),
+                        if (_isLinux)
+                          OutlinedButton.icon(
+                            onPressed: _copyModelToAppStorage,
+                            icon: const Icon(Icons.download_rounded),
+                            label: const Text('Copy Model to App'),
+                          ),
+                        if (Platform.isAndroid)
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Text('Fast Native'),
+                              const SizedBox(width: 6),
+                              Switch.adaptive(
+                                value: _androidNativeFastPath,
+                                onChanged: (v) {
+                                  setState(() {
+                                    _androidNativeFastPath = v;
+                                  });
+                                },
+                              ),
+                            ],
+                          ),
+                        if (_languageCode != 'en' &&
+                            _translationConfig.engineId ==
+                                TranslationEngineId.apertiumCli)
+                          OutlinedButton.icon(
+                            onPressed: _pickApertiumBinary,
+                            icon: const Icon(Icons.extension_rounded),
+                            label: const Text('Set Apertium'),
+                          ),
+                      ],
+                    ),
+                  ),
+
+                // Main Content Canvas
+                Expanded(
+                  child: ListView.builder(
+                    controller: _scrollController,
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    padding: const EdgeInsets.fromLTRB(IDPSpacing.containerMargin, IDPSpacing.lg, IDPSpacing.containerMargin, 180),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      if (index == 0) {
+                        return Column(
+                          children: [
+                            // Current Topic Indicator
+                            Center(
+                              child: Container(
+                                margin: const EdgeInsets.only(bottom: IDPSpacing.xl),
+                                padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.md, vertical: IDPSpacing.sm),
+                                decoration: BoxDecoration(
+                                  color: IDPColors.surfaceContainerHigh,
+                                  borderRadius: BorderRadius.circular(IDPRadius.full),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.history_edu, color: IDPColors.primary, size: 18),
+                                    const SizedBox(width: IDPSpacing.sm),
+                                    Text(
+                                      'Current Topic: ${widget.chapter.title}',
+                                      style: IDPTypography.labelMd.copyWith(color: IDPColors.onSurfaceVariant),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            _buildChatMessage(context, _messages[index]),
+                          ],
+                        );
+                      }
+                      return _buildChatMessage(context, _messages[index]);
+                    },
                   ),
                 ),
               ],
             ),
           ),
-          if (_showDebugTelemetry)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-              color: const Color(0xFFF8FAFC),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text(
-                          'Inference Telemetry',
-                          style: TextStyle(fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: _runningBenchmark
-                            ? null
-                            : _runLatencyBenchmark,
-                        icon: _runningBenchmark
-                            ? const SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.speed_rounded),
-                        label: const Text('Benchmark'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  LinearProgressIndicator(
-                    value: _isGenerating ? _inferenceProgressValue() : null,
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    _isGenerating
-                        ? 'Generating... ~$_liveEstimatedTokens/$_generationMaxTokens tokens | $_liveTokensPerSec tok/s'
-                        : 'Last run: ${_lastInferenceMs}ms | $_lastInferenceTokens tokens | $_lastInferenceTokensPerSec tok/s',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _inferenceLog,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _hasChapterRagContent
-                        ? 'Chapter RAG content available. Using chapter-aware chat when needed.'
-                        : 'No chapter RAG content yet. Using general chat mode.',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _benchmarkLog,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-          Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-              padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                return _buildChatMessage(context, _messages[index]);
-              },
-            ),
+          
+          // Bottom Controls (Floating)
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: _buildChatComposer(context),
           ),
-          _buildChatComposer(context),
         ],
       ),
     );
@@ -2656,94 +2629,245 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     final availableWidth = MediaQuery.sizeOf(context).width;
     final maxWidth = availableWidth >= 900
         ? 720.0
-        : availableWidth * (isUser ? 0.82 : 0.92);
+        : availableWidth * (isUser ? 0.85 : 0.85);
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Align(
-        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!isUser) ...[
-                Container(
-                  width: 30,
-                  height: 30,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF0B6E4F),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.school_rounded,
-                    size: 17,
-                    color: Colors.white,
+    if (isUser) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: IDPSpacing.lg),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                GestureDetector(
+                  onLongPress: () => _copyMessage(message),
+                  child: Container(
+                    padding: const EdgeInsets.all(IDPSpacing.lg),
+                    decoration: const BoxDecoration(
+                      color: IDPColors.primary,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(IDPRadius.defaultRadius),
+                        topRight: Radius.circular(IDPRadius.defaultRadius),
+                        bottomLeft: Radius.circular(IDPRadius.defaultRadius),
+                        bottomRight: Radius.zero,
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          blurRadius: 10,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: SelectableText(
+                      message.text,
+                      style: IDPTypography.bodyMd.copyWith(color: IDPColors.onPrimary),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 10),
-              ],
-              Flexible(
-                child: GestureDetector(
-                  onLongPress: () => _copyMessage(message),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: isUser
-                          ? const Color(0xFF0B6E4F)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(8),
+                const SizedBox(height: IDPSpacing.xs),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                      style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant),
                     ),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: isUser ? 14 : 0,
-                        vertical: isUser ? 10 : 2,
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (!isUser &&
-                              AssetMessageRenderer.isAssetMessage(message.text))
-                            AssetMessageRenderer.render(message.text)
-                          else
-                            SelectableText(
-                              message.text.isEmpty && _isGenerating
-                                  ? 'Thinking...'
-                                  : message.text,
-                              style: Theme.of(context).textTheme.bodyLarge
-                                  ?.copyWith(
-                                    color: isUser
-                                        ? Colors.white
-                                        : const Color(0xFF1F2937),
-                                    height: 1.55,
-                                    fontSize: 16,
-                                  ),
-                            ),
-                          if (message.text.trim().isNotEmpty) ...[
-                            const SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: IconButton(
-                                onPressed: () => _copyMessage(message),
-                                tooltip: 'Copy',
-                                visualDensity: VisualDensity.compact,
-                                constraints: const BoxConstraints(
-                                  minWidth: 32,
-                                  minHeight: 32,
-                                ),
-                                icon: Icon(
-                                  Icons.copy_rounded,
-                                  size: 16,
-                                  color: isUser
-                                      ? Colors.white70
-                                      : const Color(0xFF6B7280),
-                                ),
+                    const SizedBox(width: IDPSpacing.xs),
+                    const Icon(Icons.done_all, size: 14, color: IDPColors.secondary),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: IDPSpacing.lg),
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: const BoxDecoration(
+                      color: IDPColors.primaryContainer,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.smart_toy, size: 18, color: IDPColors.onPrimaryContainer),
+                  ),
+                  const SizedBox(width: IDPSpacing.sm),
+                  Text('Tutor', style: IDPTypography.labelMd.copyWith(color: IDPColors.primary)),
+                ],
+              ),
+              const SizedBox(height: IDPSpacing.xs),
+              GestureDetector(
+                onLongPress: () => _copyMessage(message),
+                child: Container(
+                  padding: const EdgeInsets.all(IDPSpacing.lg),
+                  decoration: BoxDecoration(
+                    color: IDPColors.surfaceContainerLow,
+                    border: Border.all(color: IDPColors.outlineVariant.withValues(alpha: 0.2)),
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(IDPRadius.defaultRadius),
+                      topRight: Radius.circular(IDPRadius.defaultRadius),
+                      bottomRight: Radius.circular(IDPRadius.defaultRadius),
+                      bottomLeft: Radius.zero,
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (AssetMessageRenderer.isAssetMessage(message.text))
+                        AssetMessageRenderer.render(message.text)
+                      else
+                        SelectableText(
+                          message.text.isEmpty && _isGenerating ? 'Thinking...' : message.text,
+                          style: IDPTypography.bodyMd.copyWith(color: IDPColors.onSurface),
+                        ),
+                      if (_isGenerating && message.text.isEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: IDPSpacing.sm),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Container(width: 6, height: 6, decoration: BoxDecoration(color: IDPColors.primary.withValues(alpha: 0.4), shape: BoxShape.circle)),
+                              const SizedBox(width: 4),
+                              Container(width: 6, height: 6, decoration: BoxDecoration(color: IDPColors.primary.withValues(alpha: 0.4), shape: BoxShape.circle)),
+                              const SizedBox(width: 4),
+                              Container(width: 6, height: 6, decoration: BoxDecoration(color: IDPColors.primary.withValues(alpha: 0.4), shape: BoxShape.circle)),
+                            ],
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: IDPSpacing.xs),
+              Text(
+                '${message.timestamp.hour}:${message.timestamp.minute.toString().padLeft(2, '0')}',
+                style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatComposer(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(IDPSpacing.containerMargin, 0, IDPSpacing.containerMargin, IDPSpacing.xl),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Suggested Prompts
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+                child: Row(
+                  children: [
+                    _buildSuggestedPromptChip(context, Icons.functions, 'Example Problems'),
+                    _buildSuggestedPromptChip(context, Icons.public, 'Real-world use'),
+                    _buildSuggestedPromptChip(context, Icons.quiz, 'Quiz me'),
+                  ],
+                ),
+              ),
+              
+              // Input Bar
+              Container(
+                padding: const EdgeInsets.all(IDPSpacing.xs),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(IDPRadius.xl),
+                  border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Colors.black12,
+                      blurRadius: 15,
+                      offset: Offset(0, 5),
+                    )
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(IDPRadius.xl),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () {},
+                          icon: const Icon(Icons.attach_file, color: IDPColors.onSurfaceVariant),
+                        ),
+                        Expanded(
+                          child: Localizations.override(
+                            context: context,
+                            locale: Locale(_languageCode),
+                            child: TextField(
+                              controller: _inputController,
+                              minLines: 1,
+                              maxLines: 4,
+                              style: IDPTypography.bodyMd.copyWith(color: IDPColors.onSurface),
+                              decoration: InputDecoration(
+                                hintText: AppLocalizations.of(context)?.chatMessageTutorHint ?? "Ask your offline tutor...",
+                                hintStyle: IDPTypography.bodyMd.copyWith(color: IDPColors.onSurfaceVariant.withValues(alpha: 0.5)),
+                                border: InputBorder.none,
+                                enabledBorder: InputBorder.none,
+                                focusedBorder: InputBorder.none,
                               ),
                             ),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              decoration: const BoxDecoration(
+                                color: IDPColors.primaryContainer,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                onPressed: _backendConnected ? _openVoiceTutor : null,
+                                color: IDPColors.onPrimaryContainer,
+                                tooltip: _backendConnected
+                                    ? AppLocalizations.of(context)!.chatVoiceTutorTooltip
+                                    : AppLocalizations.of(context)!.chatVoiceRequiresBackendTooltip,
+                                icon: const Icon(Icons.mic),
+                              ),
+                            ),
+                            const SizedBox(width: IDPSpacing.sm),
+                            Container(
+                              decoration: const BoxDecoration(
+                                color: IDPColors.primary,
+                                shape: BoxShape.circle,
+                              ),
+                              child: IconButton(
+                                onPressed: _isGenerating ? _stop : _ask,
+                                color: IDPColors.onPrimary,
+                                tooltip: _isGenerating
+                                    ? AppLocalizations.of(context)!.chatStopResponseTooltip
+                                    : AppLocalizations.of(context)!.chatSendTooltip,
+                                icon: Icon(_isGenerating ? Icons.stop_rounded : Icons.send),
+                              ),
+                            ),
+                            const SizedBox(width: IDPSpacing.xs),
                           ],
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -2755,69 +2879,37 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
     );
   }
 
-  Widget _buildChatComposer(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Color(0xFFE5E7EB))),
-      ),
-      child: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.only(bottom: 2),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 900),
-          child: DecoratedBox(
+  Widget _buildSuggestedPromptChip(BuildContext context, IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(right: IDPSpacing.sm),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(IDPRadius.full),
+          onTap: () {
+            _inputController.text = text;
+            _ask();
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.lg, vertical: IDPSpacing.sm),
             decoration: BoxDecoration(
-              color: const Color(0xFFF7F8F8),
-              border: Border.all(color: const Color(0xFFD1D5DB)),
-              borderRadius: BorderRadius.circular(8),
+              color: IDPColors.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(IDPRadius.full),
+              border: Border.all(color: IDPColors.outlineVariant.withValues(alpha: 0.5)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Colors.black12,
+                  blurRadius: 4,
+                  offset: Offset(0, 1),
+                ),
+              ],
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(
-                  child: Localizations.override(
-                    context: context,
-                    locale: Locale(_languageCode),
-                    child: Builder(
-                      builder: (context) {
-                        return TextField(
-                          controller: _inputController,
-                          minLines: 1,
-                          maxLines: 5,
-                          textInputAction: TextInputAction.newline,
-                          keyboardType: TextInputType.multiline,
-                          onTapOutside: (_) => FocusScope.of(context).unfocus(),
-                          decoration: InputDecoration(
-                            hintText: AppLocalizations.of(context)!.chatMessageTutorHint,
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.fromLTRB(16, 13, 8, 13),
-                          ),
-                        );
-                      }
-                    ),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _backendConnected ? _openVoiceTutor : null,
-                  tooltip: _backendConnected
-                      ? AppLocalizations.of(context)!.chatVoiceTutorTooltip
-                      : AppLocalizations.of(context)!.chatVoiceRequiresBackendTooltip,
-                  icon: const Icon(Icons.mic_none_rounded),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(right: 6, bottom: 6),
-                  child: IconButton.filled(
-                    onPressed: _isGenerating ? _stop : _ask,
-                    tooltip: _isGenerating
-                        ? AppLocalizations.of(context)!.chatStopResponseTooltip
-                        : AppLocalizations.of(context)!.chatSendTooltip,
-                    icon: Icon(
-                      _isGenerating ? Icons.stop_rounded : Icons.arrow_upward,
-                    ),
-                  ),
-                ),
+                Icon(icon, size: 18, color: IDPColors.onSurfaceVariant),
+                const SizedBox(width: IDPSpacing.sm),
+                Text(text, style: IDPTypography.labelMd.copyWith(color: IDPColors.onSurfaceVariant)),
               ],
             ),
           ),

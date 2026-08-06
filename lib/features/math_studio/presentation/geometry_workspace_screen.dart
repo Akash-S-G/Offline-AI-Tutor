@@ -214,7 +214,7 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
   Widget build(BuildContext context) {
     return MathStudioWorkspaceShell(
       title: 'Geometry Workspace',
-      accentColor: const Color(0xFF0D9488),
+      accentColor: IDPColors.primary,
       actions: [
         IconButton(
           icon: const Icon(Icons.save_rounded),
@@ -238,28 +238,27 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
         if (widget.discoveryPrompt != null)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(IDPSpacing.md),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D9488).withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
+              color: IDPColors.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(IDPRadius.md),
               border: Border.all(
-                color: const Color(0xFF0D9488).withValues(alpha: 0.18),
+                color: IDPColors.primaryContainer,
               ),
             ),
             child: Row(
               children: [
                 const Icon(
                   Icons.lightbulb_outline_rounded,
-                  color: Color(0xFF0F766E),
+                  color: IDPColors.primary,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: IDPSpacing.md),
                 Expanded(
                   child: Text(
                     widget.discoveryPrompt!,
-                    style: const TextStyle(
-                      color: Color(0xFF134E4A),
+                    style: IDPTypography.bodyMedium.copyWith(
+                      color: IDPColors.onSurface,
                       fontWeight: FontWeight.w600,
-                      height: 1.35,
                     ),
                   ),
                 ),
@@ -287,7 +286,7 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
               ? 'Used in construction to ensure walls are perfectly square (the 3-4-5 rule).'
               : 'Architects use geometry to design stable and aesthetically pleasing buildings.',
           icon: Icons.architecture_rounded,
-          color: const Color(0xFF0D9488),
+          color: IDPColors.primary,
         ),
         if (_shape != GeometryShape.pythagorean &&
             _shape != GeometryShape.angles)
@@ -308,14 +307,14 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
                 onPanEnd: _onPanEnd,
                 child: Container(
                   decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: IDPColors.border),
+                    color: IDPColors.surface,
+                    borderRadius: BorderRadius.circular(IDPRadius.md),
+                    border: Border.all(color: IDPColors.outlineVariant),
                   ),
                   width: double.infinity,
                   height: double.infinity,
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(18),
+                    borderRadius: BorderRadius.circular(IDPRadius.md),
                     child: CustomPaint(
                       painter: _GeometryPainter(
                         shape: _shape,
@@ -339,11 +338,11 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
 
   Widget _buildToolbar() {
     return Container(
-      color: Colors.white,
-      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      color: IDPColors.surface,
+      padding: const EdgeInsets.symmetric(vertical: IDPSpacing.sm, horizontal: IDPSpacing.md),
       child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: IDPSpacing.sm,
+        runSpacing: IDPSpacing.sm,
         alignment: WrapAlignment.spaceAround,
         children: GeometryShape.values.map((s) {
           final isSelected = _shape == s;
@@ -354,22 +353,21 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
                 _resetShape();
               });
             },
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(IDPRadius.sm),
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: IDPSpacing.sm, horizontal: 12),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? const Color(0xFF0D9488).withValues(alpha: 0.1)
+                    ? IDPColors.primaryContainer
                     : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(IDPRadius.sm),
               ),
               child: Text(
                 s.name.toUpperCase(),
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
+                style: IDPTypography.labelMedium.copyWith(
                   color: isSelected
-                      ? const Color(0xFF0D9488)
-                      : IDPColors.textSecondary,
+                      ? IDPColors.onPrimaryContainer
+                      : IDPColors.onSurfaceVariant,
                 ),
               ),
             ),
@@ -383,20 +381,21 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
     if (!_showLiveStats) {
       return FloatingActionButton.small(
         onPressed: () => setState(() => _showLiveStats = true),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0D9488),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.primary,
+        elevation: 1,
         child: const Icon(Icons.calculate),
       );
     }
 
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(IDPSpacing.md),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(12),
+        color: IDPColors.surface.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(IDPRadius.sm),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
+            color: IDPColors.onSurface.withValues(alpha: 0.1),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -410,40 +409,39 @@ class _GeometryWorkspaceScreenState extends State<GeometryWorkspaceScreen> {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
+              Text(
                 'Live Calculations',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: IDPColors.textPrimary,
+                style: IDPTypography.labelMedium.copyWith(
+                  color: IDPColors.onSurface,
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: IDPSpacing.md),
               GestureDetector(
                 onTap: () => setState(() => _showLiveStats = false),
-                child: const Icon(Icons.close, size: 16, color: Colors.grey),
+                child: const Icon(Icons.close, size: 16, color: IDPColors.outline),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: IDPSpacing.sm),
           Text(
             'Area: ${(_calculateArea() / 100).toStringAsFixed(1)} cm²',
-            style: const TextStyle(
-              color: Color(0xFF0D9488),
+            style: IDPTypography.bodyMedium.copyWith(
+              color: IDPColors.primary,
               fontWeight: FontWeight.w600,
             ),
           ),
           Text(
             'Perimeter: ${(_calculatePerimeter() / 10).toStringAsFixed(1)} cm',
-            style: const TextStyle(
-              color: Color(0xFF0D9488),
+            style: IDPTypography.bodyMedium.copyWith(
+              color: IDPColors.primary,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (_shape == GeometryShape.triangle) ...[
-            const SizedBox(height: 8),
-            const Text(
+            const SizedBox(height: IDPSpacing.sm),
+            Text(
               'Drag corners to edit.',
-              style: TextStyle(fontSize: 12, color: Colors.grey),
+              style: IDPTypography.caption.copyWith(color: IDPColors.onSurfaceVariant),
             ),
           ],
         ],
@@ -468,16 +466,16 @@ class _GeometryPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final fillPaint = Paint()
-      ..color = const Color(0xFF0D9488).withValues(alpha: 0.1)
+      ..color = IDPColors.primary.withValues(alpha: 0.1)
       ..style = PaintingStyle.fill;
 
     final strokePaint = Paint()
-      ..color = const Color(0xFF0D9488)
+      ..color = IDPColors.primary
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
 
     final pointPaint = Paint()
-      ..color = const Color(0xFF0F766E)
+      ..color = IDPColors.onPrimaryContainer
       ..style = PaintingStyle.fill;
 
     if (shape == GeometryShape.circle) {
@@ -526,13 +524,13 @@ class _GeometryPainter extends CustomPainter {
           canvas.drawPath(
             squarePath,
             Paint()
-              ..color = Colors.orange.withValues(alpha: 0.3)
+              ..color = IDPColors.tertiary.withValues(alpha: 0.3)
               ..style = PaintingStyle.fill,
           );
           canvas.drawPath(
             squarePath,
             Paint()
-              ..color = Colors.orange
+              ..color = IDPColors.tertiary
               ..style = PaintingStyle.stroke
               ..strokeWidth = 2,
           );
@@ -617,9 +615,8 @@ class _GeometryPainter extends CustomPainter {
     final painter = TextPainter(
       text: TextSpan(
         text: text,
-        style: const TextStyle(
-          color: Color(0xFF134E4A),
-          fontSize: 11,
+        style: IDPTypography.caption.copyWith(
+          color: IDPColors.onSurface,
           fontWeight: FontWeight.w800,
         ),
       ),
@@ -632,13 +629,13 @@ class _GeometryPainter extends CustomPainter {
       height: painter.height + 7,
     );
     final background = Paint()
-      ..color = Colors.white.withValues(alpha: 0.92)
+      ..color = IDPColors.surface.withValues(alpha: 0.92)
       ..style = PaintingStyle.fill;
     final border = Paint()
-      ..color = const Color(0xFF0D9488).withValues(alpha: 0.22)
+      ..color = IDPColors.primary.withValues(alpha: 0.22)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(IDPRadius.sm));
     canvas.drawRRect(rrect, background);
     canvas.drawRRect(rrect, border);
     painter.paint(

@@ -6,6 +6,9 @@ import 'package:flutter_pdfview/flutter_pdfview.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/theme/idp_colors.dart';
+import '../../../core/theme/idp_typography.dart';
+import '../../../core/theme/idp_theme.dart';
+import '';
 import '../../course/domain/curriculum_models.dart';
 import '../../course/data/local/pdf_chapter_locator.dart';
 import '../../course/data/local/textbook_repository.dart';
@@ -56,7 +59,6 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
         return;
       }
 
-      // Check saved progress
       final prefs = await SharedPreferences.getInstance();
       final savedPage = prefs.getInt('reader_progress_${widget.chapter.packId}');
       
@@ -88,7 +90,6 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
     
     _saveProgress(page);
 
-    // Bounds checking (soft restriction)
     if (_pdfRef != null) {
       if (page < _pdfRef!.startPage) {
         _showOutOfBoundsWarning(true);
@@ -103,8 +104,11 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(isBeforeStart ? "You've scrolled before the chapter starts." : "You have reached the end of the chapter."),
+        backgroundColor: IDPColors.surfaceContainerHigh,
+        behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: "Return",
+          textColor: IDPColors.primary,
           onPressed: () async {
             final controller = await _pdfViewController.future;
             final targetPage = isBeforeStart ? _pdfRef!.startPage : _pdfRef!.endPage!;
@@ -117,7 +121,6 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
   }
 
   void _openTutor() {
-    // Map to legacy models to pass to ChapterChatScreen
     final legacyCourse = Course(
       id: 'grade_${widget.chapter.grade}',
       name: 'Grade ${widget.chapter.grade}',
@@ -164,7 +167,6 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
   }
 
   Future<void> _showSummaryPanel() async {
-    // Load summary from TextbookRepository as a fallback since summaries.json isn't directly exposed yet
     final repo = TextbookRepository();
     final chapterData = await repo.loadChapter(widget.chapter.rootPath);
     
@@ -183,45 +185,51 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
             return Container(
               decoration: const BoxDecoration(
                 color: IDPColors.surface,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(IDPRadius.xl)),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(IDPSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Center(
                     child: Container(
                       width: 40,
-                      height: 5,
+                      height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.grey.shade400,
-                        borderRadius: BorderRadius.circular(10),
+                        color: IDPColors.outlineVariant,
+                        borderRadius: BorderRadius.circular(IDPRadius.full),
                       ),
                     ),
                   ),
-                  const SizedBox(height: 20),
-                  const Text(
+                  const SizedBox(height: IDPSpacing.lg),
+                  Text(
                     "Chapter Summary & Concepts",
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: IDPColors.textPrimary),
+                    style: IDPTypography.titleLarge.copyWith(color: IDPColors.onSurface),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: IDPSpacing.md),
                   Expanded(
                     child: ListView(
                       controller: controller,
                       children: [
                         if (chapterData == null)
-                          const Text("No summary available for this chapter.", style: TextStyle(color: IDPColors.textSecondary))
+                          Text("No summary available for this chapter.", style: IDPTypography.bodyMedium.copyWith(color: IDPColors.onSurfaceVariant))
                         else ...[
                           Text(
                             widget.chapter.summary.isNotEmpty ? widget.chapter.summary : "No summary provided.",
-                            style: const TextStyle(fontSize: 16, color: IDPColors.textPrimary, height: 1.5),
+                            style: IDPTypography.bodyLarge.copyWith(color: IDPColors.onSurface),
                           ),
-                          const SizedBox(height: 24),
-                          const Text("Sections", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: IDPColors.textPrimary)),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: IDPSpacing.xl),
+                          Text("Sections", style: IDPTypography.titleMedium.copyWith(color: IDPColors.onSurface)),
+                          const SizedBox(height: IDPSpacing.sm),
                           ...chapterData.sections.map((sec) => Padding(
-                            padding: const EdgeInsets.only(bottom: 8.0),
-                            child: Text("• ${sec.title}", style: const TextStyle(fontSize: 16, color: IDPColors.textSecondary)),
+                            padding: const EdgeInsets.only(bottom: IDPSpacing.xs),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text("• ", style: TextStyle(color: IDPColors.primary, fontSize: 16)),
+                                Expanded(child: Text(sec.title, style: IDPTypography.bodyMedium.copyWith(color: IDPColors.onSurfaceVariant))),
+                              ],
+                            ),
                           )).toList(),
                         ],
                       ],
@@ -242,53 +250,65 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
       backgroundColor: IDPColors.background,
       appBar: AppBar(
         title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(widget.chapter.title, style: const TextStyle(fontSize: 16)),
+            Text(widget.chapter.title, style: IDPTypography.titleMedium.copyWith(color: IDPColors.onSurface)),
             if (_totalPages > 0)
               Text(
                 'Page ${_currentPage + 1} of $_totalPages',
-                style: const TextStyle(fontSize: 12, color: Colors.white70),
+                style: IDPTypography.labelSmall.copyWith(color: IDPColors.onSurfaceVariant),
               ),
           ],
         ),
-        backgroundColor: IDPColors.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: IDPColors.surface.withValues(alpha: 0.9),
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
-            icon: const Icon(Icons.bookmark_add_outlined),
+            icon: const Icon(Icons.bookmark_add_outlined, color: IDPColors.primary),
             onPressed: () {
-              // Add bookmark logic here
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Bookmarked page ${_currentPage + 1}')),
+                SnackBar(
+                  content: Text('Bookmarked page ${_currentPage + 1}'),
+                  backgroundColor: IDPColors.surfaceContainerHigh,
+                  behavior: SnackBarBehavior.floating,
+                ),
               );
             },
           ),
         ],
       ),
       body: _buildBody(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openTutor,
+        backgroundColor: IDPColors.primary,
+        foregroundColor: IDPColors.onPrimary,
+        icon: const Icon(Icons.psychology),
+        label: const Text('Ask AI Tutor'),
+      ),
       bottomNavigationBar: _buildToolbar(),
     );
   }
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator(color: IDPColors.primary));
     }
 
     if (_errorMessage != null) {
       return Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(IDPSpacing.xl),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, size: 48, color: Colors.redAccent),
-              const SizedBox(height: 16),
+              const Icon(Icons.error_outline, size: 48, color: IDPColors.error),
+              const SizedBox(height: IDPSpacing.md),
               Text(
                 _errorMessage!,
                 textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 16, color: IDPColors.textSecondary),
+                style: IDPTypography.bodyLarge.copyWith(color: IDPColors.onErrorContainer),
               ),
             ],
           ),
@@ -303,7 +323,7 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
         PDFView(
           filePath: _pdfRef!.pdfPath,
           enableSwipe: true,
-          swipeHorizontal: false, // Vertical scrolling for textbook reading is often preferred
+          swipeHorizontal: false, 
           autoSpacing: false,
           pageFling: false,
           defaultPage: _currentPage,
@@ -330,7 +350,7 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
           onPageChanged: _onPageChanged,
         ),
         if (!_isReady)
-          const Center(child: CircularProgressIndicator()),
+          const Center(child: CircularProgressIndicator(color: IDPColors.primary)),
       ],
     );
   }
@@ -338,44 +358,29 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
   Widget _buildToolbar() {
     return Container(
       decoration: BoxDecoration(
-        color: IDPColors.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            offset: const Offset(0, -4),
-            blurRadius: 8,
-          ),
-        ],
+        color: IDPColors.surface.withValues(alpha: 0.9),
+        border: Border(top: BorderSide(color: IDPColors.outlineVariant.withValues(alpha: 0.5))),
       ),
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+          padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.md, vertical: IDPSpacing.sm),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _buildToolbarAction(
-                icon: Icons.chat_bubble_outline,
-                label: "AI Tutor",
-                onTap: _openTutor,
-                color: IDPColors.primary,
-              ),
-              _buildToolbarAction(
                 icon: Icons.article_outlined,
                 label: "Summary",
                 onTap: _showSummaryPanel,
-                color: Colors.purple,
               ),
               _buildToolbarAction(
                 icon: Icons.style_outlined,
                 label: "Flashcards",
                 onTap: _openFlashcards,
-                color: Colors.orange,
               ),
               _buildToolbarAction(
                 icon: Icons.quiz_outlined,
                 label: "Quiz",
                 onTap: _openQuiz,
-                color: Colors.green,
               ),
             ],
           ),
@@ -388,25 +393,20 @@ class _PdfChapterReaderScreenState extends State<PdfChapterReaderScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    required Color color,
   }) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(IDPRadius.md),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+        padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.md, vertical: IDPSpacing.sm),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 24),
+            Icon(icon, color: IDPColors.onSurfaceVariant, size: 24),
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: color.withOpacity(0.8),
-              ),
+              style: IDPTypography.labelSmall.copyWith(color: IDPColors.onSurfaceVariant),
             ),
           ],
         ),

@@ -61,36 +61,34 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
 
     return MathStudioWorkspaceShell(
       title: 'Algebra Workspace',
-      accentColor: const Color(0xFF6366F1),
+      accentColor: IDPColors.secondary,
       children: [
-        const Text(
+        Text(
           'Equation Solver',
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: IDPColors.textPrimary,
+          style: IDPTypography.h3.copyWith(
+            color: IDPColors.onSurface,
           ),
         ),
-        const SizedBox(height: 6),
-        const Text(
+        const SizedBox(height: IDPSpacing.xs),
+        Text(
           'Solve linear or quadratic equations with step-by-step explanations.',
-          style: TextStyle(color: IDPColors.textSecondary, height: 1.4),
+          style: IDPTypography.bodyMedium.copyWith(color: IDPColors.onSurfaceVariant, height: 1.4),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: IDPSpacing.lg),
         _buildModeSelector(),
-        const SizedBox(height: 20),
+        const SizedBox(height: IDPSpacing.lg),
         _buildEquationPreview(a, b, c),
-        const SizedBox(height: 20),
+        const SizedBox(height: IDPSpacing.lg),
         _buildInputFields(),
         if (hasInvalidInput)
-          const Padding(
-            padding: EdgeInsets.only(top: 8.0),
+          Padding(
+            padding: const EdgeInsets.only(top: IDPSpacing.sm),
             child: Text(
               'Invalid inputs detected. Using fallback values for calculation.',
-              style: TextStyle(color: Colors.orange, fontSize: 12),
+              style: IDPTypography.caption.copyWith(color: IDPColors.error),
             ),
           ),
-        const SizedBox(height: 20),
+        const SizedBox(height: IDPSpacing.lg),
         _buildSolutionCard(
           a,
           b,
@@ -133,14 +131,14 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
         : '${_formatCoefficient(a)}x² ${_formatSignedTerm(b)}x ${_formatSignedTerm(c)} = 0';
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(IDPSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: IDPColors.border),
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.md),
+        border: Border.all(color: IDPColors.outlineVariant),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: IDPColors.onSurface.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 4),
           ),
@@ -149,11 +147,9 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
       child: Center(
         child: Text(
           equationString,
-          style: const TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
+          style: IDPTypography.h2.copyWith(
             letterSpacing: 1.2,
-            color: Color(0xFF6366F1),
+            color: IDPColors.secondary,
           ),
         ),
       ),
@@ -216,9 +212,9 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
       ),
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(IDPRadius.sm)),
         filled: true,
-        fillColor: Colors.white,
+        fillColor: IDPColors.surface,
       ),
     );
   }
@@ -236,29 +232,27 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
         : _quadraticSteps(a, b, c, discriminant, quadraticCenter);
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(IDPSpacing.lg),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: IDPColors.border),
+        color: IDPColors.surface,
+        borderRadius: BorderRadius.circular(IDPRadius.md),
+        border: Border.all(color: IDPColors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Step-by-step Solution',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-              color: IDPColors.textPrimary,
+            style: IDPTypography.h6.copyWith(
+              color: IDPColors.onSurface,
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: IDPSpacing.md),
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: steps.length,
-            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            separatorBuilder: (context, index) => const SizedBox(height: IDPSpacing.sm),
             itemBuilder: (context, index) {
               return Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,16 +262,14 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6366F1).withValues(alpha: 0.1),
+                      color: IDPColors.secondary.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
                         '${index + 1}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF6366F1),
+                        style: IDPTypography.labelSmall.copyWith(
+                          color: IDPColors.secondary,
                         ),
                       ),
                     ),
@@ -285,10 +277,9 @@ class _AlgebraWorkspaceScreenState extends State<AlgebraWorkspaceScreen> {
                   Expanded(
                     child: Text(
                       steps[index],
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: IDPTypography.bodyMedium.copyWith(
                         height: 1.5,
-                        color: IDPColors.textSecondary,
+                        color: IDPColors.onSurfaceVariant,
                       ),
                     ),
                   ),
