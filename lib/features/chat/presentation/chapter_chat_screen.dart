@@ -35,6 +35,7 @@ import '../../network/application/intent_detector.dart';
 import '../../progress/data/local/progress_repository.dart';
 import '../../shared/application/offline_error_taxonomy.dart';
 import 'asset_message_widgets.dart';
+import 'formatted_text_widget.dart';
 import '../../language/providers/language_provider.dart';
 import '../../tutor/screens/voice_tutor_screen.dart';
 
@@ -2732,8 +2733,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
                       if (AssetMessageRenderer.isAssetMessage(message.text))
                         AssetMessageRenderer.render(message.text)
                       else
-                        SelectableText(
-                          message.text.isEmpty && _isGenerating ? 'Thinking...' : message.text,
+                        FormattedTextWidget(
+                          text: message.text.isEmpty && _isGenerating ? 'Thinking...' : message.text,
                           style: IDPTypography.bodyMd.copyWith(color: IDPColors.onSurface),
                         ),
                       if (_isGenerating && message.text.isEmpty)

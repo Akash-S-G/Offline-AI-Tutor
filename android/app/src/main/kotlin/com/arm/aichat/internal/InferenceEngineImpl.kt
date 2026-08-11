@@ -65,6 +65,8 @@ internal class InferenceEngineImpl private constructor(
     @Volatile
     private var cancelGeneration = false
 
+    private var currentModelPath: String? = null
+
     @OptIn(ExperimentalCoroutinesApi::class)
     private val llamaDispatcher = Dispatchers.IO.limitedParallelism(1)
 
@@ -97,7 +99,13 @@ internal class InferenceEngineImpl private constructor(
             initReady.await()
 
             if (_state.value is InferenceEngine.State.ModelReady) {
-                return@withContext
+                if (currentModelPath == pathToModel) {
+                    return@withContext
+                } else {
+                    Log.i(TAG, "[Engine] Different model path requested (old=$currentModelPath, new=$pathToModel). Unloading old model.")
+                    unload()
+                    _state.value = InferenceEngine.State.Initialized
+                }
             }
 
             when (_state.value) {
@@ -144,6 +152,7 @@ internal class InferenceEngineImpl private constructor(
 
                 readyForSystemPrompt = true
                 cancelGeneration = false
+                currentModelPath = pathToModel
                 _state.value = InferenceEngine.State.ModelReady
             } catch (t: Throwable) {
                 val e = if (t is Exception) t else RuntimeException(t.message ?: "Load failed", t)
@@ -230,6 +239,7 @@ internal class InferenceEngineImpl private constructor(
     override fun cleanUp() {
         cancelGeneration = true
         runBlocking(llamaDispatcher) {
+            currentModelPath = null
             when (val state = _state.value) {
                 is InferenceEngine.State.ModelReady -> {
                     readyForSystemPrompt = false

@@ -42,23 +42,26 @@ class StreamingOutputNormalizer {
   }
 
   static String merge(String previous, String incoming) {
+    if (incoming.isEmpty) return previous;
+    if (previous.isEmpty) return incoming;
+
     final cleanedPrevious = clean(previous);
     final cleanedIncoming = clean(incoming);
 
     if (cleanedIncoming.isEmpty) {
-      return cleanedPrevious;
+      return previous;
     }
     if (cleanedPrevious.isEmpty) {
-      return cleanedIncoming;
+      return incoming;
     }
     if (cleanedIncoming == cleanedPrevious) {
-      return cleanedPrevious;
+      return previous;
     }
     if (cleanedIncoming.startsWith(cleanedPrevious)) {
-      return cleanedIncoming;
+      return incoming;
     }
-    if (cleanedPrevious.startsWith(cleanedIncoming)) {
-      return cleanedPrevious;
+    if (previous.startsWith(cleanedIncoming)) {
+      return previous;
     }
 
     final overlap = _longestOverlap(cleanedPrevious, cleanedIncoming);
@@ -66,7 +69,8 @@ class StreamingOutputNormalizer {
       return cleanedPrevious + cleanedIncoming.substring(overlap);
     }
 
-    return '$cleanedPrevious$cleanedIncoming';
+    // Preserve original whitespace and spaces by concatenating the raw strings directly
+    return previous + incoming;
   }
 
   static String delta(String previous, String incoming) {

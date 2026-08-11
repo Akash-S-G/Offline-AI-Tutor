@@ -32,7 +32,7 @@ constexpr int   N_THREADS_MIN           = 1;
 constexpr int   N_THREADS_MAX           = 4;
 constexpr int   N_THREADS_HEADROOM      = 2;
 
-constexpr int   DEFAULT_CONTEXT_SIZE    = 1024;
+constexpr int   DEFAULT_CONTEXT_SIZE    = 2048;
 constexpr int   OVERFLOW_HEADROOM       = 4;
 constexpr int   BATCH_SIZE              = 128;
 constexpr int   TOKENS_PER_CHUNK        = 4;
@@ -166,6 +166,10 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
 static common_sampler *new_sampler(float temp) {
     common_params_sampling sparams;
     sparams.temp = temp;
+    sparams.penalty_last_n = 64;
+    sparams.penalty_repeat = 1.15f;
+    sparams.penalty_freq = 0.50f;
+    sparams.penalty_present = 0.50f;
     return common_sampler_init(g_model, sparams);
 }
 
@@ -373,6 +377,9 @@ static void reset_short_term_states() {
     stop_generation_position = 0;
     cached_token_chars.clear();
     assistant_ss.str("");
+    if (g_sampler != nullptr) {
+        common_sampler_reset(g_sampler);
+    }
 }
 
 static void reset_to_system_prompt_context() {

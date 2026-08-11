@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(ai_chat_bridge)
 
+# Force Release build type and full optimizations even during Gradle debug builds
+set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+set(CMAKE_CXX_FLAGS_DEBUG "-O3 -DNDEBUG" CACHE STRING "" FORCE)
+set(CMAKE_C_FLAGS_DEBUG "-O3 -DNDEBUG" CACHE STRING "" FORCE)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 

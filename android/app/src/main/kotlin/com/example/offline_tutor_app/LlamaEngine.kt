@@ -476,12 +476,23 @@ class LlamaEngine(private val context: Context) {
                 // Since the Dart layer (HybridInferenceService) already provides the complete
                 // system prompt and context, we do NOT prepend activeSystemPrompt here 
                 // to avoid double-prompting and saving 30-40s of redundant KV cache computation.
-                val promptToProcess = if (!systemPromptApplied) {
-                    println("[Engine] 🔗 Q1: Processing prompt from Dart layer")
-                    question.trim()
+                // If Dart already formatted the prompt with a chat template
+                // (ChatML: starts with <|im_start|>, or Llama-2: starts with <s>[INST])
+                // pass it verbatim — the native C++ layer will see the full formatted
+                // prompt as the user turn and NOT prepend an extra system block.
+                val trimmedQ = question.trim()
+                val isPreFormatted = trimmedQ.startsWith("<|im_start|") ||
+                    trimmedQ.startsWith("<s>[INST]")
+
+                val promptToProcess = if (isPreFormatted) {
+                    println("[Engine] 📜 Pre-formatted prompt detected (ChatML/Llama-2), passing verbatim")
+                    trimmedQ
+                } else if (!systemPromptApplied) {
+                    println("[Engine] 🔗 Q1: Processing raw prompt from Dart layer")
+                    trimmedQ
                 } else {
                     println("[Engine] ⚡ Q2+: Processing user only (system cached)")
-                    question.trim()
+                    trimmedQ
                 }
 
                 // Use the proven streaming path for stability on physical devices.
@@ -533,38 +544,36 @@ class LlamaEngine(private val context: Context) {
                 // Mark system as applied after first question processes it
                 systemPromptApplied = true
                 
-                // POST-PROCESS: Remove self-generated questions and cleanup
-                var cleanedResponse = result.toString()
-                    .trim()
+                // POST-PROCESS: Strip chat-template markers that may leak into output
+                var cleanedResponse = stripTemplateArtifacts(result.toString()).trim()
                     .takeIf { it.isNotEmpty() } ?: "I could not generate an answer. Please try again."
-                
+
                 // Remove question patterns that model might generate (self-questioning)
                 // Stop at "Q:" or "Question:" or "?" followed by user response pattern
                 val questionStartPatterns = listOf(
-                    Regex("\\n\\s*Q\\d*:\\s.*", RegexOption.DOT_MATCHES_ALL),  // Q1:, Q:
+                    Regex("\\n\\s*Q\\d*:\\s.*", RegexOption.DOT_MATCHES_ALL),
                     Regex("\\n\\s*Question:\\s.*", RegexOption.DOT_MATCHES_ALL),
-                    Regex("\\n\\s*\\?\\s*[A-Z].*", RegexOption.DOT_MATCHES_ALL),  // ? followed by uppercase
+                    Regex("\\n\\s*\\?\\s*[A-Z].*", RegexOption.DOT_MATCHES_ALL),
                     Regex("\\n\\s*Assistant:\\s.*", RegexOption.DOT_MATCHES_ALL),
                     Regex("\\n\\s*User:\\s.*", RegexOption.DOT_MATCHES_ALL),
                     Regex("\\n\\s*A:\\s.*", RegexOption.DOT_MATCHES_ALL),
                     Regex("\\n\\s*B:\\s.*", RegexOption.DOT_MATCHES_ALL),
-                    Regex("\\n\\n[A-Z][^.!?]*\\?", RegexOption.DOT_MATCHES_ALL)  // New sentence ending with ?
+                    Regex("\\n\\n[A-Z][^.!?]*\\?", RegexOption.DOT_MATCHES_ALL)
                 )
-                
+
                 for (pattern in questionStartPatterns) {
                     val match = pattern.find(cleanedResponse)
                     if (match != null) {
-                        // Stop before the question/new turn starts
                         cleanedResponse = cleanedResponse.substring(0, match.range.first).trim()
                         break
                     }
                 }
-                
+
                 // Remove trailing incomplete sentences
                 if (cleanedResponse.endsWith("?")) {
                     cleanedResponse = cleanedResponse.substringBeforeLast("?").trim()
                 }
-                
+
                 // Remove incomplete words at end
                 if (cleanedResponse.lastOrNull()?.isLetter() == true) {
                     val lastSpace = cleanedResponse.lastIndexOf(' ')
@@ -876,6 +885,25 @@ class LlamaEngine(private val context: Context) {
 
     private fun buildPrompt(question: String): String {
         return question.trim()
+    }
+
+    /**
+     * Strips residual chat-template control tokens from model output.
+     * These leak when the model echoes parts of the prompt or generates
+     * a new turn marker before the stop marker triggers.
+     */
+    private fun stripTemplateArtifacts(text: String): String {
+        val artifacts = listOf(
+            "<|im_start|>assistant", "<|im_start|>user", "<|im_start|>system",
+            "<|im_start|>", "<|im_end|>",
+            "<start_of_turn>model", "<start_of_turn>user", "<end_of_turn>",
+            "[/INST]", "<<SYS>>", "<</SYS>>", "</s>",
+        )
+        var cleaned = text
+        for (artifact in artifacts) {
+            cleaned = cleaned.replace(artifact, "")
+        }
+        return cleaned.trimStart('\n', '\r', ' ')
     }
 
 }

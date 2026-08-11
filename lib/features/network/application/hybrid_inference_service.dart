@@ -392,15 +392,27 @@ class HybridInferenceService {
         return '<s>[INST] <<SYS>>\n$system\n<</SYS>>\n\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question$ctx [/INST]';
       }
 
-      final localPrompt = preparedPrompt ?? (isQwen
-          ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText<|im_end|>\n<|im_start|>assistant\n'
-          : isGemma
-              ? 'You are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText'
-              : _llama2Prompt(
-                  'You are a helpful school tutor. Explain the topic clearly and concisely.',
-                  question,
-                  contextText,
-                ));
+      String _wrapInChatTemplate(String rawPrompt) {
+        if (isQwen) {
+          return '<|im_start|>user\n$rawPrompt<|im_end|>\n<|im_start|>assistant\n';
+        } else if (isGemma) {
+          return rawPrompt; // Gemma native templating is handled in C++ JNI layer
+        } else {
+          return '<s>[INST] $rawPrompt [/INST]';
+        }
+      }
+
+      final localPrompt = preparedPrompt != null
+          ? _wrapInChatTemplate(preparedPrompt)
+          : (isQwen
+              ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText<|im_end|>\n<|im_start|>assistant\n'
+              : isGemma
+                  ? 'You are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText'
+                  : _llama2Prompt(
+                      'You are a helpful school tutor. Explain the topic clearly and concisely.',
+                      question,
+                      contextText,
+                    ));
 
       print('[DIAGNOSTICS] LOCAL_RAG_END');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
@@ -417,8 +429,10 @@ class HybridInferenceService {
             print('[DIAGNOSTICS] LOCAL_FIRST_TOKEN');
             isFirstToken = false;
           }
-          localBuffer.write(chunk);
-          yield chunk;
+          final clean = _cleanChunk(chunk);
+          if (clean.isEmpty) continue;
+          localBuffer.write(clean);
+          yield clean;
         }
       } catch (e) {
         _metrics.recordFailure();
@@ -472,14 +486,26 @@ class HybridInferenceService {
         return '<s>[INST] <<SYS>>\n$system\n<</SYS>>\n\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question$ctx [/INST]';
       }
 
-      final localPrompt = isQwen
-          ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n'
-          : isGemma
-              ? 'You are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question'
-              : _llama2PromptFallback(
-                  'You are a helpful school tutor. Explain the topic clearly and concisely.',
-                  question,
-                );
+      String _wrapInChatTemplate(String rawPrompt) {
+        if (isQwen) {
+          return '<|im_start|>user\n$rawPrompt<|im_end|>\n<|im_start|>assistant\n';
+        } else if (isGemma) {
+          return rawPrompt; // Gemma native templating is handled in C++ JNI layer
+        } else {
+          return '<s>[INST] $rawPrompt [/INST]';
+        }
+      }
+
+      final localPrompt = preparedPrompt != null
+          ? _wrapInChatTemplate(preparedPrompt)
+          : (isQwen
+              ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n'
+              : isGemma
+                  ? 'You are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question'
+                  : _llama2PromptFallback(
+                      'You are a helpful school tutor. Explain the topic clearly and concisely.',
+                      question,
+                    ));
 
       print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_PROMPT_BUILT');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
@@ -496,8 +522,10 @@ class HybridInferenceService {
             print('[DIAGNOSTICS] LOCAL_FIRST_TOKEN');
             isFirstToken = false;
           }
-          localBuffer.write(chunk);
-          yield chunk;
+          final clean = _cleanChunk(chunk);
+          if (clean.isEmpty) continue;
+          localBuffer.write(clean);
+          yield clean;
         }
       } catch (e) {
         _metrics.recordFailure();
@@ -596,6 +624,24 @@ class HybridInferenceService {
         .replaceAll(RegExp(r'\s+'), ' ')
         .trim();
     return normalized;
+  }
+
+  /// Strips residual chat-template control tokens from a streaming chunk.
+  /// Models sometimes emit these when they're generating close to a turn
+  /// boundary. Removing them keeps the UI clean regardless of which model
+  /// is active (Qwen ChatML, Llama-2, Gemma).
+  static String _cleanChunk(String chunk) {
+    const artifacts = [
+      '<|im_end|>', '<|im_start|>assistant', '<|im_start|>user',
+      '<|im_start|>system', '<|im_start|>',
+      '<end_of_turn>', '<start_of_turn>model', '<start_of_turn>user',
+      '[/INST]', '<<SYS>>', '<</SYS>>', '</s>',
+    ];
+    var cleaned = chunk;
+    for (final a in artifacts) {
+      cleaned = cleaned.replaceAll(a, '');
+    }
+    return cleaned;
   }
 
   bool _isInvalidCharacterBackendError(Object error) {

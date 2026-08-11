@@ -122,11 +122,23 @@ class MainActivity : FlutterActivity() {
 										return@askStreamFast
 									}
 
+									// Strip any residual chat-template markers before streaming to Flutter
+									val cleanToken = token
+										.replace("<|im_end|>", "")
+										.replace("<|im_start|>", "")
+										.replace("<end_of_turn>", "")
+										.replace("<start_of_turn>", "")
+										.replace("[/INST]", "")
+										.replace("</s>", "")
+									if (cleanToken.isEmpty()) {
+										return@askStreamFast
+									}
+
 									var shouldFlush = false
 									synchronized(bufferLock) {
-										tokenBuffer.append(token)
+										tokenBuffer.append(cleanToken)
 										val now = SystemClock.elapsedRealtime()
-										shouldFlush = token.contains('\n') ||
+										shouldFlush = cleanToken.contains('\n') ||
 													tokenBuffer.length >= 64 ||
 											now - lastFlushAt >= flushWindowMs
 									}
