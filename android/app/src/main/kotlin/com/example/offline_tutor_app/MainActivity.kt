@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -39,6 +40,7 @@ class MainActivity : FlutterActivity() {
 			.setStreamHandler(
 				object : EventChannel.StreamHandler {
 					override fun onListen(arguments: Any?, events: EventChannel.EventSink) {
+						Log.i("LLM", "[LLM] onListen called for stream channel")
 						val args = arguments as? Map<*, *>
 						val question = args?.get("question") as? String
 						val trimmed = question?.trim().orEmpty()

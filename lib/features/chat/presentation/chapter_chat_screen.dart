@@ -1105,8 +1105,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
           : isQwen
               ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n'
               : isGemma
-                  ? '<start_of_turn>user\nYou are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<end_of_turn>\n<start_of_turn>model\n'
-                  : '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly.<|im_end|>\n<|im_start|>user\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n';
+                  ? 'You are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question'
+                  : '<s>[INST] <<SYS>>\nYou are a helpful school tutor. Explain the topic clearly and concisely.\n<</SYS>>\n\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question [/INST]';
 
       _logPromptContextAudit(
         subject: widget.subject.name,
@@ -1603,8 +1603,8 @@ class _ChapterChatScreenState extends State<ChapterChatScreen> {
             : isQwen
                 ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n'
                 : isGemma
-                    ? '<start_of_turn>user\nYou are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<end_of_turn>\n<start_of_turn>model\n'
-                    : '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly.<|im_end|>\n<|im_start|>user\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n';
+                    ? 'You are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question'
+                    : '<s>[INST] <<SYS>>\nYou are a helpful school tutor. Explain the topic clearly and concisely.\n<</SYS>>\n\nSubject: ${widget.subject.name}\nChapter: ${widget.chapter.title}\nQuestion: $question [/INST]';
         _logPromptContextAudit(
           subject: widget.subject.name,
           chapter: widget.chapter.title,

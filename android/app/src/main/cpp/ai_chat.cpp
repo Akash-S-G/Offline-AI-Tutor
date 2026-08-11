@@ -153,9 +153,8 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
     ctx_params.n_ctx = effective_ctx;
     ctx_params.n_batch = BATCH_SIZE;
     ctx_params.n_ubatch = BATCH_SIZE;
-    // Force single-threaded inference to fix Android JNI CPU thread barrier deadlocks:
-    ctx_params.n_threads = 1;
-    ctx_params.n_threads_batch = 1;
+    ctx_params.n_threads = n_threads;
+    ctx_params.n_threads_batch = n_threads;
     ctx_params.flash_attn_type = LLAMA_FLASH_ATTN_TYPE_DISABLED;
     auto *context = llama_init_from_model(g_model, ctx_params);
     if (context == nullptr) {
@@ -387,9 +386,15 @@ static void reset_to_system_prompt_context() {
 }
 
 static bool use_chat_template() {
-    // Fast path for mobile: disable chat-template formatting to avoid template artifacts
-    // like <|question_end|> and reduce per-turn formatting overhead.
-    return false;
+    // Gemma-family models (gemma-2/gemma-3) require their native control tokens
+    // to generate; without engine-side templating they emit empty/stop tokens.
+    // Enable the native chat template (from the GGUF) only for models that ship
+    // a Gemma template. Llama/Qwen continue to use Dart-side manual templates.
+    if (!g_chat_templates) {
+        return false;
+    }
+    const std::string src = common_chat_templates_source(g_chat_templates.get());
+    return src.find("gemma") != std::string::npos;
 }
 
 static size_t find_first_stop_marker(const std::string & text) {

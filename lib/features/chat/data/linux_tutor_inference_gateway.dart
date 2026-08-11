@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -70,28 +71,65 @@ class LinuxTutorInferenceGateway implements TutorInferenceGateway {
     _activeProcess = process;
 
     final stderrBuffer = StringBuffer();
-    // Capture stderr continuously because some llama.cpp builds emit tokens/logs to stderr.
-    process.stderr.transform(utf8.decoder).listen((chunk) {
-      if (chunk.isEmpty) return;
-      stderrBuffer.write(chunk);
-      final cleaned = chunk.replaceAll(_ansiEscape, '');
-      // Print diagnostics so we can see why UI might be waiting forever.
-      // Keep stderr streaming separate from stdout-yielding stream.
-      // ignore: avoid_print
-      print('[LLAMA STDERR] ${cleaned.trim()}');
-    });
+    // Merge stdout and stderr into a single stream because some llama.cpp builds
+    // emit tokens to stderr instead of (or in addition to) stdout. Without this,
+    // those builds produce zero visible output and the UI hangs on 'Thinking...'.
+    final merged = StreamController<String>();
 
-    try {
-      await for (final chunk in process.stdout.transform(utf8.decoder)) {
-        if (chunk.isNotEmpty) {
-          final cleaned = chunk.replaceAll(_ansiEscape, '');
-          if (cleaned.isNotEmpty) {
-            // Some llama.cpp runners may not flush stdout token-by-token.
-            // Yield whatever we get (even if it includes partial lines),
-            // so the UI can progress and stop showing 'Thinking...'.
-            yield cleaned;
+    var stdoutDone = false;
+    var stderrDone = false;
+    // Close the merged controller only after BOTH sinks finish, so stderr tokens
+    // arriving after stdout closes are not dropped.
+    void _closeWhenComplete() {
+      if (stdoutDone && stderrDone && !merged.isClosed) {
+        merged.close();
+      }
+    }
+
+    // Forward stdout chunks into the merged stream.
+    process.stdout.transform(utf8.decoder).listen(
+      (chunk) {
+        if (chunk.isEmpty) return;
+        final cleaned = chunk.replaceAll(_ansiEscape, '');
+        if (cleaned.isNotEmpty && !merged.isClosed) {
+          merged.add(cleaned);
+        }
+      },
+      onError: merged.addError,
+      onDone: () {
+        stdoutDone = true;
+        _closeWhenComplete();
+      },
+    );
+
+    // Capture stderr continuously: buffer it for error reporting and forward
+    // cleaned content so token output that lands on stderr still reaches the UI.
+    process.stderr.transform(utf8.decoder).listen(
+      (chunk) {
+        if (chunk.isEmpty) return;
+        stderrBuffer.write(chunk);
+        final cleaned = chunk.replaceAll(_ansiEscape, '');
+        if (cleaned.isNotEmpty) {
+          // Print diagnostics so we can see why UI might be waiting forever.
+          // ignore: avoid_print
+          print('[LLAMA STDERR] ${cleaned.trim()}');
+          if (!merged.isClosed) {
+            merged.add(cleaned);
           }
         }
+      },
+      onError: merged.addError,
+      onDone: () {
+        stderrDone = true;
+        _closeWhenComplete();
+      },
+    );
+
+    try {
+      // Yield whatever we get from either stream (even if it includes partial
+      // lines or stderr noise), so the UI can progress instead of hanging.
+      await for (final chunk in merged.stream) {
+        yield chunk;
       }
 
       final code = await process.exitCode;
@@ -104,6 +142,9 @@ class LinuxTutorInferenceGateway implements TutorInferenceGateway {
         );
       }
     } finally {
+      if (!merged.isClosed) {
+        merged.close();
+      }
       if (identical(_activeProcess, process)) {
         _activeProcess = null;
       }

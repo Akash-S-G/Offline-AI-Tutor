@@ -387,11 +387,20 @@ class HybridInferenceService {
       final isQwen = modelPath.toLowerCase().contains('qwen');
       final isGemma = modelPath.toLowerCase().contains('gemma');
 
+      String _llama2Prompt(String system, String user, [String? context]) {
+        final ctx = context != null && context.isNotEmpty ? '\nContext:\n$context' : '';
+        return '<s>[INST] <<SYS>>\n$system\n<</SYS>>\n\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question$ctx [/INST]';
+      }
+
       final localPrompt = preparedPrompt ?? (isQwen
           ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText<|im_end|>\n<|im_start|>assistant\n'
           : isGemma
-              ? '<start_of_turn>user\nYou are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText<end_of_turn>\n<start_of_turn>model\n'
-              : '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText<|im_end|>\n<|im_start|>assistant\n');
+              ? 'You are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question\nContext:\n$contextText'
+              : _llama2Prompt(
+                  'You are a helpful school tutor. Explain the topic clearly and concisely.',
+                  question,
+                  contextText,
+                ));
 
       print('[DIAGNOSTICS] LOCAL_RAG_END');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');
@@ -458,11 +467,19 @@ class HybridInferenceService {
       final isQwen = modelPath.toLowerCase().contains('qwen');
       final isGemma = modelPath.toLowerCase().contains('gemma');
 
+      String _llama2PromptFallback(String system, String user, [String? context]) {
+        final ctx = context != null && context.isNotEmpty ? '\nContext:\n$context' : '';
+        return '<s>[INST] <<SYS>>\n$system\n<</SYS>>\n\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question$ctx [/INST]';
+      }
+
       final localPrompt = isQwen
           ? '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly and concisely.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n'
           : isGemma
-              ? '<start_of_turn>user\nYou are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question<end_of_turn>\n<start_of_turn>model\n'
-              : '<|im_start|>system\nYou are a helpful school tutor. Explain the topic clearly.<|im_end|>\n<|im_start|>user\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question<|im_end|>\n<|im_start|>assistant\n';
+              ? 'You are a helpful school tutor. Explain the topic clearly and concisely.\nSubject: ${subject ?? 'Unknown'}\nChapter: ${chapter ?? 'Unknown'}\nQuestion: $question'
+              : _llama2PromptFallback(
+                  'You are a helpful school tutor. Explain the topic clearly and concisely.',
+                  question,
+                );
 
       print('[DIAGNOSTICS] KNOWLEDGE_FALLBACK_PROMPT_BUILT');
       print('[DIAGNOSTICS] LOCAL_INFERENCE_START');

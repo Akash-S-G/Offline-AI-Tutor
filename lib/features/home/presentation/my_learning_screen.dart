@@ -9,10 +9,11 @@ import '../../analytics/application/learning_insights_service.dart';
 import '../../analytics/domain/learning_profile_models.dart';
 import '../../../core/widgets/idp_skeleton_loader.dart';
 import '../../../core/theme/idp_colors.dart';
-import '../../../core/theme/idp_typography.dart';
 import '../../../core/theme/idp_theme.dart';
 import '../../onboarding/presentation/grade_sync_screen.dart';
 import 'subject_screen.dart';
+import '../../chat/presentation/chapter_chat_screen.dart';
+import '../../course/domain/course_tree.dart';
 
 class MyLearningScreen extends StatefulWidget {
   const MyLearningScreen({
@@ -146,10 +147,9 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
               shape: BoxShape.circle,
               border: Border.all(color: IDPColors.primaryContainer, width: 2),
               color: IDPColors.surfaceVariant,
-              image: const DecorationImage(
-                image: NetworkImage("https://lh3.googleusercontent.com/aida-public/AB6AXuBllKof6-SGJmJOjP4a2n_1ZU7b-24ZItmGhieVod0bXpSGMa__lSbHOcbxbbDPicH347z-dGDLrizOTpBG8s2bTYcrQF6fwqpFDbhZRezluvbvwkgsppMsyJmoNPO0erlXR2BtHSrxvGP17vocJegBtib1dCxYDBLXqIsGAJ9jn5xA5fSSjVevCYIloMw5ZZSZa6yEZBwK6cAejfnlda-efdXfN10KGQYOgzIy673uXYMLZ6cvIuM0UDqXNWI0DTbQbxuTI9verVbW"),
-                fit: BoxFit.cover,
-              ),
+            ),
+            child: const Center(
+              child: Icon(Icons.person, color: IDPColors.primary, size: 26),
             ),
           ),
           const SizedBox(width: IDPSpacing.md),
@@ -206,14 +206,23 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("DAILY GOAL", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary, fontSize: 10)),
-                        Text("$streakDays Day Streak", style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.primary, fontSize: 18)),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("DAILY GOAL", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary, fontSize: 10)),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text("$streakDays Day Streak", style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.primary, fontSize: 18)),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: IDPSpacing.sm),
                     Container(
                       width: 48,
                       height: 48,
@@ -268,14 +277,23 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("FOCUS SCORE", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary, fontSize: 10)),
-                        Text("Deep Work", style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.secondary, fontSize: 18)),
-                      ],
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("FOCUS SCORE", style: IDPTypography.labelMd.copyWith(color: IDPColors.textSecondary, fontSize: 10)),
+                          const SizedBox(height: 2),
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Text("Deep Work", style: IDPTypography.headlineLgMobile.copyWith(color: IDPColors.secondary, fontSize: 18)),
+                          ),
+                        ],
+                      ),
                     ),
+                    const SizedBox(width: IDPSpacing.sm),
                     Container(
                       width: 48,
                       height: 48,
@@ -312,14 +330,15 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
           ],
         ),
         Container(
-          height: 240,
           width: double.infinity,
+          constraints: const BoxConstraints(minHeight: 240),
           decoration: BoxDecoration(
             color: IDPColors.primaryContainer,
             borderRadius: BorderRadius.circular(IDPRadius.xl),
-            image: const DecorationImage(
+            image: DecorationImage(
               image: NetworkImage("https://lh3.googleusercontent.com/aida-public/AB6AXuBE_Q0dj3YtSwLpLMzpM6Y3Tgt09K72tnyQMLrf9sTIrHFS6CXXmbrubPl9k-WvrmKIJOGExvDyblrfNq_oNsV1aCXiNCGc574MvSIly4pyyP0uXHWzHyr1VY0ZRmDMxWlGTV9QzfTYNd0fF9lKDlvzufBkRVmMejnTyoD7uNbJWO-Wk6_zAi7xj6sMc1mDuxsbjJyw1_nqYpLWebslGIqMC-DbbU_EMaObdw3KFevAMuj5jjvPTXMwTbwwLkwF11WpRHLppa5ZChb3"),
               fit: BoxFit.cover,
+              onError: (_, __) {},
             ),
             boxShadow: [
               BoxShadow(color: Colors.black26, blurRadius: 10, offset: const Offset(0, 5)),
@@ -417,13 +436,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
             itemBuilder: (context, index) {
               final subject = _subjects[index];
               final progress = _getSubjectProgress(subject);
-              
-              // Mock images for demonstration as per Stitch
-              String imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuAV7tWktK3X8dk6i22p0Xxyk-ga4bTZuBZSw0rkb6j9d6gXDGmxqS4tWMCo2DrckyzCFN4LAJT8tNeJXd-oMDoyOdbNPQpzJ_VAW9M25BELWz8MMBspX3VHED9ePOOjo4ayRN41qMR38zCVXwpK_wLhTNsY2dPjcM8-WKTfgc7CzksTKMkb7Of8YUkDWm8L7fGk7L85y_NQ3CoPecuVPW1OXHHR4uIBgD4ThbNH8xikDrOJ_EinnEPMJ07im-KjKxXkmDhbl-UXH32X";
-              if (index % 2 == 1) {
-                imageUrl = "https://lh3.googleusercontent.com/aida-public/AB6AXuDSb7yTER4RO7OKNtdlvCa5WWNZ_cISAKtD1ZqfZ6sc9ZMR6P0xBsxxXGhDrBw-cykLapWSBWDMBbYnr1CkeJSR8hJzEuTQwtSc2W5HEiXfeL6KQNUi5I2r8b44ScJk-LIJxSqTQIfqQroO2jTfgXxYCJ1Zl-4-qPIFlyJRfIBdHgtOJHVUu2WDDSgPjMJQ6QDytsaDIP2g2D31rR5KUNZANOxvPO6Hnqebw64NfW4REJPnd_gAta7Ad390Sop0P22duX_iTgHEqIpF";
-              }
-              
+
               return GestureDetector(
                 onTap: () {
                   Navigator.of(context).push(
@@ -446,26 +459,18 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
                         height: 128,
                         decoration: BoxDecoration(
                           borderRadius: const BorderRadius.only(topLeft: Radius.circular(IDPRadius.lg), topRight: Radius.circular(IDPRadius.lg)),
-                          image: DecorationImage(
-                            image: NetworkImage(imageUrl),
-                            fit: BoxFit.cover,
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [IDPColors.primary.withValues(alpha: 0.85), IDPColors.secondary.withValues(alpha: 0.85)],
                           ),
                         ),
-                        child: Stack(
-                          children: [
-                            Positioned(
-                              top: IDPSpacing.sm,
-                              right: IDPSpacing.sm,
-                              child: Container(
-                                padding: const EdgeInsets.all(IDPSpacing.xs),
-                                decoration: BoxDecoration(
-                                  color: IDPColors.surface.withValues(alpha: 0.9),
-                                  borderRadius: BorderRadius.circular(IDPRadius.full),
-                                ),
-                                child: const Icon(Icons.download_done, color: IDPColors.secondary, size: 16),
-                              ),
-                            )
-                          ],
+                        child: Center(
+                          child: Icon(
+                            _subjectIcon(subject.name),
+                            size: 44,
+                            color: IDPColors.onPrimary,
+                          ),
                         ),
                       ),
                       Padding(
@@ -529,6 +534,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
             ),
           ),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Container(
                 width: 80,
@@ -557,10 +563,7 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
               ),
               const SizedBox(width: IDPSpacing.md),
               ElevatedButton.icon(
-                onPressed: () {
-                  // Navigate to Tutor or trigger action
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Select a chapter to chat with AI Tutor.")));
-                },
+                onPressed: () => _openOfflineTutor(context),
                 icon: const Text("Ask AI"),
                 label: const Icon(Icons.arrow_forward, size: 18),
                 style: ElevatedButton.styleFrom(
@@ -635,5 +638,58 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
       }
     }
     return attemptedChapters / subject.chapters.length;
+  }
+
+  IconData _subjectIcon(String name) {
+    final n = name.toLowerCase();
+    if (n.contains('math')) return Icons.calculate;
+    if (n.contains('science') || n.contains('physics') || n.contains('chem')) return Icons.science;
+    if (n.contains('bio')) return Icons.biotech;
+    if (n.contains('history') || n.contains('civics') || n.contains('geo')) return Icons.public;
+    if (n.contains('english') || n.contains('language')) return Icons.menu_book;
+    return Icons.school;
+  }
+
+  void _openOfflineTutor(BuildContext context) {
+    // Prefer opening the tutor for the first installed chapter so RAG context is available.
+    CurriculumSubject? subject;
+    CurriculumChapter? chapter;
+    for (final s in _subjects) {
+      if (s.chapters.isNotEmpty) {
+        subject = s;
+        chapter = s.chapters.first;
+        break;
+      }
+    }
+
+    if (subject == null || chapter == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No content installed yet. Install a grade to chat with the AI Tutor.')),
+      );
+      return;
+    }
+
+    final legacyCourse = Course(id: 'grade_${chapter.grade}', name: 'Grade ${chapter.grade}');
+    final legacySubject = Subject(
+      id: 'sub_${subject.name.toLowerCase()}',
+      courseId: legacyCourse.id,
+      name: subject.name,
+    );
+    final legacyChapter = Chapter(
+      id: chapter.packId,
+      subjectId: legacySubject.id,
+      title: chapter.title,
+      summary: chapter.summary,
+    );
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ChapterChatScreen(
+          course: legacyCourse,
+          subject: legacySubject,
+          chapter: legacyChapter,
+        ),
+      ),
+    );
   }
 }

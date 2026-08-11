@@ -2,6 +2,7 @@ package com.example.offline_tutor_app
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import com.arm.aichat.AiChat
 import com.arm.aichat.InferenceEngine
 import kotlinx.coroutines.flow.collect
@@ -420,6 +421,7 @@ class LlamaEngine(private val context: Context) {
     // Uses the optimized streaming which emits in batches (5-10 tokens) not per-token
     @Synchronized
     fun askStreamFast(question: String, onToken: (String) -> Unit): String {
+        Log.i("LLM", "[Engine] askStreamFast ENTER question='${question.take(40)}'")
         val startedAt = System.currentTimeMillis()
         
         println("[Engine] 📝 Question: '${question.take(50)}...'")
@@ -580,6 +582,7 @@ class LlamaEngine(private val context: Context) {
         } catch (e: Throwable) {
             val stateName = inferenceEngine.state.value.javaClass.simpleName
             lastEngineError = "${e.message ?: "unknown runtime error"} (state=$stateName)"
+            Log.e("LLM", "[Engine] askStreamFast ERROR: $lastEngineError", e)
             println("[Engine] ❌ Error: $lastEngineError")
             // KEEP MODEL LOADED: Don't unload on transient errors
             // Model is now permanently cached in native memory

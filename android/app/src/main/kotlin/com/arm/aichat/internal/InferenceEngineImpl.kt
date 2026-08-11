@@ -33,40 +33,28 @@ internal class InferenceEngineImpl private constructor(
         }
     }
 
-    @FastNative
     private external fun init(nativeLibDir: String)
 
-    @FastNative
     private external fun load(modelPath: String): Int
 
-    @FastNative
     private external fun prepare(): Int
 
-    @FastNative
     private external fun systemInfo(): String
 
-    @FastNative
     private external fun benchModel(pp: Int, tg: Int, pl: Int, nr: Int): String
 
-    @FastNative
     private external fun processSystemPrompt(systemPrompt: String): Int
 
-    @FastNative
     private external fun processUserPrompt(userPrompt: String, predictLength: Int): Int
 
-    @FastNative
     private external fun generateNextToken(): String?
 
-    @FastNative
     private external fun generateFullResponse(systemPrompt: String, userPrompt: String, predictLength: Int): String
 
-    @FastNative
     private external fun requestStopGeneration()
 
-    @FastNative
     private external fun unload()
 
-    @FastNative
     private external fun shutdown()
 
     private val _state = MutableStateFlow<InferenceEngine.State>(InferenceEngine.State.Uninitialized)
@@ -187,6 +175,7 @@ internal class InferenceEngineImpl private constructor(
 
     override fun sendUserPrompt(message: String, predictLength: Int): Flow<String> =
         flow {
+            Log.i(TAG, "[Engine] sendUserPrompt ENTER state=${_state.value}")
             println("[Engine] [TRACE] ENTER_SEND_USER_PROMPT")
             require(message.isNotEmpty()) { "User prompt is empty" }
             check(_state.value is InferenceEngine.State.ModelReady) {
@@ -200,12 +189,13 @@ internal class InferenceEngineImpl private constructor(
 
                 processUserPrompt(message, predictLength).let { result ->
                     if (result != 0) {
-                        Log.e(TAG, "Failed to process user prompt: $result")
+                        Log.e(TAG, "[Engine] processUserPrompt FAILED result=$result")
                         return@flow
                     }
                 }
 
                 _state.value = InferenceEngine.State.Generating
+                Log.i(TAG, "[Engine] MODEL_GENERATE_START")
                 println("[Engine] [TRACE] MODEL_GENERATE_START")
                 while (!cancelGeneration) {
                     generateNextToken()?.let { utf8token ->

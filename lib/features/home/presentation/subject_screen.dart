@@ -12,7 +12,6 @@ import '../../course/domain/course_tree.dart';
 import '../../../core/theme/idp_colors.dart';
 import '../../../core/theme/idp_typography.dart';
 import '../../../core/theme/idp_theme.dart';
-import '';
 
 class SubjectScreen extends StatefulWidget {
   const SubjectScreen({

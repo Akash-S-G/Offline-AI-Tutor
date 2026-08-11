@@ -107,12 +107,7 @@ class SimpleAiChatComponent {
       return '';
     }
 
-    return '''
-<start_of_turn>user
-You are an expert educational tutor. Answer the student's question directly and concisely in one short paragraph. Do not repeat the question or any prompt headings.
-Question: $q<end_of_turn>
-<start_of_turn>model
-''';
+    return 'You are an expert educational tutor. Answer the student\'s question directly and concisely in one short paragraph. Do not repeat the question or any prompt headings.\nQuestion: $q';
   }
 
   String buildRecoveryPrompt({required String question}) {
@@ -121,11 +116,6 @@ Question: $q<end_of_turn>
       return '';
     }
 
-    return '''
-<start_of_turn>user
-You are an expert educational tutor. The previous output failed formatting. Provide one direct, concise one-paragraph answer to the question. Do not include labels, headings, or repeat the question.
-Question: $q<end_of_turn>
-<start_of_turn>model
-''';
+    return 'You are an expert educational tutor. The previous output failed formatting. Provide one direct, concise one-paragraph answer to the question. Do not include labels, headings, or repeat the question.\nQuestion: $q';
   }
 }
