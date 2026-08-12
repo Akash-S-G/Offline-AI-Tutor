@@ -10,6 +10,7 @@ import 'features/course/data/local/course_repository.dart';
 import 'features/home/presentation/app_shell.dart';
 import 'features/language/providers/language_provider.dart';
 import 'features/onboarding/application/background_prefetch_service.dart';
+import 'core/observers/app_provider_observer.dart';
 import 'core/theme/idp_theme.dart';
 import 'features/experiment/runtime/behaviors/behavior_registry.dart';
 import 'features/experiment/runtime/effects/effect_registry.dart';
@@ -38,6 +39,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
+      observers: const [AppProviderObserver()],
       child: OfflineTutorApp(
         courseRepository: CourseRepository(),
         startupCoordinator: startupCoordinator,

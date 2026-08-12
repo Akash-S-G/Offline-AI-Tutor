@@ -12,6 +12,12 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodChannel
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
 class MainActivity : FlutterActivity() {
 	companion object {
 		private const val P2P_PERMISSION_REQUEST_CODE = 44091
@@ -29,7 +35,7 @@ class MainActivity : FlutterActivity() {
 	private var modelCopyProgressSink: EventChannel.EventSink? = null
 	private var llmMetricsSink: EventChannel.EventSink? = null
 	@Volatile
-	private var activeInferenceThread: Thread? = null
+	private var activeInferenceJob: Job? = null
 
 	override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
 		super.configureFlutterEngine(flutterEngine)
@@ -53,15 +59,14 @@ class MainActivity : FlutterActivity() {
 							return
 						}
 
-						activeInferenceThread?.interrupt()
-						activeInferenceThread = Thread {
+						activeInferenceJob?.cancel()
+						activeInferenceJob = lifecycleScope.launch(Dispatchers.Default) {
 							val startTime = SystemClock.elapsedRealtime()
 							val emittedAnyToken = java.util.concurrent.atomic.AtomicBoolean(false)
 							val flushWindowMs = 30L
 							val tokenBuffer = StringBuilder()
 							val bufferLock = Any()
 							var lastFlushAt = startTime
-
 
 							fun emitSuccessOnMainThread(payload: String) {
 								runOnUiThread {
@@ -115,7 +120,7 @@ class MainActivity : FlutterActivity() {
 							}
 
 							try {
-								println("[LLM] [TRACE] STREAM_THREAD=${Thread.currentThread().name}")
+								println("[LLM] [TRACE] STREAM_JOB_STARTED")
 								println("[LLM] 🚀 Starting inference: '${trimmed.take(50)}...'")
 								println("[LLM] [TRACE] CALLING_ASK_STREAM_FAST promptLength=${trimmed.length}")
 
@@ -125,7 +130,6 @@ class MainActivity : FlutterActivity() {
 										return@askStreamFast
 									}
 
-									// Strip any residual chat-template markers before streaming to Flutter
 									val cleanToken = token
 										.replace("<|im_end|>", "")
 										.replace("<|im_start|>", "")
@@ -181,7 +185,6 @@ class MainActivity : FlutterActivity() {
 									endStreamOnMainThread()
 								}
 							} catch (e: Throwable) {
-
 								println("[LLM] [TRACE] EXCEPTION: ${e.javaClass.simpleName}: ${e.message}")
 								flushBufferedTokens(force = true)
 								if (emittedAnyToken.get()) {
@@ -190,16 +193,13 @@ class MainActivity : FlutterActivity() {
 									emitErrorOnMainThread("LLM_ERROR", e.message ?: "Inference failed")
 								}
 							}
-						}.also {
-							activeInferenceThread = it
-							it.start()
 						}
 					}
 
 					override fun onCancel(arguments: Any?) {
 						llamaEngine.stopGeneration()
-						activeInferenceThread?.interrupt()
-						activeInferenceThread = null
+						activeInferenceJob?.cancel()
+						activeInferenceJob = null
 						println("[LLM] ⏹️  Generation stopped by user")
 					}
 				},
