@@ -40,6 +40,19 @@ class VoiceTutorScreen extends ConsumerStatefulWidget {
 class _VoiceTutorScreenState extends ConsumerState<VoiceTutorScreen> {
   bool _devMode = false;
   final _scrollController = ScrollController();
+  int _lastMessageCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final voiceConn = ref.read(voiceConnectionProvider.notifier);
+        voiceConn.socket.interceptor ??=
+            LanguageInterceptor(widget.languageProvider);
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -63,16 +76,12 @@ class _VoiceTutorScreenState extends ConsumerState<VoiceTutorScreen> {
     return ListenableBuilder(
       listenable: widget.languageProvider,
       builder: (context, _) {
-        // Inject the LanguageInterceptor into the socket service
-        final voiceConn = ref.read(voiceConnectionProvider.notifier);
-        voiceConn.socket.interceptor ??=
-            LanguageInterceptor(widget.languageProvider);
-
         final voice = ref.watch(voiceProvider);
         final conv = ref.watch(conversationProvider);
 
-        // Auto-scroll when new messages arrive
-        if (conv.messages.isNotEmpty) {
+        // Auto-scroll only when new messages arrive
+        if (conv.messages.length > _lastMessageCount) {
+          _lastMessageCount = conv.messages.length;
           WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
         }
 

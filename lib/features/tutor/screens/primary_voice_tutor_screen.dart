@@ -22,7 +22,7 @@ import '../widgets/large_response_card.dart';
 /// NO: chat history, debug info, developer data, advanced controls.
 ///
 /// Interaction: Tap Mic → Speak → Listen → Repeat.
-class PrimaryVoiceTutorScreen extends ConsumerWidget {
+class PrimaryVoiceTutorScreen extends ConsumerStatefulWidget {
   const PrimaryVoiceTutorScreen({
     super.key,
     required this.languageProvider,
@@ -31,14 +31,29 @@ class PrimaryVoiceTutorScreen extends ConsumerWidget {
   final LanguageProvider languageProvider;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return ListenableBuilder(
-      listenable: languageProvider,
-      builder: (context, _) {
-        // Inject the LanguageInterceptor into the socket service
-        final voiceConn = ref.read(voiceConnectionProvider.notifier);
-        voiceConn.socket.interceptor ??= LanguageInterceptor(languageProvider);
+  ConsumerState<PrimaryVoiceTutorScreen> createState() =>
+      _PrimaryVoiceTutorScreenState();
+}
 
+class _PrimaryVoiceTutorScreenState
+    extends ConsumerState<PrimaryVoiceTutorScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        final voiceConn = ref.read(voiceConnectionProvider.notifier);
+        voiceConn.socket.interceptor ??=
+            LanguageInterceptor(widget.languageProvider);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: widget.languageProvider,
+      builder: (context, _) {
         final conv = ref.watch(conversationProvider);
         final screenHeight = MediaQuery.of(context).size.height;
 
@@ -73,7 +88,7 @@ class PrimaryVoiceTutorScreen extends ConsumerWidget {
                   const SizedBox(height: 24), // Replaced Spacer
 
                   // 3. Huge Mic Button
-                  HugeMicButton(languageCode: languageProvider.languageCode),
+                  HugeMicButton(languageCode: widget.languageProvider.languageCode),
 
                   const SizedBox(height: 20),
 
@@ -81,7 +96,7 @@ class PrimaryVoiceTutorScreen extends ConsumerWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
                     child: LanguageSelector(
-                      languageProvider: languageProvider,
+                      languageProvider: widget.languageProvider,
                       compact: true,
                     ),
                   ),

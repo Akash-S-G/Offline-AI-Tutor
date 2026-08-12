@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/material.dart';
 
@@ -100,6 +101,7 @@ class RuntimeLabWorkspace extends StatefulWidget {
 class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
     with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
+  Timer? _introTimer;
   Duration _lastFrame = Duration.zero;
   bool _showCompletionBanner = false;
   bool _completionDismissed = false;
@@ -113,7 +115,7 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
     _ticker = createTicker(_onFrame)..start();
     _attachGuidedEngine();
     _emitEnvironmentRendered();
-    Future<void>.delayed(const Duration(seconds: 3), () {
+    _introTimer = Timer(const Duration(seconds: 3), () {
       if (mounted) setState(() => _showIntro = false);
     });
   }
@@ -134,6 +136,7 @@ class _RuntimeLabWorkspaceState extends State<RuntimeLabWorkspace>
   @override
   void dispose() {
     _ticker.dispose();
+    _introTimer?.cancel();
     widget.guidedEngine?.removeListener(_onGuidedStateChanged);
     super.dispose();
   }

@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:just_audio/just_audio.dart';
 
@@ -35,6 +34,7 @@ class VoiceStreamPlayer {
   }
 
   final AudioPlayer _player;
+  StreamSubscription<PlayerState>? _playerStateSubscription;
   StreamController<List<int>>? _audioStreamController;
   bool _isPlaying = false;
 
@@ -43,7 +43,7 @@ class VoiceStreamPlayer {
   void Function()? onComplete;
 
   void _initPlayer() {
-    _player.playerStateStream.listen((state) {
+    _playerStateSubscription = _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         _isPlaying = false;
         onComplete?.call();
@@ -92,6 +92,8 @@ class VoiceStreamPlayer {
 
   Future<void> dispose() async {
     onComplete = null;
+    await _playerStateSubscription?.cancel();
+    _playerStateSubscription = null;
     _audioStreamController?.close();
     await _player.dispose();
   }

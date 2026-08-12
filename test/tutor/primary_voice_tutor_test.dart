@@ -10,8 +10,11 @@ import 'package:offline_tutor_app/features/tutor/widgets/huge_mic_button.dart';
 import 'package:offline_tutor_app/features/tutor/widgets/large_response_card.dart';
 import 'package:offline_tutor_app/features/voice/widgets/tutor_avatar.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  SharedPreferences.setMockInitialValues({});
 
   Widget wrap(Widget child) {
     return ProviderScope(

@@ -97,21 +97,19 @@ class PiHubDiscoveryCoordinator {
   }
 
   /// Clears cached IP only if it matches the .env seed (fire-and-forget).
-  void _clearEnvMatchingCache() {
-    Future<void>(() async {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        final cachedIp = prefs.getString(_cacheKey);
-        final envUri = Uri.parse(AppEnvironment.backendBaseUrl);
-        final envHost = envUri.host;
-        if (cachedIp != null && cachedIp == envHost) {
-          await prefs.remove(_cacheKey);
-          await prefs.remove(_cachePortKey);
-          await prefs.remove(_persistedUrlKey);
-          print('[DISCOVERY] CACHE_CLEARED reason=ENV_SEED_MATCH host=$cachedIp');
-        }
-      } catch (_) {}
-    });
+  Future<void> _clearEnvMatchingCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final cachedIp = prefs.getString(_cacheKey);
+      final envUri = Uri.parse(AppEnvironment.backendBaseUrl);
+      final envHost = envUri.host;
+      if (cachedIp != null && cachedIp == envHost) {
+        await prefs.remove(_cacheKey);
+        await prefs.remove(_cachePortKey);
+        await prefs.remove(_persistedUrlKey);
+        print('[DISCOVERY] CACHE_CLEARED reason=ENV_SEED_MATCH host=$cachedIp');
+      }
+    } catch (_) {}
   }
 
   /// Fully clears all persisted discovery/URL state. Call this for a clean restart.

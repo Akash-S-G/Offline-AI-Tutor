@@ -28,6 +28,8 @@ class MainActivity : FlutterActivity() {
 	private var pendingP2PPermissionResult: MethodChannel.Result? = null
 	private var modelCopyProgressSink: EventChannel.EventSink? = null
 	private var llmMetricsSink: EventChannel.EventSink? = null
+	@Volatile
+	private var activeInferenceThread: Thread? = null
 
 	override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
 		super.configureFlutterEngine(flutterEngine)
@@ -51,7 +53,8 @@ class MainActivity : FlutterActivity() {
 							return
 						}
 
-						Thread {
+						activeInferenceThread?.interrupt()
+						activeInferenceThread = Thread {
 							val startTime = SystemClock.elapsedRealtime()
 							val emittedAnyToken = java.util.concurrent.atomic.AtomicBoolean(false)
 							val flushWindowMs = 30L
@@ -148,8 +151,6 @@ class MainActivity : FlutterActivity() {
 									}
 								}
 
-
-
 								println("[LLM] [TRACE] ASK_STREAM_FAST_RETURNED answerLength=${finalAnswer.length}")
 								flushBufferedTokens(force = true)
 
@@ -189,11 +190,16 @@ class MainActivity : FlutterActivity() {
 									emitErrorOnMainThread("LLM_ERROR", e.message ?: "Inference failed")
 								}
 							}
-						}.start()
+						}.also {
+							activeInferenceThread = it
+							it.start()
+						}
 					}
 
 					override fun onCancel(arguments: Any?) {
 						llamaEngine.stopGeneration()
+						activeInferenceThread?.interrupt()
+						activeInferenceThread = null
 						println("[LLM] ⏹️  Generation stopped by user")
 					}
 				},

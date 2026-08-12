@@ -61,23 +61,28 @@ class AppEnvironment {
   // BACKEND CONFIGURATION
   // ========================================================================
 
+  static String? _env(String key) {
+    if (!dotenv.isInitialized) return null;
+    return dotenv.env[key];
+  }
+
   /// Primary backend gateway URL
   static String get backendBaseUrl =>
       _normalizeBackendBaseUrl(
-        dotenv.env['BACKEND_BASE_URL'],
+        _env('BACKEND_BASE_URL'),
       );
 
   /// Backend gateway port
   static String get backendPort =>
-      dotenv.env['BACKEND_PORT'] ?? '8000';
+      _env('BACKEND_PORT') ?? '8000';
 
   /// Backend request timeout in seconds
   static int get backendTimeoutSeconds =>
-      int.tryParse(dotenv.env['BACKEND_TIMEOUT_SECONDS'] ?? '10') ?? 10;
+      int.tryParse(_env('BACKEND_TIMEOUT_SECONDS') ?? '10') ?? 10;
 
   /// API key for backend authentication
   static String get backendApiKey =>
-      dotenv.env['BACKEND_API_KEY'] ?? 'default-development-key';
+      _env('BACKEND_API_KEY') ?? 'default-development-key';
 
   // ========================================================================
   // NGINX GATEWAY ROUTING
@@ -162,23 +167,23 @@ class AppEnvironment {
 
   /// Whether backend connectivity is enabled
   static bool get enableBackend =>
-      dotenv.env['ENABLE_BACKEND']?.toLowerCase() != 'false';
+      _env('ENABLE_BACKEND')?.toLowerCase() != 'false';
 
   /// Maximum retry attempts for failed connections
   static int get maxRetryAttempts =>
-      int.tryParse(dotenv.env['MAX_RETRY_ATTEMPTS'] ?? '3') ?? 3;
+      int.tryParse(_env('MAX_RETRY_ATTEMPTS') ?? '3') ?? 3;
 
   /// Retry delay in seconds
   static int get retryDelaySeconds =>
-      int.tryParse(dotenv.env['RETRY_DELAY_SECONDS'] ?? '5') ?? 5;
+      int.tryParse(_env('RETRY_DELAY_SECONDS') ?? '5') ?? 5;
 
   /// Exponential backoff multiplier
   static double get backoffMultiplier =>
-      double.tryParse(dotenv.env['BACKOFF_MULTIPLIER'] ?? '2.0') ?? 2.0;
+      double.tryParse(_env('BACKOFF_MULTIPLIER') ?? '2.0') ?? 2.0;
 
   /// Health check interval in seconds
   static int get healthCheckIntervalSeconds =>
-      int.tryParse(dotenv.env['HEALTH_CHECK_INTERVAL'] ?? '30') ?? 30;
+      int.tryParse(_env('HEALTH_CHECK_INTERVAL') ?? '30') ?? 30;
 
   // ========================================================================
   // DISCOVERY CONFIGURATION
@@ -186,27 +191,27 @@ class AppEnvironment {
 
   /// Ignore environment seed for discovery testing
   static bool get ignoreEnvironmentSeed =>
-      dotenv.env['DISCOVERY_IGNORE_ENV']?.toLowerCase() == 'true';
+      _env('DISCOVERY_IGNORE_ENV')?.toLowerCase() == 'true';
 
   /// Enable mDNS service discovery
   static bool get enableMdnsDiscovery =>
-      dotenv.env['ENABLE_MDNS_DISCOVERY']?.toLowerCase() != 'false';
+      _env('ENABLE_MDNS_DISCOVERY')?.toLowerCase() != 'false';
 
   /// mDNS service type
   static String get mdnsServiceType =>
-      dotenv.env['MDNS_SERVICE_TYPE'] ?? '_classroom._tcp';
+      _env('MDNS_SERVICE_TYPE') ?? '_classroom._tcp';
 
   /// Enable multicast discovery
   static bool get enableMulticastDiscovery =>
-      dotenv.env['ENABLE_MULTICAST_DISCOVERY']?.toLowerCase() != 'false';
+      _env('ENABLE_MULTICAST_DISCOVERY')?.toLowerCase() != 'false';
 
   /// Multicast group address
   static String get multicastGroup =>
-      dotenv.env['MULTICAST_GROUP'] ?? '224.0.0.251';
+      _env('MULTICAST_GROUP') ?? '224.0.0.251';
 
   /// Multicast port
   static int get multicastPort =>
-      int.tryParse(dotenv.env['MULTICAST_PORT'] ?? '5353') ?? 5353;
+      int.tryParse(_env('MULTICAST_PORT') ?? '5353') ?? 5353;
 
   // ========================================================================
   // LOGGING & DIAGNOSTICS
@@ -214,15 +219,15 @@ class AppEnvironment {
 
   /// Enable structured logging
   static bool get enableStructuredLogging =>
-      dotenv.env['ENABLE_STRUCTURED_LOGGING']?.toLowerCase() != 'false';
+      _env('ENABLE_STRUCTURED_LOGGING')?.toLowerCase() != 'false';
 
   /// Log level (debug, info, warning, error)
   static String get logLevel =>
-      dotenv.env['LOG_LEVEL'] ?? 'debug';
+      _env('LOG_LEVEL') ?? 'debug';
 
   /// Which log tags are enabled
   static Set<LogTag> get enabledLogTags {
-    final tagsStr = dotenv.env['ENABLED_LOG_TAGS'] ?? '';
+    final tagsStr = _env('ENABLED_LOG_TAGS') ?? '';
     if (tagsStr.isEmpty) return LogTag.values.toSet();
 
     return tagsStr
@@ -248,15 +253,15 @@ class AppEnvironment {
 
   /// Enable local LLM inference when backend unavailable
   static bool get enableLocalInference =>
-      dotenv.env['ENABLE_LOCAL_INFERENCE']?.toLowerCase() != 'false';
+      _env('ENABLE_LOCAL_INFERENCE')?.toLowerCase() != 'false';
 
   /// Enable offline pack distribution
   static bool get enableOfflinePacks =>
-      dotenv.env['ENABLE_OFFLINE_PACKS']?.toLowerCase() != 'false';
+      _env('ENABLE_OFFLINE_PACKS')?.toLowerCase() != 'false';
 
   /// Automatically sync when backend becomes available
   static bool get autoSyncOnReconnect =>
-      dotenv.env['AUTO_SYNC_ON_RECONNECT']?.toLowerCase() != 'false';
+      _env('AUTO_SYNC_ON_RECONNECT')?.toLowerCase() != 'false';
 
   // ========================================================================
   // DEVICE & CLASSROOM CONFIGURATION
@@ -264,19 +269,19 @@ class AppEnvironment {
 
   /// Device name for identification
   static String get deviceName =>
-      dotenv.env['DEVICE_NAME'] ?? 'android-device';
+      _env('DEVICE_NAME') ?? 'android-device';
 
   /// Unique device ID (auto-generated if not set)
   static String get deviceId =>
-      dotenv.env['DEVICE_ID'] ?? _generateDeviceId();
+      _env('DEVICE_ID') ?? _generateDeviceId();
 
   /// Session timeout in minutes
   static int get sessionTimeoutMinutes =>
-      int.tryParse(dotenv.env['SESSION_TIMEOUT_MINUTES'] ?? '120') ?? 120;
+      int.tryParse(_env('SESSION_TIMEOUT_MINUTES') ?? '120') ?? 120;
 
   /// Maximum offline duration in hours before session invalidation
   static int get maxOfflineDurationHours =>
-      int.tryParse(dotenv.env['MAX_OFFLINE_DURATION_HOURS'] ?? '12') ?? 12;
+      int.tryParse(_env('MAX_OFFLINE_DURATION_HOURS') ?? '12') ?? 12;
 
   // ========================================================================
   // DEPLOYMENT MODE
@@ -284,11 +289,11 @@ class AppEnvironment {
 
   /// Deployment mode: production, staging, development
   static String get deploymentMode =>
-      dotenv.env['DEPLOYMENT_MODE'] ?? 'production';
+      _env('DEPLOYMENT_MODE') ?? 'production';
 
   /// Enable debug mode and verbose output
   static bool get debugMode =>
-      dotenv.env['DEBUG_MODE']?.toLowerCase() == 'true';
+      _env('DEBUG_MODE')?.toLowerCase() == 'true';
 
   // ========================================================================
   // UTILITY METHODS

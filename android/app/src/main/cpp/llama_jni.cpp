@@ -80,7 +80,7 @@ jstring new_safe_jstring(JNIEnv * env, const std::string & text) {
 }  // namespace
 
 extern "C" JNIEXPORT jboolean JNICALL
-Java_com_example_testing_1flutter_LlamaEngine_nativeInit(
+Java_com_example_offline_1tutor_1app_LlamaEngine_nativeInit(
     JNIEnv * env,
     jobject /* thiz */,
     jstring model_path,
@@ -148,7 +148,7 @@ Java_com_example_testing_1flutter_LlamaEngine_nativeInit(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_example_testing_1flutter_LlamaEngine_nativeGenerate(
+Java_com_example_offline_1tutor_1app_LlamaEngine_nativeGenerate(
     JNIEnv * env,
     jobject /* thiz */,
     jstring prompt,
@@ -255,14 +255,14 @@ Java_com_example_testing_1flutter_LlamaEngine_nativeGenerate(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
-Java_com_example_testing_1flutter_LlamaEngine_nativeGetLastError(
+Java_com_example_offline_1tutor_1app_LlamaEngine_nativeGetLastError(
     JNIEnv * env,
     jobject /* thiz */) {
     return new_safe_jstring(env, g_last_error);
 }
 
 extern "C" JNIEXPORT void JNICALL
-Java_com_example_testing_1flutter_LlamaEngine_nativeRelease(
+Java_com_example_offline_1tutor_1app_LlamaEngine_nativeRelease(
     JNIEnv * /* env */,
     jobject /* thiz */) {
     std::lock_guard<std::mutex> lock(g_mutex);
