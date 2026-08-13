@@ -508,11 +508,11 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
       decoration: BoxDecoration(
         color: IDPColors.surface,
         borderRadius: BorderRadius.circular(IDPRadius.xl),
-        border: Border.all(color: IDPColors.primary.withValues(alpha: 0.1), width: 2),
+        border: Border.all(color: IDPColors.primary.withValues(alpha: 0.12), width: 1.5),
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [IDPColors.surface, IDPColors.primaryFixed.withValues(alpha: 0.2)],
+          colors: [IDPColors.surface, IDPColors.primaryFixed.withValues(alpha: 0.18)],
         ),
         boxShadow: [
           BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
@@ -533,47 +533,163 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
               ),
             ),
           ),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: IDPColors.primary,
-                  borderRadius: BorderRadius.circular(IDPRadius.lg),
-                  boxShadow: [
-                    BoxShadow(color: IDPColors.primary.withValues(alpha: 0.4), blurRadius: 20, offset: const Offset(0, 10)),
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(Icons.smart_toy, color: Colors.white, size: 40),
-                ),
-              ),
-              const SizedBox(width: IDPSpacing.lg),
-              Expanded(
-                child: Column(
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 520;
+              if (isNarrow) {
+                return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Offline AI Tutor", style: IDPTypography.titleMd.copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: IDPSpacing.xs),
-                    Text("Stuck on a problem? Ask the AI, it works even without internet using on-device processing.", style: IDPTypography.bodyMd.copyWith(color: IDPColors.textSecondary)),
+                    Row(
+                      children: [
+                        Container(
+                          width: 52,
+                          height: 52,
+                          decoration: BoxDecoration(
+                            color: IDPColors.primary,
+                            borderRadius: BorderRadius.circular(IDPRadius.md),
+                            boxShadow: [
+                              BoxShadow(
+                                color: IDPColors.primary.withValues(alpha: 0.3),
+                                blurRadius: 12,
+                                offset: const Offset(0, 6),
+                              ),
+                            ],
+                          ),
+                          child: const Center(
+                            child: Icon(Icons.smart_toy, color: Colors.white, size: 28),
+                          ),
+                        ),
+                        const SizedBox(width: IDPSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Offline AI Tutor",
+                                style: IDPTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                "Works 100% on-device without internet",
+                                style: IDPTypography.caption.copyWith(color: IDPColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: IDPSpacing.md),
+                    Text(
+                      "Stuck on a problem? Ask the AI, it works even without internet using on-device processing.",
+                      style: IDPTypography.bodyMd.copyWith(color: IDPColors.textSecondary),
+                    ),
+                    const SizedBox(height: IDPSpacing.lg),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => _openOfflineTutor(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: IDPColors.primary,
+                          foregroundColor: IDPColors.onPrimary,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: IDPSpacing.xl,
+                            vertical: IDPSpacing.md,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(IDPRadius.full),
+                          ),
+                        ),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisSize.center,
+                          children: [
+                            Icon(Icons.psychology, size: 20),
+                            SizedBox(width: 8),
+                            Text(
+                              "Ask AI",
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                              softWrap: false,
+                            ),
+                            SizedBox(width: 6),
+                            Icon(Icons.arrow_forward, size: 18),
+                          ],
+                        ),
+                      ),
+                    ),
                   ],
-                ),
-              ),
-              const SizedBox(width: IDPSpacing.md),
-              ElevatedButton.icon(
-                onPressed: () => _openOfflineTutor(context),
-                icon: const Text("Ask AI"),
-                label: const Icon(Icons.arrow_forward, size: 18),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: IDPColors.primary,
-                  foregroundColor: IDPColors.onPrimary,
-                  padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.xl, vertical: IDPSpacing.md),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.full)),
-                ),
-              ),
-            ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Container(
+                    width: 68,
+                    height: 68,
+                    decoration: BoxDecoration(
+                      color: IDPColors.primary,
+                      borderRadius: BorderRadius.circular(IDPRadius.lg),
+                      boxShadow: [
+                        BoxShadow(
+                          color: IDPColors.primary.withValues(alpha: 0.35),
+                          blurRadius: 16,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: const Center(
+                      child: Icon(Icons.smart_toy, color: Colors.white, size: 34),
+                    ),
+                  ),
+                  const SizedBox(width: IDPSpacing.lg),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Offline AI Tutor",
+                          style: IDPTypography.titleMd.copyWith(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: IDPSpacing.xs),
+                        Text(
+                          "Stuck on a problem? Ask the AI, it works even without internet using on-device processing.",
+                          style: IDPTypography.bodyMd.copyWith(color: IDPColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: IDPSpacing.lg),
+                  ElevatedButton(
+                    onPressed: () => _openOfflineTutor(context),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: IDPColors.primary,
+                      foregroundColor: IDPColors.onPrimary,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: IDPSpacing.xl,
+                        vertical: IDPSpacing.md,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(IDPRadius.full),
+                      ),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.psychology, size: 18),
+                        SizedBox(width: 6),
+                        Text(
+                          "Ask AI",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          softWrap: false,
+                        ),
+                        SizedBox(width: 4),
+                        Icon(Icons.arrow_forward, size: 16),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ],
       ),

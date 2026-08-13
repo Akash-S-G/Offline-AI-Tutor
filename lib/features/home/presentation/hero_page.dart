@@ -181,13 +181,19 @@ class _HeroPageState extends State<HeroPage> with SingleTickerProviderStateMixin
                         const SizedBox(height: IDPSpacing.xxl),
 
                         // Try Guest Mode
-                        TextButton.icon(
+                        TextButton(
                           onPressed: widget.onGetStarted,
-                          icon: const Text("Try Guest Mode"),
-                          label: const Icon(Icons.arrow_forward, size: 16),
                           style: TextButton.styleFrom(
                             foregroundColor: IDPColors.primary,
                             padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.lg, vertical: IDPSpacing.sm),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text("Try Guest Mode", style: TextStyle(fontWeight: FontWeight.bold)),
+                              SizedBox(width: 6),
+                              Icon(Icons.arrow_forward, size: 16),
+                            ],
                           ),
                         ),
                         
