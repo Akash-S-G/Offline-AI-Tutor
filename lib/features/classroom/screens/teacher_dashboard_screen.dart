@@ -3,6 +3,8 @@ import '../controllers/teacher_dashboard_controller.dart';
 import '../../experiment/builder/storage/builder_draft_manager.dart';
 import 'teacher_review_screen.dart';
 import '../../shared/presentation/widgets/empty_state_card.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 
 class TeacherDashboardScreen extends StatelessWidget {
   final TeacherDashboardController controller;
@@ -19,9 +21,16 @@ class TeacherDashboardScreen extends StatelessWidget {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        backgroundColor: IDPColors.background,
         appBar: AppBar(
-          title: const Text('Teacher Dashboard'),
+          title: const Text('Teacher Dashboard', style: IDPTypography.titleMedium),
+          backgroundColor: IDPColors.surface,
+          foregroundColor: IDPColors.onSurface,
+          elevation: 0,
           bottom: const TabBar(
+            labelColor: IDPColors.primary,
+            unselectedLabelColor: IDPColors.textSecondary,
+            indicatorColor: IDPColors.primary,
             tabs: [
               Tab(text: 'Sessions'),
               Tab(text: 'Assignments'),
@@ -42,9 +51,10 @@ class TeacherDashboardScreen extends StatelessWidget {
           },
         ),
         floatingActionButton: FloatingActionButton(
+          backgroundColor: IDPColors.primary,
           onPressed: () => _createNewSession(context),
           tooltip: 'New Session',
-          child: const Icon(Icons.add),
+          child: const Icon(Icons.add_rounded, color: Colors.white),
         ),
       ),
     );
@@ -59,20 +69,39 @@ class TeacherDashboardScreen extends StatelessWidget {
       );
     }
     return ListView.builder(
-      itemExtent: 88.0,
+      padding: const EdgeInsets.all(IDPSpacing.md),
       itemCount: controller.activeSessions.length,
       itemBuilder: (context, index) {
         final session = controller.activeSessions[index];
-        return Card(
-          margin: const EdgeInsets.all(8),
-          child: ListTile(
-            leading: const Icon(Icons.school, color: Colors.blue),
-            title: Text(session.topic),
-            subtitle: Text('ID: ${session.id} | Students: ${session.connectedStudents.length}'),
-            trailing: IconButton(
-              icon: const Icon(Icons.close, color: Colors.red),
-              tooltip: 'Close Session',
-              onPressed: () => controller.closeSession(session.id),
+        return Padding(
+          padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+          child: IDPCard(
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: IDPColors.primaryContainer,
+                  child: Icon(Icons.school_rounded, color: IDPColors.primary),
+                ),
+                const SizedBox(width: IDPSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(session.topic, style: IDPTypography.titleSmall),
+                      const SizedBox(height: IDPSpacing.xs / 2),
+                      Text(
+                        'ID: ${session.id} | Students: ${session.connectedStudents.length}',
+                        style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, color: IDPColors.error),
+                  tooltip: 'Close Session',
+                  onPressed: () => controller.closeSession(session.id),
+                ),
+              ],
             ),
           ),
         );
@@ -84,14 +113,22 @@ class TeacherDashboardScreen extends StatelessWidget {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: ElevatedButton.icon(
-            onPressed: () => _distributeNewAssignment(context),
-            icon: const Icon(Icons.send),
-            label: const Text('Distribute Draft Experiment'),
+          padding: const EdgeInsets.all(IDPSpacing.md),
+          child: SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: IDPColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: IDPSpacing.md),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+              ),
+              onPressed: () => _distributeNewAssignment(context),
+              icon: const Icon(Icons.send_rounded),
+              label: const Text('Distribute Draft Experiment', style: IDPTypography.labelLarge),
+            ),
           ),
         ),
-        const Divider(),
+        const Divider(color: IDPColors.divider),
         Expanded(
           child: controller.assignments.isEmpty
               ? const EmptyStateCard(
@@ -100,14 +137,33 @@ class TeacherDashboardScreen extends StatelessWidget {
                   icon: Icons.assignment_outlined,
                 )
               : ListView.builder(
-                  itemExtent: 72.0,
+                  padding: const EdgeInsets.all(IDPSpacing.md),
                   itemCount: controller.assignments.length,
                   itemBuilder: (context, index) {
                     final assign = controller.assignments[index];
-                    return ListTile(
-                      leading: const Icon(Icons.assignment),
-                      title: Text(assign.title),
-                      subtitle: Text('Session: ${assign.sessionId}'),
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+                      child: IDPCard(
+                        child: Row(
+                          children: [
+                            const CircleAvatar(
+                              backgroundColor: IDPColors.primaryContainer,
+                              child: Icon(Icons.assignment_rounded, color: IDPColors.primary),
+                            ),
+                            const SizedBox(width: IDPSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(assign.title, style: IDPTypography.titleSmall),
+                                  const SizedBox(height: IDPSpacing.xs / 2),
+                                  Text('Session: ${assign.sessionId}', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
@@ -125,20 +181,39 @@ class TeacherDashboardScreen extends StatelessWidget {
       );
     }
     return ListView.builder(
-      itemExtent: 72.0,
+      padding: const EdgeInsets.all(IDPSpacing.md),
       itemCount: controller.submissions.length,
       itemBuilder: (context, index) {
         final sub = controller.submissions[index];
-        return ListTile(
-          leading: const Icon(Icons.check_circle, color: Colors.green),
-          title: Text('${sub.studentName} - ${sub.status}'),
-          subtitle: Text('Assignment: ${sub.assignmentId}'),
-          trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-          onTap: () {
-            Navigator.of(context).push(MaterialPageRoute(
-              builder: (_) => TeacherReviewScreen(submission: sub),
-            ));
-          },
+        return Padding(
+          padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+          child: IDPCard(
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (_) => TeacherReviewScreen(submission: sub),
+              ));
+            },
+            child: Row(
+              children: [
+                const CircleAvatar(
+                  backgroundColor: IDPColors.secondaryContainer,
+                  child: Icon(Icons.check_circle_rounded, color: IDPColors.secondary),
+                ),
+                const SizedBox(width: IDPSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('${sub.studentName} - ${sub.status}', style: IDPTypography.titleSmall),
+                      const SizedBox(height: IDPSpacing.xs / 2),
+                      Text('Assignment: ${sub.assignmentId}', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded, color: IDPColors.textHint),
+              ],
+            ),
+          ),
         );
       },
     );
@@ -149,14 +224,18 @@ class TeacherDashboardScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('New Session'),
+        title: const Text('New Session', style: IDPTypography.titleSmall),
         content: TextField(
           controller: tc,
-          decoration: const InputDecoration(hintText: 'Topic (e.g. Physics Lab B)'),
+          decoration: InputDecoration(
+            hintText: 'Topic (e.g. Physics Lab B)',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: IDPColors.primary),
             onPressed: () {
               if (tc.text.isNotEmpty) {
                 controller.createSession(tc.text);
@@ -186,21 +265,23 @@ class TeacherDashboardScreen extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Distribute Assignment'),
+        title: const Text('Distribute Assignment', style: IDPTypography.titleSmall),
         content: StatefulBuilder(
           builder: (context, setState) => Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              DropdownButton<String>(
+              DropdownButtonFormField<String>(
                 value: selectedSession,
                 isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Select Session'),
                 items: controller.activeSessions.map((s) => DropdownMenuItem(value: s.id, child: Text(s.topic))).toList(),
                 onChanged: (v) => setState(() => selectedSession = v),
               ),
               const SizedBox(height: 16),
-              DropdownButton<String>(
+              DropdownButtonFormField<String>(
                 value: selectedDraft,
                 isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Select Experiment Draft'),
                 items: draftManager.drafts.map((d) => DropdownMenuItem(value: d.draftId, child: Text(d.title))).toList(),
                 onChanged: (v) => setState(() => selectedDraft = v),
               ),
@@ -209,7 +290,8 @@ class TeacherDashboardScreen extends StatelessWidget {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: IDPColors.primary),
             onPressed: () {
               if (selectedSession != null && selectedDraft != null) {
                 final draft = draftManager.drafts.firstWhere((d) => d.draftId == selectedDraft);
@@ -225,3 +307,4 @@ class TeacherDashboardScreen extends StatelessWidget {
     );
   }
 }
+

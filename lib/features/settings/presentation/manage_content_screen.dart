@@ -3,6 +3,8 @@ import '../../content_packs/data/local/content_pack_repository.dart';
 import '../../onboarding/presentation/grade_selection_screen.dart';
 import '../../onboarding/presentation/grade_sync_screen.dart';
 import '../../course/data/local/app_database.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ManageContentScreen extends StatefulWidget {
@@ -77,7 +79,7 @@ class _ManageContentScreenState extends State<ManageContentScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Remove Grade'),
+        title: const Text('Remove Grade', style: IDPTypography.titleSmall),
         content: Text('Remove all downloaded content for Grade $grade?'),
         actions: [
           TextButton(
@@ -85,6 +87,7 @@ class _ManageContentScreenState extends State<ManageContentScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: IDPColors.error),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Remove'),
           ),
@@ -152,71 +155,82 @@ class _ManageContentScreenState extends State<ManageContentScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('Manage Offline Content'),
-        backgroundColor: const Color(0xFF0B6E4F),
-        foregroundColor: Colors.white,
+        title: const Text('Manage Offline Content', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0B6E4F)))
+          ? const Center(child: CircularProgressIndicator(color: IDPColors.primary))
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(IDPSpacing.md),
               children: [
                 _buildStatCard('Storage Usage', '${_storageUsageMb.toStringAsFixed(1)} MB', Icons.storage_rounded),
-                const SizedBox(height: 12),
+                const SizedBox(height: IDPSpacing.sm),
                 Row(
                   children: [
                     Expanded(child: _buildStatCard('Installed Packs', '$_packCount', Icons.folder_zip_rounded)),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: IDPSpacing.sm),
                     Expanded(child: _buildStatCard('RAG Chunks', '$_chunkCount', Icons.data_array_rounded)),
                   ],
                 ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Installed Grades',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                const SizedBox(height: IDPSpacing.lg),
+                const IDPSectionHeader(
+                  title: 'Installed Grades',
+                  subtitle: 'Offline content packs stored on this device',
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: IDPSpacing.sm),
                 if (_installedGrades.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Text('No grades installed.', style: TextStyle(color: Colors.grey)),
+                  IDPCard(
+                    child: Padding(
+                      padding: const EdgeInsets.all(IDPSpacing.md),
+                      child: Center(
+                        child: Text('No grades installed.', style: IDPTypography.bodyMedium.copyWith(color: IDPColors.textSecondary)),
+                      ),
+                    ),
                   )
                 else
-                  ..._installedGrades.map((grade) => Card(
-                    child: ListTile(
-                      leading: const CircleAvatar(
-                        backgroundColor: Color(0xFF0B6E4F),
-                        foregroundColor: Colors.white,
-                        child: Icon(Icons.school_rounded),
-                      ),
-                      title: Text('Grade $grade'),
-                      subtitle: Text('Installed subjects: ${_installedSubjects.join(", ")}'),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.sync_rounded),
-                            tooltip: 'Re-sync Grade',
-                            onPressed: () => _resyncGrade(grade),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, color: Colors.red),
-                            tooltip: 'Remove Grade',
-                            onPressed: () => _removeGrade(grade),
-                          ),
-                        ],
+                  ..._installedGrades.map((grade) => Padding(
+                    padding: const EdgeInsets.only(bottom: IDPSpacing.xs),
+                    child: IDPCard(
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(
+                          backgroundColor: IDPColors.primaryContainer,
+                          foregroundColor: IDPColors.onPrimaryContainer,
+                          child: const Icon(Icons.school_rounded),
+                        ),
+                        title: Text('Grade $grade', style: IDPTypography.titleSmall),
+                        subtitle: Text('Installed subjects: ${_installedSubjects.join(", ")}', style: IDPTypography.bodySmall),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.sync_rounded, color: IDPColors.primary),
+                              tooltip: 'Re-sync Grade',
+                              onPressed: () => _resyncGrade(grade),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete_outline_rounded, color: IDPColors.error),
+                              tooltip: 'Remove Grade',
+                              onPressed: () => _removeGrade(grade),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   )),
-                const SizedBox(height: 24),
+                const SizedBox(height: IDPSpacing.lg),
                 FilledButton.icon(
                   onPressed: _installGrade,
                   icon: const Icon(Icons.add_rounded),
                   label: const Text('Install Additional Grade'),
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF0B6E4F),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    backgroundColor: IDPColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: IDPSpacing.md),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
                   ),
                 ),
               ],
@@ -225,19 +239,17 @@ class _ManageContentScreenState extends State<ManageContentScreen> {
   }
 
   Widget _buildStatCard(String title, String value, IconData icon) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Icon(icon, size: 32, color: const Color(0xFF0B6E4F)),
-            const SizedBox(height: 8),
-            Text(value, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text(title, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
-          ],
-        ),
+    return IDPCard(
+      child: Column(
+        children: [
+          Icon(icon, size: 32, color: IDPColors.primary),
+          const SizedBox(height: IDPSpacing.xs),
+          Text(value, style: IDPTypography.headlineSmall.copyWith(color: IDPColors.textPrimary)),
+          const SizedBox(height: IDPSpacing.xs / 2),
+          Text(title, style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary), textAlign: TextAlign.center),
+        ],
       ),
     );
   }
 }
+

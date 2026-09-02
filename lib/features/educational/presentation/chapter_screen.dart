@@ -5,6 +5,8 @@ import '../data/educational_repository.dart';
 import '../models/educational_models.dart';
 import 'educational_cards.dart';
 import 'topic_screen.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 
 /// Shows all topics/concepts available in a specific chapter
 class ChapterScreen extends StatefulWidget {
@@ -38,13 +40,20 @@ class _ChapterScreenState extends State<ChapterScreen> {
     return DefaultTabController(
       length: 3,
       child: Scaffold(
+        backgroundColor: IDPColors.background,
         appBar: AppBar(
-          title: Text(widget.chapter.name),
+          title: Text(widget.chapter.name, style: IDPTypography.titleMedium),
+          backgroundColor: IDPColors.surface,
+          foregroundColor: IDPColors.onSurface,
+          elevation: 0,
           bottom: const TabBar(
+            labelColor: IDPColors.primary,
+            unselectedLabelColor: IDPColors.textSecondary,
+            indicatorColor: IDPColors.primary,
             tabs: [
-              Tab(text: 'Topics', icon: Icon(Icons.topic)),
-              Tab(text: 'Quizzes', icon: Icon(Icons.quiz)),
-              Tab(text: 'Flashcards', icon: Icon(Icons.style)),
+              Tab(text: 'Topics', icon: Icon(Icons.topic_rounded)),
+              Tab(text: 'Quizzes', icon: Icon(Icons.quiz_rounded)),
+              Tab(text: 'Flashcards', icon: Icon(Icons.style_rounded)),
             ],
           ),
         ),
@@ -61,6 +70,7 @@ class _ChapterScreenState extends State<ChapterScreen> {
       ),
     );
   }
+
 
   Widget _buildTopicsTab() {
     return FutureBuilder<List<ConceptModel>>(

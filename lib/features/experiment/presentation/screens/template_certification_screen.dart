@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import '../../builder/templates/experiment_templates.dart';
 import '../../runtime/runtime_world.dart';
 import '../../runtime/runtime_profiles.dart';
+import '../../../../core/theme/idp_colors.dart';
+import '../../../../core/widgets/idp_core_widgets.dart';
 
 class TemplateCertificationScreen extends StatefulWidget {
   const TemplateCertificationScreen({super.key});
@@ -49,7 +51,6 @@ class _TemplateCertificationScreenState extends State<TemplateCertificationScree
 
         world.start();
 
-        // Run 5 seconds of simulation
         for (int i = 0; i < 50; i++) {
           world.tick(0.1);
         }
@@ -85,67 +86,87 @@ class _TemplateCertificationScreenState extends State<TemplateCertificationScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('Template Certification Workspace'),
-        backgroundColor: Colors.blueGrey.shade900,
-        foregroundColor: Colors.white,
+        title: const Text('Template Certification Workspace', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
       ),
       body: SafeArea(
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.all(16),
-              color: Colors.blueGrey.shade50,
+              padding: const EdgeInsets.all(IDPSpacing.md),
+              color: IDPColors.surfaceContainerLow,
               child: Row(
                 children: [
                   if (_isRunning) ...[
                     const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: IDPColors.primary),
                     ),
-                    const SizedBox(width: 12),
-                    const Text('Running Certification...'),
+                    const SizedBox(width: IDPSpacing.sm),
+                    Text('Running Certification...', style: IDPTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
                   ] else ...[
-                    const Icon(Icons.check_circle, color: Colors.green),
-                    const SizedBox(width: 12),
-                    const Text('Certification Complete', style: TextStyle(fontWeight: FontWeight.bold)),
+                    const Icon(Icons.check_circle_rounded, color: IDPColors.secondary),
+                    const SizedBox(width: IDPSpacing.sm),
+                    Text('Certification Complete', style: IDPTypography.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
                   ],
                   const Spacer(),
-                  Text('${_results.length} / ${ExperimentTemplates.allTemplates.length} processed'),
+                  Text(
+                    '${_results.length} / ${ExperimentTemplates.allTemplates.length} processed',
+                    style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+                  ),
                 ],
               ),
             ),
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(IDPSpacing.md),
                 itemCount: _results.length,
                 itemBuilder: (context, index) {
                   final result = _results[index];
                   final isError = result['error'] == true;
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 8),
-                    child: ListTile(
-                      leading: Icon(
-                        isError ? Icons.error : Icons.check_circle,
-                        color: isError ? Colors.red : Colors.green,
-                      ),
-                      title: Text(result['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(result['detail']),
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: isError ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          result['status'],
-                          style: TextStyle(
-                            color: isError ? Colors.red : Colors.green,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+                    child: IDPCard(
+                      child: Row(
+                        children: [
+                          Icon(
+                            isError ? Icons.error_rounded : Icons.check_circle_rounded,
+                            color: isError ? IDPColors.error : IDPColors.secondary,
                           ),
-                        ),
+                          const SizedBox(width: IDPSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(result['name'], style: IDPTypography.titleSmall),
+                                const SizedBox(height: IDPSpacing.xs / 2),
+                                Text(
+                                  result['detail'],
+                                  style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: IDPSpacing.sm, vertical: IDPSpacing.xs),
+                            decoration: BoxDecoration(
+                              color: isError ? IDPColors.errorContainer : IDPColors.secondaryContainer,
+                              borderRadius: BorderRadius.circular(IDPRadius.sm),
+                            ),
+                            child: Text(
+                              result['status'],
+                              style: IDPTypography.labelSmall.copyWith(
+                                color: isError ? IDPColors.onErrorContainer : IDPColors.onSecondaryContainer,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -158,3 +179,4 @@ class _TemplateCertificationScreenState extends State<TemplateCertificationScree
     );
   }
 }
+

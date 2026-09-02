@@ -291,6 +291,53 @@ class _P2PScreenState extends State<P2PScreen> with SingleTickerProviderStateMix
     });
   }
 
+  void _showHotspotFallbackDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.qr_code_2, color: IDPColors.primary),
+            SizedBox(width: 8),
+            Text('Wi-Fi Hotspot Fallback'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'If Wi-Fi Direct discovery is unavailable on your device, turn on your Portable Wi-Fi Hotspot and let peers join your local network.',
+              style: TextStyle(fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey.shade100,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Hotspot SSID: OfflineTutor_PeerHub', style: TextStyle(fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Local IP: 192.168.43.1 | Port: 45888', style: TextStyle(fontFamily: 'monospace', fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _toggleReceiver() async {
     if (_processingTransfer) return;
 
@@ -827,7 +874,13 @@ class _P2PScreenState extends State<P2PScreen> with SingleTickerProviderStateMix
               _buildNavButton("Explore", true),
               _buildNavButton("Resources", false),
               _buildNavButton("Collaborate", false),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.qr_code_2, color: IDPColors.primary),
+                tooltip: 'Wi-Fi Hotspot Fallback',
+                onPressed: _showHotspotFallbackDialog,
+              ),
+              const SizedBox(width: 8),
               Container(
                 width: 40,
                 height: 40,

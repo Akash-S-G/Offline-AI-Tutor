@@ -1,7 +1,13 @@
+import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
-import '../../../l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
+import 'package:http/http.dart' as http;
+import 'package:path_provider/path_provider.dart';
+import '../../../config/app_environment.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
+import '../../../l10n/app_localizations.dart';
 
 import '../../chat/data/llm_admin_channel_service.dart';
 
@@ -292,6 +298,71 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
     });
   }
 
+  double _downloadProgress = 0.0;
+  bool _downloadingModel = false;
+
+  Future<void> _downloadModelFromHub() async {
+    setState(() {
+      _downloadingModel = true;
+      _downloadProgress = 0.0;
+      _error = null;
+    });
+
+    try {
+      final baseUrl = AppEnvironment.backendBaseUrl;
+      final url = Uri.parse('$baseUrl/models/qwen2.5-1.5b.gguf');
+      final request = http.Request('GET', url);
+      final response = await http.Client().send(request).timeout(const Duration(minutes: 5));
+
+      if (response.statusCode != 200) {
+        throw Exception('Server returned HTTP ${response.statusCode}');
+      }
+
+      final appDir = await getApplicationDocumentsDirectory();
+      final targetFile = File('${appDir.path}/models/qwen2.5-1.5b.gguf');
+      await targetFile.parent.create(recursive: true);
+
+      final sink = targetFile.openWrite();
+      final contentLength = response.contentLength ?? 0;
+      int downloadedBytes = 0;
+
+      await response.stream.listen((chunk) {
+        sink.add(chunk);
+        downloadedBytes += chunk.length;
+        if (contentLength > 0 && mounted) {
+          setState(() {
+            _downloadProgress = downloadedBytes / contentLength;
+          });
+        }
+      }).asFuture();
+
+      await sink.flush();
+      await sink.close();
+
+      final updated = await _service.setModelPath(targetFile.path);
+      if (!updated) {
+        throw Exception('Engine rejected downloaded model path.');
+      }
+
+      await _load();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Successfully downloaded & activated Qwen2.5 1.5B GGUF model!')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to download model from PiHub server: $e';
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _downloadingModel = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final metadata = _metadata;
@@ -302,112 +373,180 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
         : null;
 
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('Model Selection'),
+        title: const Text('Model Selection', style: IDPTypography.titleMedium),
+        elevation: 0,
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
         actions: [
           IconButton(
             onPressed: _load,
             tooltip: 'Refresh',
-            icon: const Icon(Icons.refresh_rounded),
+            icon: const Icon(Icons.refresh_rounded, color: IDPColors.primary),
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: IDPColors.primary))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(IDPSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  if (_error != null)
+                  if (_error != null) ...[
                     Container(
-                      padding: const EdgeInsets.all(12),
-                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(IDPSpacing.md),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFFF1F2),
-                        borderRadius: BorderRadius.circular(12),
+                        color: IDPColors.errorContainer,
+                        borderRadius: BorderRadius.circular(IDPRadius.defaultRadius),
+                        border: Border.all(color: IDPColors.error.withValues(alpha: 0.3)),
                       ),
-                      child: Text(_error!),
+                      child: Text(_error!, style: IDPTypography.bodyMedium.copyWith(color: IDPColors.onErrorContainer)),
                     ),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF7FF),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    const SizedBox(height: IDPSpacing.md),
+                  ],
+
+                  // Current Model Card
+                  IDPCard(
+                    backgroundColor: IDPColors.primaryContainer.withValues(alpha: 0.5),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Current Model',
-                          style: TextStyle(fontWeight: FontWeight.w600),
+                        Row(
+                          children: [
+                            const Icon(Icons.memory_rounded, color: IDPColors.primary),
+                            const SizedBox(width: IDPSpacing.sm),
+                            Text('Current Model', style: IDPTypography.titleSmall.copyWith(color: IDPColors.onPrimaryContainer)),
+                          ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: IDPSpacing.sm),
                         Text(
                           metadata?.path.isNotEmpty == true
                               ? metadata!.path
                               : 'No model selected',
+                          style: IDPTypography.bodyMedium.copyWith(fontWeight: FontWeight.w500),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: IDPSpacing.xs),
                         Text(
                           'Size: ${((metadata?.sizeBytes ?? 0) / (1024 * 1024)).toStringAsFixed(1)} MB',
+                          style: IDPTypography.bodySmall.copyWith(color: IDPColors.onSurfaceVariant),
                         ),
                         Text(
                           'Last selected: ${selectedAt?.toLocal().toString() ?? 'n/a'}',
+                          style: IDPTypography.bodySmall.copyWith(color: IDPColors.onSurfaceVariant),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  if (engineStatus != null)
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                  const SizedBox(height: IDPSpacing.md),
+
+                  // Engine Status Card
+                  if (engineStatus != null) ...[
+                    IDPCard(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            'Engine Status',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                          Row(
+                            children: [
+                              Icon(
+                                engineStatus.loaded ? Icons.check_circle_rounded : Icons.pending_rounded,
+                                color: engineStatus.loaded ? IDPColors.success : IDPColors.warning,
+                              ),
+                              const SizedBox(width: IDPSpacing.sm),
+                              Text('Engine Status', style: IDPTypography.titleSmall),
+                            ],
                           ),
-                          const SizedBox(height: 8),
-                          Text('Loaded: ${engineStatus.loaded ? 'yes' : 'no'}'),
-                          Text('Inferences: ${engineStatus.totalInferenceCount}'),
-                          Text(
-                            'Last inference: ${engineStatus.lastInferenceDurationMs} ms',
+                          const SizedBox(height: IDPSpacing.sm),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Loaded:', style: IDPTypography.bodySmall),
+                              Text(engineStatus.loaded ? 'Yes ✓' : 'No ✗', style: IDPTypography.bodySmall.copyWith(fontWeight: FontWeight.bold, color: engineStatus.loaded ? IDPColors.success : IDPColors.error)),
+                            ],
                           ),
-                          Text(
-                            'Avg inference: ${engineStatus.avgInferenceDurationMs} ms',
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Total Inferences:', style: IDPTypography.bodySmall),
+                              Text('${engineStatus.totalInferenceCount}', style: IDPTypography.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+                            ],
                           ),
-                          if (engineStatus.lastEngineError.trim().isNotEmpty)
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Last Inference Duration:', style: IDPTypography.bodySmall),
+                              Text('${engineStatus.lastInferenceDurationMs} ms', style: IDPTypography.bodySmall),
+                            ],
+                          ),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Avg Inference Duration:', style: IDPTypography.bodySmall),
+                              Text('${engineStatus.avgInferenceDurationMs} ms', style: IDPTypography.bodySmall),
+                            ],
+                          ),
+                          if (engineStatus.lastEngineError.trim().isNotEmpty) ...[
+                            const SizedBox(height: IDPSpacing.xs),
                             Text(
                               'Last error: ${engineStatus.lastEngineError}',
-                              style: const TextStyle(color: Color(0xFFB91C1C)),
+                              style: IDPTypography.bodySmall.copyWith(color: IDPColors.error),
                             ),
+                          ],
                         ],
                       ),
                     ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: IDPSpacing.md),
+                  ],
+
+                  // Action buttons
                   FilledButton.icon(
+                    onPressed: _downloadingModel ? null : _downloadModelFromHub,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: IDPColors.primary,
+                      padding: const EdgeInsets.symmetric(vertical: IDPSpacing.md),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+                    ),
+                    icon: _downloadingModel
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.cloud_download_rounded),
+                    label: Text(
+                      _downloadingModel
+                          ? 'Downloading GGUF Model (${(_downloadProgress * 100).toInt()}%)...'
+                          : 'Download Qwen2.5 1.5B GGUF from PiHub',
+                      style: IDPTypography.labelLarge.copyWith(color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(height: IDPSpacing.sm),
+                  OutlinedButton.icon(
                     onPressed: _updatingModelPath ? null : _pickAndSetModel,
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: IDPColors.primary),
+                      padding: const EdgeInsets.symmetric(vertical: IDPSpacing.md),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+                    ),
                     icon: _updatingModelPath
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: IDPColors.primary),
                           )
-                        : const Icon(Icons.folder_open_rounded),
-                    label: const Text('Pick .gguf model file'),
+                        : const Icon(Icons.folder_open_rounded, color: IDPColors.primary),
+                    label: Text('Pick Local .gguf File', style: IDPTypography.labelLarge.copyWith(color: IDPColors.primary)),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: IDPSpacing.sm),
                   Row(
                     children: [
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _validatingModel ? null : _validateSelectedModel,
+                          style: OutlinedButton.styleFrom(
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+                          ),
                           icon: _validatingModel
                               ? const SizedBox(
                                   width: 16,
@@ -415,13 +554,18 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 )
                               : const Icon(Icons.verified_rounded),
-                          label: const Text('Validate Model'),
+                          label: const Text('Validate'),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: IDPSpacing.sm),
                       Expanded(
                         child: OutlinedButton.icon(
                           onPressed: _resetEngine,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: IDPColors.error,
+                            side: const BorderSide(color: IDPColors.errorLight),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+                          ),
                           icon: const Icon(Icons.restart_alt_rounded),
                           label: const Text('Reset Engine'),
                         ),
@@ -429,95 +573,105 @@ class _ModelSelectionScreenState extends State<ModelSelectionScreen> {
                     ],
                   ),
                   if (_validationMessage != null) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: IDPSpacing.sm),
                     Text(
                       _validationMessage!,
-                      style: const TextStyle(color: Color(0xFF0B6E4F)),
+                      style: IDPTypography.bodySmall.copyWith(color: IDPColors.success, fontWeight: FontWeight.bold),
                     ),
                   ],
-                  const SizedBox(height: 20),
-                  const Text(
-                    'Model Configuration',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  const SizedBox(height: IDPSpacing.lg),
+
+                  const IDPSectionHeader(
+                    title: 'Model Configuration',
+                    subtitle: 'Adjust generation parameters & system prompt',
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: IDPSpacing.sm),
                   Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
+                    spacing: IDPSpacing.xs,
+                    runSpacing: IDPSpacing.xs,
                     children: [
-                      OutlinedButton(
+                      ActionChip(
+                        label: const Text('Fast'),
+                        backgroundColor: IDPColors.surfaceContainerHigh,
                         onPressed: () => _applyPreset(
                           maxTokens: 128,
                           timeoutMs: 60000,
                           systemPrompt:
                               'You are a concise tutor. Give short, direct answers with one example.',
                         ),
-                        child: const Text('Fast'),
                       ),
-                      OutlinedButton(
+                      ActionChip(
+                        label: const Text('Balanced'),
+                        backgroundColor: IDPColors.surfaceContainerHigh,
                         onPressed: () => _applyPreset(
                           maxTokens: 256,
                           timeoutMs: 120000,
                           systemPrompt:
                               'You are a helpful tutor. Explain clearly with step-by-step reasoning when needed.',
                         ),
-                        child: const Text('Balanced'),
                       ),
-                      OutlinedButton(
+                      ActionChip(
+                        label: const Text('Deep Explain'),
+                        backgroundColor: IDPColors.surfaceContainerHigh,
                         onPressed: () => _applyPreset(
                           maxTokens: 512,
                           timeoutMs: 240000,
                           systemPrompt:
                               'You are an expert tutor. Provide detailed explanations and structured steps.',
                         ),
-                        child: const Text('Deep Explain'),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: IDPSpacing.md),
                   TextField(
                     controller: _maxTokensController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Max output tokens',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: IDPSpacing.sm),
                   TextField(
                     controller: _timeoutMsController,
                     keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Timeout (ms)',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: IDPSpacing.sm),
                   TextField(
                     controller: _systemPromptController,
                     minLines: 3,
                     maxLines: 6,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'System prompt',
-                      border: OutlineInputBorder(),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: IDPSpacing.md),
                   FilledButton.icon(
                     onPressed: _updatingConfig ? null : _saveGenerationConfig,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: IDPColors.secondary,
+                      padding: const EdgeInsets.symmetric(vertical: IDPSpacing.md),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+                    ),
                     icon: _updatingConfig
                         ? const SizedBox(
                             width: 18,
                             height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                           )
                         : const Icon(Icons.tune_rounded),
-                    label: const Text('Save Model Configuration'),
+                    label: Text('Save Configuration', style: IDPTypography.labelLarge.copyWith(color: Colors.white)),
                   ),
                   if (config != null) ...[
-                    const SizedBox(height: 8),
+                    const SizedBox(height: IDPSpacing.sm),
                     Text(
                       'Active: ${config.maxTokens} tokens, ${config.timeoutMs} ms timeout',
+                      style: IDPTypography.bodySmall.copyWith(color: IDPColors.onSurfaceVariant),
                     ),
                   ],
                 ],

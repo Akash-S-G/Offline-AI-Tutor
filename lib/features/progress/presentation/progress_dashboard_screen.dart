@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 import '../../course/data/local/course_repository.dart';
 import '../../course/domain/course_tree.dart';
 import '../data/local/progress_repository.dart';
@@ -152,14 +154,21 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('Learning Progress'),
+        title: const Text('Learning Progress', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
+          labelColor: IDPColors.primary,
+          unselectedLabelColor: IDPColors.textSecondary,
+          indicatorColor: IDPColors.primary,
           tabs: const [
             Tab(text: 'Chapter Progress'),
             Tab(text: 'Quiz History'),
-            Tab(text: 'Leaderboard & Trends'),
+            Tab(text: 'Trends'),
           ],
         ),
       ),
@@ -179,7 +188,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       future: _loadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: IDPColors.primary));
         }
 
         if (_chaptersWithProgress.isEmpty) {
@@ -190,20 +199,21 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
                 const Icon(
                   Icons.trending_up_rounded,
                   size: 64,
-                  color: Colors.grey,
+                  color: IDPColors.textHint,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: IDPSpacing.md),
                 const Text(
                   'No progress yet',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  style: IDPTypography.titleMedium,
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                const SizedBox(height: IDPSpacing.xs),
+                Text(
                   'Start tutoring to see your progress',
-                  style: TextStyle(color: Colors.grey),
+                  style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
                 ),
-                const SizedBox(height: 24),
-                ElevatedButton(
+                const SizedBox(height: IDPSpacing.lg),
+                FilledButton(
+                  style: FilledButton.styleFrom(backgroundColor: IDPColors.primary),
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text('Back to Home'),
                 ),
@@ -220,76 +230,62 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
                 _chaptersWithProgress.length;
 
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(IDPSpacing.md),
           children: [
             // Overall summary card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Overall Mastery',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                '${averageMastery.toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${_chaptersWithProgress.length} chapters',
-                                style: const TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
+            IDPCard(
+              backgroundColor: IDPColors.primaryContainer.withValues(alpha: 0.4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const IDPSectionHeader(
+                    title: 'Overall Mastery',
+                    subtitle: 'Average score across active chapters',
+                  ),
+                  const SizedBox(height: IDPSpacing.md),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '${averageMastery.toStringAsFixed(0)}%',
+                              style: IDPTypography.headlineLarge.copyWith(color: IDPColors.primary),
+                            ),
+                            const SizedBox(height: IDPSpacing.xs / 2),
+                            Text(
+                              '${_chaptersWithProgress.length} chapters tracked',
+                              style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+                            ),
+                          ],
                         ),
-                        Expanded(
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: LinearProgressIndicator(
-                              value: averageMastery / 100,
-                              minHeight: 12,
-                              backgroundColor: Colors.grey[300],
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                averageMastery >= 80
-                                    ? Colors.green
-                                    : averageMastery >= 50
-                                        ? Colors.orange
-                                        : Colors.blue,
-                              ),
+                      ),
+                      Expanded(
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(IDPRadius.sm),
+                          child: LinearProgressIndicator(
+                            value: averageMastery / 100,
+                            minHeight: 12,
+                            backgroundColor: IDPColors.surfaceContainerHigh,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              averageMastery >= 80
+                                  ? IDPColors.success
+                                  : averageMastery >= 50
+                                      ? IDPColors.warning
+                                      : IDPColors.primary,
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                  ],
-                ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            const Text(
-              'Chapter Progress',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: IDPSpacing.lg),
+            const IDPSectionHeader(title: 'Chapter Breakdown'),
+            const SizedBox(height: IDPSpacing.sm),
             // Per-chapter cards
             ...List.generate(
               _chaptersWithProgress.length,
@@ -298,134 +294,83 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
                 final color = _masteryLevelColor(cwp.progress.masteryLevel);
 
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment:
-                                      CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      cwp.chapter.title,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      'Active ${_formatLastActivity(cwp.progress.lastActivityAt)}',
-                                      style: const TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 6,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: color.withValues(alpha: 0.2),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  cwp.progress.masteryLevel,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: color,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          // Progress bar
-                          ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                              value: cwp.progress.masteryScore / 100,
-                              minHeight: 8,
-                              backgroundColor: Colors.grey[300],
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(color),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                '${cwp.progress.masteryScore.toStringAsFixed(0)}%',
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              Row(
+                  padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+                  child: IDPCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(
-                                    Icons.question_answer_rounded,
-                                    size: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 4),
                                   Text(
-                                    '${cwp.progress.questionsAsked} Q',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                    cwp.chapter.title,
+                                    style: IDPTypography.titleSmall,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
-                                  const SizedBox(width: 12),
-                                  Icon(
-                                    Icons.chat_rounded,
-                                    size: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 4),
+                                  const SizedBox(height: IDPSpacing.xs / 2),
                                   Text(
-                                    '${cwp.progress.totalMessages} msgs',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Icon(
-                                    Icons.schedule_rounded,
-                                    size: 14,
-                                    color: Colors.grey[600],
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${cwp.progress.sessionsEngaged} sess',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                    'Active ${_formatLastActivity(cwp.progress.lastActivityAt)}',
+                                    style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
                                   ),
                                 ],
                               ),
-                            ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: IDPSpacing.sm,
+                                vertical: IDPSpacing.xs,
+                              ),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(IDPRadius.sm),
+                              ),
+                              child: Text(
+                                cwp.progress.masteryLevel,
+                                style: IDPTypography.labelSmall.copyWith(
+                                  fontWeight: FontWeight.bold,
+                                  color: color,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: IDPSpacing.sm),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(IDPRadius.sm),
+                          child: LinearProgressIndicator(
+                            value: cwp.progress.masteryScore / 100,
+                            minHeight: 8,
+                            backgroundColor: IDPColors.surfaceContainerHigh,
+                            valueColor: AlwaysStoppedAnimation<Color>(color),
                           ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: IDPSpacing.xs),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${cwp.progress.masteryScore.toStringAsFixed(0)}%',
+                              style: IDPTypography.titleSmall,
+                            ),
+                            Row(
+                              children: [
+                                const Icon(Icons.question_answer_rounded, size: 14, color: IDPColors.textSecondary),
+                                const SizedBox(width: IDPSpacing.xs / 2),
+                                Text('${cwp.progress.questionsAsked} Q', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                                const SizedBox(width: IDPSpacing.sm),
+                                const Icon(Icons.chat_rounded, size: 14, color: IDPColors.textSecondary),
+                                const SizedBox(width: IDPSpacing.xs / 2),
+                                Text('${cwp.progress.totalMessages} msgs', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
                 );
@@ -442,7 +387,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       future: _loadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: IDPColors.primary));
         }
 
         if (_allQuizResults.isEmpty) {
@@ -453,17 +398,17 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
                 const Icon(
                   Icons.quiz_rounded,
                   size: 64,
-                  color: Colors.grey,
+                  color: IDPColors.textHint,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: IDPSpacing.md),
                 const Text(
                   'No quizzes attempted yet',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                  style: IDPTypography.titleMedium,
                 ),
-                const SizedBox(height: 8),
-                const Text(
+                const SizedBox(height: IDPSpacing.xs),
+                Text(
                   'Take quizzes from the Learning Materials',
-                  style: TextStyle(color: Colors.grey),
+                  style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
                 ),
               ],
             ),
@@ -471,24 +416,20 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
         }
 
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(IDPSpacing.md),
           children: [
-            const Text(
-              'Recent Quiz Attempts',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 12),
+            const IDPSectionHeader(title: 'Recent Quiz Attempts'),
+            const SizedBox(height: IDPSpacing.sm),
             ..._allQuizResults.take(20).map((result) {
               final performanceColor = result.percentage >= 80
-                  ? Colors.green
+                  ? IDPColors.success
                   : result.percentage >= 60
-                      ? Colors.orange
-                      : Colors.red;
+                      ? IDPColors.warning
+                      : IDPColors.error;
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
+              return Padding(
+                padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+                child: IDPCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -501,87 +442,58 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
                               children: [
                                 Text(
                                   'Chapter: ${result.chapterId}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: IDPTypography.titleSmall,
                                   maxLines: 2,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                const SizedBox(height: 4),
+                                const SizedBox(height: IDPSpacing.xs / 2),
                                 Text(
                                   _formatQuizDate(result.attemptedAt),
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey,
-                                  ),
+                                  style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
                                 ),
                               ],
                             ),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                              horizontal: IDPSpacing.sm,
+                              vertical: IDPSpacing.xs,
                             ),
                             decoration: BoxDecoration(
-                              color: performanceColor.withValues(alpha: 0.2),
-                              borderRadius: BorderRadius.circular(12),
+                              color: performanceColor.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(IDPRadius.sm),
                             ),
                             child: Column(
                               children: [
                                 Text(
                                   '${result.percentage}%',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: performanceColor,
-                                  ),
+                                  style: IDPTypography.titleMedium.copyWith(color: performanceColor),
                                 ),
                                 Text(
                                   result.performanceLabel,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: performanceColor,
-                                  ),
+                                  style: IDPTypography.labelSmall.copyWith(color: performanceColor),
                                 ),
                               ],
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: IDPSpacing.sm),
                       Row(
                         children: [
+                          const Icon(Icons.check_circle_rounded, size: 14, color: IDPColors.textSecondary),
+                          const SizedBox(width: IDPSpacing.xs),
+                          Text('${result.score}/${result.totalQuestions} correct', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                          const SizedBox(width: IDPSpacing.md),
                           Icon(
-                            Icons.check_circle_rounded,
-                            size: 14,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${result.score}/${result.totalQuestions} correct',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Icon(
-                            result.passed
-                                ? Icons.thumb_up_rounded
-                                : Icons.info_rounded,
+                            result.passed ? Icons.thumb_up_rounded : Icons.info_rounded,
                             size: 14,
                             color: performanceColor,
                           ),
-                          const SizedBox(width: 4),
+                          const SizedBox(width: IDPSpacing.xs),
                           Text(
                             result.passed ? 'Passed' : 'Needs Work',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: performanceColor,
-                              fontWeight: FontWeight.w500,
-                            ),
+                            style: IDPTypography.bodySmall.copyWith(color: performanceColor, fontWeight: FontWeight.w600),
                           ),
                         ],
                       ),
@@ -601,12 +513,12 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       future: _loadFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: IDPColors.primary));
         }
 
         if (_allQuizResults.isEmpty) {
-          return const Center(
-            child: Text('Take quizzes to unlock leaderboard and trend analytics.'),
+          return Center(
+            child: Text('Take quizzes to unlock leaderboard and trend analytics.', style: IDPTypography.bodyMedium.copyWith(color: IDPColors.textSecondary)),
           );
         }
 
@@ -676,42 +588,41 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
           ..sort((a, b) => b.averageScore.compareTo(a.averageScore));
 
         return ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(IDPSpacing.md),
           children: [
-            const Text(
-              'Chapter Leaderboard',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 10),
+            const IDPSectionHeader(title: 'Chapter Leaderboard'),
+            const SizedBox(height: IDPSpacing.sm),
             ...chapterLeaders.take(10).toList().asMap().entries.map((entry) {
               final rank = entry.key + 1;
               final row = entry.value;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    child: Text('$rank'),
-                  ),
-                  title: Text(row.chapterTitle),
-                  subtitle: Text(
-                    'Avg ${row.averageScore.toStringAsFixed(1)}% • Best ${row.bestScore}% • ${row.attemptCount} attempts',
+              return Padding(
+                padding: const EdgeInsets.only(bottom: IDPSpacing.xs),
+                child: IDPCard(
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: CircleAvatar(
+                      backgroundColor: IDPColors.primaryContainer,
+                      foregroundColor: IDPColors.onPrimaryContainer,
+                      child: Text('$rank', style: IDPTypography.titleSmall),
+                    ),
+                    title: Text(row.chapterTitle, style: IDPTypography.titleSmall),
+                    subtitle: Text(
+                      'Avg ${row.averageScore.toStringAsFixed(1)}% • Best ${row.bestScore}% • ${row.attemptCount} attempts',
+                      style: IDPTypography.bodySmall,
+                    ),
                   ),
                 ),
               );
             }),
-            const SizedBox(height: 16),
-            const Text(
-              'Subject Progress Trends',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 10),
+            const SizedBox(height: IDPSpacing.lg),
+            const IDPSectionHeader(title: 'Subject Progress Trends'),
+            const SizedBox(height: IDPSpacing.sm),
             ...subjectTrends.map((trend) {
               final improving = trend.trendDelta >= 0;
-              final trendColor = improving ? Colors.green : Colors.red;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                child: Padding(
-                  padding: const EdgeInsets.all(12),
+              final trendColor = improving ? IDPColors.success : IDPColors.error;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: IDPSpacing.xs),
+                child: IDPCard(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -719,10 +630,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Expanded(
-                            child: Text(
-                              trend.subjectName,
-                              style: const TextStyle(fontWeight: FontWeight.w600),
-                            ),
+                            child: Text(trend.subjectName, style: IDPTypography.titleSmall),
                           ),
                           Row(
                             children: [
@@ -733,33 +641,34 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
                                 color: trendColor,
                                 size: 18,
                               ),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: IDPSpacing.xs / 2),
                               Text(
                                 '${trend.trendDelta >= 0 ? '+' : ''}${trend.trendDelta.toStringAsFixed(1)}%',
-                                style: TextStyle(
-                                  color: trendColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: IDPTypography.labelMedium.copyWith(color: trendColor, fontWeight: FontWeight.bold),
                               ),
                             ],
                           ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: IDPSpacing.xs),
                       Text(
                         'Average ${trend.averageScore.toStringAsFixed(1)}% across ${trend.attemptCount} attempts',
+                        style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
                       ),
-                      const SizedBox(height: 8),
-                      LinearProgressIndicator(
-                        value: (trend.averageScore / 100).clamp(0, 1),
-                        minHeight: 8,
-                        backgroundColor: Colors.grey[300],
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          trend.averageScore >= 80
-                              ? Colors.green
-                              : trend.averageScore >= 60
-                                  ? Colors.orange
-                                  : Colors.red,
+                      const SizedBox(height: IDPSpacing.sm),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(IDPRadius.sm),
+                        child: LinearProgressIndicator(
+                          value: (trend.averageScore / 100).clamp(0, 1),
+                          minHeight: 8,
+                          backgroundColor: IDPColors.surfaceContainerHigh,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            trend.averageScore >= 80
+                                ? IDPColors.success
+                                : trend.averageScore >= 60
+                                    ? IDPColors.warning
+                                    : IDPColors.error,
+                          ),
                         ),
                       ),
                     ],
@@ -772,6 +681,7 @@ class _ProgressDashboardScreenState extends State<ProgressDashboardScreen>
       },
     );
   }
+
 }
 
 class _ChapterLeader {

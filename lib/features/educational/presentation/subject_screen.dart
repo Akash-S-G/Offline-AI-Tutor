@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../data/educational_repository.dart';
 import '../models/educational_models.dart';
 import 'chapter_screen.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 
 /// Shows all chapters available for a specific subject
 class SubjectScreen extends StatefulWidget {
@@ -29,23 +31,26 @@ class _SubjectScreenState extends State<SubjectScreen> {
   Widget build(BuildContext context) {
     final subjectColor = widget.subject.colorHex != null
         ? Color(widget.subject.colorHex!)
-        : Theme.of(context).colorScheme.primary;
+        : IDPColors.primary;
 
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: Text(widget.subject.name),
-        backgroundColor: subjectColor,
+        title: Text(widget.subject.name, style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
       ),
       body: FutureBuilder<List<ChapterModel>>(
         future: _chaptersFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: IDPColors.primary));
           }
 
           if (snapshot.hasError) {
             return Center(
-              child: Text('Error loading chapters: ${snapshot.error}'),
+              child: Text('Error loading chapters: ${snapshot.error}', style: IDPTypography.bodyMedium.copyWith(color: IDPColors.error)),
             );
           }
 
@@ -56,15 +61,15 @@ class _SubjectScreenState extends State<SubjectScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.library_books,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.outline,
+                  const Icon(
+                    Icons.library_books_outlined,
+                    size: 56,
+                    color: IDPColors.textHint,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: IDPSpacing.md),
+                  const Text(
                     'No chapters available',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: IDPTypography.titleMedium,
                   ),
                 ],
               ),
@@ -72,13 +77,16 @@ class _SubjectScreenState extends State<SubjectScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(IDPSpacing.md),
             itemCount: chapters.length,
             itemBuilder: (context, index) {
               final chapter = chapters[index];
-              return _ChapterCard(
-                chapter: chapter,
-                color: subjectColor,
+              return Padding(
+                padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+                child: _ChapterCard(
+                  chapter: chapter,
+                  color: subjectColor,
+                ),
               );
             },
           );
@@ -100,95 +108,69 @@ class _ChapterCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: GestureDetector(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ChapterScreen(chapter: chapter),
-            ),
-          );
-        },
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(left: BorderSide(color: color, width: 4)),
+    return IDPCard(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => ChapterScreen(chapter: chapter),
           ),
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        );
+      },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: color.withOpacity(0.2),
+              CircleAvatar(
+                backgroundColor: color.withValues(alpha: 0.15),
+                child: Text(
+                  '${chapter.sequenceNumber}',
+                  style: IDPTypography.titleSmall.copyWith(color: color, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: IDPSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      chapter.name,
+                      style: IDPTypography.titleSmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
-                    child: Center(
-                      child: Text(
-                        '${chapter.sequenceNumber}',
-                        style: TextStyle(
-                          color: color,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          chapter.name,
-                          style: Theme.of(context).textTheme.titleMedium,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (chapter.estimatedReadingMinutes != null) ...[
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Icon(
-                                Icons.access_time,
-                                size: 14,
-                                color: Theme.of(context).colorScheme.outline,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${chapter.estimatedReadingMinutes} min',
-                                style: Theme.of(context).textTheme.bodySmall,
-                              ),
-                            ],
+                    if (chapter.estimatedReadingMinutes != null) ...[
+                      const SizedBox(height: IDPSpacing.xs / 2),
+                      Row(
+                        children: [
+                          const Icon(Icons.access_time_rounded, size: 14, color: IDPColors.textSecondary),
+                          const SizedBox(width: IDPSpacing.xs / 2),
+                          Text(
+                            '${chapter.estimatedReadingMinutes} min',
+                            style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
                           ),
                         ],
-                      ],
-                    ),
-                  ),
-                  Icon(
-                    Icons.arrow_forward_ios,
-                    size: 16,
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                ],
-              ),
-              if (chapter.summary != null) ...[
-                const SizedBox(height: 12),
-                Text(
-                  chapter.summary!,
-                  style: Theme.of(context).textTheme.bodySmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ],
                 ),
-              ],
+              ),
+              const Icon(Icons.chevron_right_rounded, color: IDPColors.textHint),
             ],
           ),
-        ),
+          if (chapter.summary != null) ...[
+            const SizedBox(height: IDPSpacing.sm),
+            Text(
+              chapter.summary!,
+              style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ],
       ),
     );
   }
 }
+

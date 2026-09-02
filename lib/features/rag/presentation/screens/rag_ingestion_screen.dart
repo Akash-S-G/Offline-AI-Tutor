@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../application/rag_ingestion_service.dart';
 import '../../data/local/rag_repository_v2.dart';
+import '../../../../core/theme/idp_colors.dart';
+import '../../../../core/widgets/idp_core_widgets.dart';
 
 /// Screen for ingesting RAG seed data and managing documents
 class RagIngestionScreen extends StatefulWidget {
@@ -84,7 +86,7 @@ class _RagIngestionScreenState extends State<RagIngestionScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.green.shade600,
+        backgroundColor: IDPColors.success,
         duration: const Duration(seconds: 3),
       ),
     );
@@ -94,7 +96,7 @@ class _RagIngestionScreenState extends State<RagIngestionScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red.shade600,
+        backgroundColor: IDPColors.error,
         duration: const Duration(seconds: 4),
       ),
     );
@@ -103,29 +105,27 @@ class _RagIngestionScreenState extends State<RagIngestionScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('RAG Data Ingestion'),
-        backgroundColor: Colors.blue.shade700,
+        title: const Text('RAG Data Ingestion', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
         elevation: 0,
       ),
       body: RefreshIndicator(
+        color: IDPColors.primary,
         onRefresh: _loadIngestionStatus,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(IDPSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Status card
                 _buildStatusCard(),
-                const SizedBox(height: 20),
-
-                // Ingestion actions
+                const SizedBox(height: IDPSpacing.md),
                 _buildActionsSection(),
-                const SizedBox(height: 20),
-
-                // Results display
+                const SizedBox(height: IDPSpacing.md),
                 if (_lastResult != null) _buildResultsCard(),
                 if (_errorMessage != null) _buildErrorCard(),
               ],
@@ -140,57 +140,53 @@ class _RagIngestionScreenState extends State<RagIngestionScreen> {
     final status = _lastResult;
     final hasData = status != null && status.chunksIngested > 0;
 
-    return Card(
-      elevation: 2,
-      color: hasData ? Colors.green.shade50 : Colors.orange.shade50,
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(
-                  hasData ? Icons.check_circle : Icons.info,
-                  color: hasData ? Colors.green : Colors.orange,
-                  size: 28,
-                ),
-                const SizedBox(width: 12),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      hasData ? 'Data Ingested' : 'No Data Ingested',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: hasData ? Colors.green.shade700 : Colors.orange.shade700,
-                          ),
+    return IDPCard(
+      backgroundColor: hasData
+          ? IDPColors.secondaryContainer.withValues(alpha: 0.5)
+          : IDPColors.primaryContainer.withValues(alpha: 0.5),
+      child: Column(
+
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                hasData ? Icons.check_circle_rounded : Icons.info_rounded,
+                color: hasData ? IDPColors.secondary : IDPColors.warning,
+                size: 28,
+              ),
+              const SizedBox(width: IDPSpacing.md),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    hasData ? 'Data Ingested' : 'No Data Ingested',
+                    style: IDPTypography.titleSmall.copyWith(
+                      color: hasData ? IDPColors.onSecondaryContainer : IDPColors.warning,
                     ),
-                    if (hasData)
-                      Text(
-                        '${status.chunksIngested} chunks available',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Colors.grey.shade600,
-                            ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-            if (hasData) ...[
-              const SizedBox(height: 12),
-              Divider(color: Colors.grey.shade300),
-              const SizedBox(height: 12),
-              _buildStatRow('Courses', status.coursesIngested.toString()),
-              const SizedBox(height: 8),
-              _buildStatRow('Subjects', status.subjectsIngested.toString()),
-              const SizedBox(height: 8),
-              _buildStatRow('Chapters', status.chaptersIngested.toString()),
-              const SizedBox(height: 8),
-              _buildStatRow('Chunks', status.chunksIngested.toString()),
+                  ),
+                  if (hasData)
+                    Text(
+                      '${status.chunksIngested} chunks available',
+                      style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+                    ),
+                ],
+              ),
             ],
+          ),
+          if (hasData) ...[
+            const SizedBox(height: IDPSpacing.md),
+            const Divider(color: IDPColors.divider),
+            const SizedBox(height: IDPSpacing.sm),
+            _buildStatRow('Courses', status.coursesIngested.toString()),
+            const SizedBox(height: IDPSpacing.xs),
+            _buildStatRow('Subjects', status.subjectsIngested.toString()),
+            const SizedBox(height: IDPSpacing.xs),
+            _buildStatRow('Chapters', status.chaptersIngested.toString()),
+            const SizedBox(height: IDPSpacing.xs),
+            _buildStatRow('Chunks', status.chunksIngested.toString()),
           ],
-        ),
+        ],
       ),
     );
   }
@@ -198,6 +194,7 @@ class _RagIngestionScreenState extends State<RagIngestionScreen> {
   Widget _buildStatRow(String label, String value) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+
       children: [
         Text(
           label,

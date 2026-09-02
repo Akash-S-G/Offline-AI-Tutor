@@ -1,6 +1,8 @@
 // ignore_for_file: avoid_print
 
 import 'package:flutter/material.dart';
+import '../../../../core/theme/idp_colors.dart';
+import '../../../../core/widgets/idp_core_widgets.dart';
 
 class ExperimentHistoryScreen extends StatefulWidget {
   final String studentId;
@@ -25,7 +27,6 @@ class _ExperimentHistoryScreenState extends State<ExperimentHistoryScreen> {
     print('[EXPERIMENT_UI] HISTORY_LOAD');
     setState(() => _isLoading = true);
 
-    // Placeholder for GET /experiment-runs/student/{student_id}
     await Future.delayed(const Duration(seconds: 1));
 
     _runs.add({
@@ -43,22 +44,49 @@ class _ExperimentHistoryScreenState extends State<ExperimentHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('My Experiments'),
+        title: const Text('My Experiments', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: IDPColors.primary))
           : ListView.builder(
+              padding: const EdgeInsets.all(IDPSpacing.md),
               itemCount: _runs.length,
               itemBuilder: (context, index) {
                 final run = _runs[index];
-                return ListTile(
-                  leading: const Icon(Icons.history),
-                  title: Text(run['name']),
-                  subtitle: Text('${run['mode']} • ${run['duration']}'),
-                  trailing: Text(
-                    '${run['score']}%',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: IDPSpacing.sm),
+                  child: IDPCard(
+                    child: Row(
+                      children: [
+                        const CircleAvatar(
+                          backgroundColor: IDPColors.primaryContainer,
+                          child: Icon(Icons.science_rounded, color: IDPColors.primary),
+                        ),
+                        const SizedBox(width: IDPSpacing.md),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(run['name'], style: IDPTypography.titleSmall),
+                              const SizedBox(height: IDPSpacing.xs / 2),
+                              Text(
+                                '${run['mode']} • ${run['duration']}',
+                                style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text(
+                          '${run['score']}%',
+                          style: IDPTypography.titleMedium.copyWith(color: IDPColors.secondary),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               },
@@ -66,3 +94,4 @@ class _ExperimentHistoryScreenState extends State<ExperimentHistoryScreen> {
     );
   }
 }
+

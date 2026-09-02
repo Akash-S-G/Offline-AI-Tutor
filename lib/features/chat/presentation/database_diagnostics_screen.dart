@@ -4,6 +4,8 @@ import '../../network/application/connectivity_controller.dart';
 import '../../rag/data/local/rag_repository.dart';
 import '../../course/data/local/app_database.dart';
 import '../../educational/data/educational_database.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 import 'package:sqflite/sqflite.dart';
 
 /// Hidden diagnostics page for rapid field debugging.
@@ -31,7 +33,6 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
     setState(() => _loading = true);
 
     try {
-      // RAG chunk counts
       final ragRepo = RagRepository();
       final appDb = await AppDatabase.instance.database;
 
@@ -39,7 +40,6 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
         await appDb.rawQuery('SELECT COUNT(*) FROM rag_chunks'),
       ) ?? 0;
 
-      // FTS availability
       bool ftsAvailable = false;
       int ftsCount = 0;
       try {
@@ -50,7 +50,6 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
         ftsAvailable = false;
       }
 
-      // Educational database counts
       final eduDb = await EducationalDatabase.database;
       int conceptCount = 0, flashcardCount = 0, chapterCount = 0, quizCount = 0;
       try {
@@ -60,14 +59,11 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
         quizCount = Sqflite.firstIntValue(await eduDb.rawQuery('SELECT COUNT(*) FROM quizzes')) ?? 0;
       } catch (_) {}
 
-      // Educational FTS
       bool eduFtsAvailable = EducationalDatabase.isFullTextSearchAvailable;
 
-      // Discovery
       final discovery = PiHubDiscoveryCoordinator();
       final connectivity = ConnectivityController();
 
-      // SQLite version
       String sqliteVersion = 'unknown';
       try {
         final vRows = await appDb.rawQuery('SELECT sqlite_version()');
@@ -100,21 +96,23 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('System Diagnostics'),
-        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('System Diagnostics', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
+            icon: const Icon(Icons.refresh_rounded, color: IDPColors.primary),
             onPressed: _loadDiagnostics,
           ),
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: IDPColors.primary))
           : ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(IDPSpacing.md),
               children: [
                 _buildSection('Database', [
                   'SQLite Version',
@@ -122,7 +120,7 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
                   'FTS Available',
                   'FTS Row Count',
                 ]),
-                const SizedBox(height: 16),
+                const SizedBox(height: IDPSpacing.md),
                 _buildSection('Educational Content', [
                   'Concepts',
                   'Flashcards',
@@ -130,24 +128,24 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
                   'Quizzes',
                   'Educational FTS',
                 ]),
-                const SizedBox(height: 16),
+                const SizedBox(height: IDPSpacing.md),
                 _buildSection('Network', [
                   'Discovery Nodes',
                   'Best Node',
                   'Connectivity Mode',
                 ]),
                 if (_diagnostics.containsKey('Error')) ...[
-                  const SizedBox(height: 16),
+                  const SizedBox(height: IDPSpacing.md),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(IDPSpacing.md),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      color: IDPColors.errorContainer,
+                      borderRadius: BorderRadius.circular(IDPRadius.defaultRadius),
+                      border: Border.all(color: IDPColors.error.withValues(alpha: 0.3)),
                     ),
                     child: Text(
                       'Error: ${_diagnostics['Error']}',
-                      style: const TextStyle(color: Colors.red, fontSize: 13),
+                      style: IDPTypography.bodyMedium.copyWith(color: IDPColors.onErrorContainer),
                     ),
                   ),
                 ],
@@ -157,31 +155,20 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
   }
 
   Widget _buildSection(String title, List<String> keys) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
-            child: Text(
-              title.toUpperCase(),
-              style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.5,
-              ),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IDPSectionHeader(title: title),
+        const SizedBox(height: IDPSpacing.xs),
+        IDPCard(
+          child: Column(
+            children: keys
+                .where((k) => _diagnostics.containsKey(k))
+                .map((key) => _buildRow(key, _diagnostics[key]))
+                .toList(),
           ),
-          ...keys.where((k) => _diagnostics.containsKey(k)).map((key) => _buildRow(key, _diagnostics[key])),
-          const SizedBox(height: 8),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -191,25 +178,20 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
     final isNegative = valueStr.contains('✗') || valueStr == 'offline' || valueStr == 'None';
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      padding: const EdgeInsets.symmetric(vertical: IDPSpacing.xs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(
-            label,
-            style: const TextStyle(color: Colors.white70, fontSize: 14),
-          ),
+          Text(label, style: IDPTypography.bodyMedium.copyWith(color: IDPColors.textSecondary)),
           Text(
             valueStr,
-            style: TextStyle(
+            style: IDPTypography.bodyMedium.copyWith(
               color: isPositive
-                  ? Colors.greenAccent
+                  ? IDPColors.success
                   : isNegative
-                      ? Colors.redAccent
-                      : Colors.white,
-              fontSize: 14,
+                      ? IDPColors.error
+                      : IDPColors.textPrimary,
               fontWeight: FontWeight.w600,
-              fontFamily: 'monospace',
             ),
           ),
         ],
@@ -217,3 +199,4 @@ class _DatabaseDiagnosticsScreenState extends State<DatabaseDiagnosticsScreen> {
     );
   }
 }
+

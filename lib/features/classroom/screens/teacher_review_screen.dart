@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/classroom_submission.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 
 class TeacherReviewScreen extends StatelessWidget {
   final ClassroomSubmission submission;
@@ -9,29 +11,58 @@ class TeacherReviewScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Submission Review')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      backgroundColor: IDPColors.background,
+      appBar: AppBar(
+        title: const Text('Submission Review', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(IDPSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Student: ${submission.studentName}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Text('Status: ${submission.status}', style: TextStyle(color: Colors.green.shade700, fontWeight: FontWeight.bold)),
-            const Divider(),
-            Text('Completed At: ${submission.completionTime}'),
-            Text('Submitted At: ${submission.submissionTime}'),
-            const SizedBox(height: 16),
-            const Text('Metrics:', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
+            IDPCard(
+              backgroundColor: IDPColors.primaryContainer.withValues(alpha: 0.3),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Student: ${submission.studentName}', style: IDPTypography.titleMedium),
+                  const SizedBox(height: IDPSpacing.xs),
+                  Row(
+                    children: [
+                      const Icon(Icons.check_circle_rounded, color: IDPColors.secondary, size: 18),
+                      const SizedBox(width: IDPSpacing.xs),
+                      Text('Status: ${submission.status}', style: IDPTypography.bodyMedium.copyWith(color: IDPColors.secondary, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: IDPSpacing.md),
+            IDPCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Completed At: ${submission.completionTime}', style: IDPTypography.bodySmall),
+                  const SizedBox(height: IDPSpacing.xs),
+                  Text('Submitted At: ${submission.submissionTime}', style: IDPTypography.bodySmall),
+                ],
+              ),
+            ),
+            const SizedBox(height: IDPSpacing.md),
+            const IDPSectionHeader(title: 'Metrics'),
+            const SizedBox(height: IDPSpacing.sm),
+            IDPCard(
+              child: SizedBox(
+                width: double.infinity,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Score: ${submission.resultMetrics['score'] ?? 0}'),
-                    Text('Time Spent: ${submission.resultMetrics['timeSpentSeconds'] ?? 0} seconds'),
+                    Text('Score: ${submission.resultMetrics['score'] ?? 0}', style: IDPTypography.titleSmall),
+                    const SizedBox(height: IDPSpacing.xs),
+                    Text('Time Spent: ${submission.resultMetrics['timeSpentSeconds'] ?? 0} seconds', style: IDPTypography.bodyMedium.copyWith(color: IDPColors.textSecondary)),
                   ],
                 ),
               ),
@@ -42,3 +73,4 @@ class TeacherReviewScreen extends StatelessWidget {
     );
   }
 }
+

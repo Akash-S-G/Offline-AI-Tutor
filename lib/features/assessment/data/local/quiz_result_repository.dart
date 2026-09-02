@@ -2,11 +2,14 @@ import 'dart:convert';
 
 import '../../domain/quiz_result.dart';
 import '../../../course/data/local/app_database.dart';
+import '../../../network/data/pending_sync_queue_repository.dart';
 
 class QuizResultRepository {
+  final PendingSyncQueueRepository _syncQueue = PendingSyncQueueRepository();
+
   Future<int> saveResult(QuizResult result) async {
     final db = await AppDatabase.instance.database;
-    return await db.insert(
+    final id = await db.insert(
       'quiz_results',
       {
         'chapter_id': result.chapterId,
@@ -16,6 +19,18 @@ class QuizResultRepository {
         'attempted_at': result.attemptedAt.millisecondsSinceEpoch,
       },
     );
+
+    // Enqueue for background sync to PiHub server
+    await _syncQueue.enqueue('quiz_result', {
+      'chapter_id': result.chapterId,
+      'score': result.score,
+      'total_questions': result.totalQuestions,
+      'attempted_at': result.attemptedAt.millisecondsSinceEpoch,
+    });
+    // Attempt non-blocking flush
+    _syncQueue.flushPendingItems();
+
+    return id;
   }
 
   Future<List<QuizResult>> getChapterResults(String chapterId) async {

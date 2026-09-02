@@ -17,7 +17,7 @@ class AppDatabase {
 
     _database = await openDatabase(
       fullPath,
-      version: 17,
+      version: 18,
       onCreate: (db, version) async {
         await _createBaseTables(db);
         await _createRagTables(db);
@@ -35,8 +35,12 @@ class AppDatabase {
         await _createChatMemoryPolicyTables(db);
         await _createContentPackTables(db);
         await _createTranslationCacheTables(db);
+        await _createPendingSyncQueueTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 18) {
+          await _createPendingSyncQueueTable(db);
+        }
         if (oldVersion < 2) {
           await _createRagTables(db);
         }
@@ -500,6 +504,24 @@ class AppDatabase {
     await db.execute('''
       CREATE INDEX IF NOT EXISTS idx_translation_cache_lookup
       ON translation_cache(target_language, artifact_type, source_hash);
+    ''');
+  }
+
+  Future<void> _createPendingSyncQueueTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS pending_sync_queue (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        payload_type TEXT NOT NULL,
+        payload_json TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        retry_count INTEGER NOT NULL DEFAULT 0
+      );
+    ''');
+
+    await db.execute('''
+      CREATE INDEX IF NOT EXISTS idx_pending_sync_queue_status
+      ON pending_sync_queue(status, created_at);
     ''');
   }
 }

@@ -6,6 +6,8 @@ import '../../application/document_loader_service.dart';
 import '../../application/rag_ingestion_service.dart';
 import '../../../course/data/local/course_repository.dart';
 import '../../../course/domain/course_tree.dart';
+import '../../../../core/theme/idp_colors.dart';
+
 
 /// Enhanced RAG ingestion screen supporting both seed data & document discovery
 class DocumentRagIngestionScreen extends StatefulWidget {
@@ -20,6 +22,7 @@ class DocumentRagIngestionScreen extends StatefulWidget {
   State<DocumentRagIngestionScreen> createState() =>
       _DocumentRagIngestionScreenState();
 }
+
 
 class _DocumentRagIngestionScreenState extends State<DocumentRagIngestionScreen> {
   final _ingestionService = RagIngestionService();
@@ -412,11 +415,15 @@ class _DocumentRagIngestionScreenState extends State<DocumentRagIngestionScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: const Text('RAG Document Ingestion'),
-        backgroundColor: Colors.blue.shade700,
+        title: const Text('RAG Document Ingestion', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
+
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../application/offline_tutor_service.dart';
 import '../models/educational_models.dart';
 import 'educational_cards.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 
 /// Shows detailed information about a topic/concept
 /// 
@@ -37,178 +39,136 @@ class _TopicScreenState extends State<TopicScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: Text(widget.concept.name),
+        title: Text(widget.concept.name, style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(IDPSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Definition section
             if (widget.concept.definition != null) ...[
-              Text(
-                'Definition',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Theme.of(context).colorScheme.primaryContainer,
-                ),
-                child: Text(
-                  widget.concept.definition!,
-                  style: Theme.of(context).textTheme.bodyMedium,
+              const IDPSectionHeader(title: 'Definition'),
+              const SizedBox(height: IDPSpacing.sm),
+              IDPCard(
+                backgroundColor: IDPColors.primaryContainer.withValues(alpha: 0.4),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    widget.concept.definition!,
+                    style: IDPTypography.bodyMedium,
+                  ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: IDPSpacing.lg),
             ],
 
             // Examples section
             if (widget.concept.examples != null) ...[
-              Text(
-                'Examples',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(8),
-                  color: Theme.of(context).colorScheme.secondaryContainer,
-                  border: Border.all(
-                    color: Theme.of(context).colorScheme.outline.withOpacity(0.5),
+              const IDPSectionHeader(title: 'Examples'),
+              const SizedBox(height: IDPSpacing.sm),
+              IDPCard(
+                backgroundColor: IDPColors.secondaryContainer.withValues(alpha: 0.4),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Text(
+                    widget.concept.examples!,
+                    style: IDPTypography.bodyMedium,
                   ),
                 ),
-                child: Text(
-                  widget.concept.examples!,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: IDPSpacing.lg),
             ],
 
             // Ask Tutor section
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.help_outline,
-                          color: Theme.of(context).colorScheme.primary,
+            IDPCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const CircleAvatar(
+                        backgroundColor: IDPColors.primaryContainer,
+                        child: Icon(Icons.school_rounded, color: IDPColors.primary),
+                      ),
+                      const SizedBox(width: IDPSpacing.md),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Need Help?', style: IDPTypography.titleSmall),
+                            Text('Ask AI Tutor about ${widget.concept.name}', style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary)),
+                          ],
                         ),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Ask the Tutor',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: IDPSpacing.md),
+                  if (!_showTutorInput) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: IDPColors.primary),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+                        ),
+                        onPressed: () {
+                          setState(() {
+                            _showTutorInput = true;
+                          });
+                        },
+                        icon: const Icon(Icons.help_outline_rounded, color: IDPColors.primary),
+                        label: Text('Ask a Question', style: IDPTypography.labelLarge.copyWith(color: IDPColors.primary)),
+                      ),
+                    ),
+                  ] else ...[
+                    TextField(
+                      controller: _questionController,
+                      maxLines: 4,
+                      decoration: InputDecoration(
+                        hintText: 'Ask your question about ${widget.concept.name}...',
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+                      ),
+                    ),
+                    const SizedBox(height: IDPSpacing.md),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _showTutorInput = false;
+                              _questionController.clear();
+                            });
+                          },
+                          child: const Text('Cancel'),
+                        ),
+                        const SizedBox(width: IDPSpacing.sm),
+                        FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: IDPColors.primary,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(IDPRadius.defaultRadius)),
+                          ),
+                          onPressed: _isLoading ? null : _askTutor,
+                          icon: _isLoading
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                )
+                              : const Icon(Icons.send_rounded),
+                          label: const Text('Get Help'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    if (!_showTutorInput) ...[
-                      Text(
-                        'Have a question about this topic?',
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            setState(() {
-                              _showTutorInput = true;
-                            });
-                          },
-                          icon: const Icon(Icons.edit),
-                          label: const Text('Ask a Question'),
-                        ),
-                      ),
-                    ] else ...[
-                      TextField(
-                        controller: _questionController,
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          hintText: 'Ask your question about ${widget.concept.name}...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          TextButton(
-                            onPressed: () {
-                              setState(() {
-                                _showTutorInput = false;
-                                _questionController.clear();
-                              });
-                            },
-                            child: const Text('Cancel'),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton.icon(
-                            onPressed: _isLoading ? null : _askTutor,
-                            icon: _isLoading
-                                ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        Theme.of(context).colorScheme.onPrimary,
-                                      ),
-                                    ),
-                                  )
-                                : const Icon(Icons.send),
-                            label: const Text('Get Help'),
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
-                ),
+                ],
               ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Actions section
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // TODO: Show related concepts
-                    },
-                    icon: const Icon(Icons.link),
-                    label: const Text('Related Topics'),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      // TODO: Open notes or save for later
-                    },
-                    icon: const Icon(Icons.bookmark_border),
-                    label: const Text('Save'),
-                  ),
-                ),
-              ],
             ),
           ],
         ),
@@ -281,3 +241,4 @@ class _TopicScreenState extends State<TopicScreen> {
     });
   }
 }
+

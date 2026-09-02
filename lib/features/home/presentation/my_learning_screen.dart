@@ -601,8 +601,9 @@ class _MyLearningScreenState extends State<MyLearningScreen> {
                           ),
                         ),
                         child: const Row(
-                          mainAxisAlignment: MainAxisSize.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
+
                             Icon(Icons.psychology, size: 20),
                             SizedBox(width: 8),
                             Text(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../data/educational_repository.dart';
 import '../models/educational_models.dart';
 import 'subject_screen.dart';
+import '../../../core/theme/idp_colors.dart';
+import '../../../core/widgets/idp_core_widgets.dart';
 
 /// Shows all subjects available for a specific grade
 class GradeScreen extends StatefulWidget {
@@ -28,19 +30,23 @@ class _GradeScreenState extends State<GradeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: IDPColors.background,
       appBar: AppBar(
-        title: Text('Grade ${widget.grade.gradeNumber} - Subjects'),
+        title: Text('Grade ${widget.grade.gradeNumber} - Subjects', style: IDPTypography.titleMedium),
+        backgroundColor: IDPColors.surface,
+        foregroundColor: IDPColors.onSurface,
+        elevation: 0,
       ),
       body: FutureBuilder<List<SubjectModel>>(
         future: _subjectsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: IDPColors.primary));
           }
 
           if (snapshot.hasError) {
             return Center(
-              child: Text('Error loading subjects: ${snapshot.error}'),
+              child: Text('Error loading subjects: ${snapshot.error}', style: IDPTypography.bodyMedium.copyWith(color: IDPColors.error)),
             );
           }
 
@@ -51,15 +57,15 @@ class _GradeScreenState extends State<GradeScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.subject,
-                    size: 48,
-                    color: Theme.of(context).colorScheme.outline,
+                  const Icon(
+                    Icons.menu_book_outlined,
+                    size: 56,
+                    color: IDPColors.textHint,
                   ),
-                  const SizedBox(height: 16),
-                  Text(
+                  const SizedBox(height: IDPSpacing.md),
+                  const Text(
                     'No subjects available',
-                    style: Theme.of(context).textTheme.titleMedium,
+                    style: IDPTypography.titleMedium,
                   ),
                 ],
               ),
@@ -67,11 +73,11 @@ class _GradeScreenState extends State<GradeScreen> {
           }
 
           return GridView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(IDPSpacing.md),
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
+              crossAxisSpacing: IDPSpacing.md,
+              mainAxisSpacing: IDPSpacing.md,
             ),
             itemCount: subjects.length,
             itemBuilder: (context, index) {
@@ -93,11 +99,11 @@ class _SubjectCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = subject.colorHex != null
+    final accentColor = subject.colorHex != null
         ? Color(subject.colorHex!)
-        : Theme.of(context).colorScheme.primary;
+        : IDPColors.primary;
 
-    return GestureDetector(
+    return IDPCard(
       onTap: () {
         Navigator.push(
           context,
@@ -106,58 +112,35 @@ class _SubjectCard extends StatelessWidget {
           ),
         );
       },
-      child: Card(
-        elevation: 2,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                color.withOpacity(0.3),
-                color.withOpacity(0.1),
-              ],
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            backgroundColor: accentColor.withValues(alpha: 0.15),
+            radius: 24,
+            child: Icon(Icons.book_rounded, size: 24, color: accentColor),
+          ),
+          const SizedBox(height: IDPSpacing.sm),
+          Text(
+            subject.name,
+            textAlign: TextAlign.center,
+            style: IDPTypography.titleSmall,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (subject.description != null) ...[
+            const SizedBox(height: IDPSpacing.xs / 2),
+            Text(
+              subject.description!,
+              textAlign: TextAlign.center,
+              style: IDPTypography.bodySmall.copyWith(color: IDPColors.textSecondary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.book,
-                size: 32,
-                color: color,
-              ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                child: Text(
-                  subject.name,
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (subject.description != null) ...[
-                const SizedBox(height: 4),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  child: Text(
-                    subject.description!,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+          ],
+        ],
       ),
     );
   }
 }
+
